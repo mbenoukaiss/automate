@@ -1,4 +1,7 @@
 /target
+/Cargo.lock
+/macros/target
+/macros/Cargo.lock
 **/*.rs.bk
 
 /.idea/
