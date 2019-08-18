@@ -1,5 +1,5 @@
 #[macro_use] extern crate log;
-#[macro_use] extern crate dirscod_macros;
+#[macro_use] extern crate automate_proc;
 
 use reqwest::Client;
 use serde::{Serialize, Deserialize};
@@ -17,7 +17,7 @@ macro_rules! get {
     ($client:expr, $dest:expr) => {
         $client.get(api!($dest))
             .header("Authorization", "Bot NjA4NzI5NzIwMTgzNTg2ODM3.XU2syQ.MsPA9roJSfUMeRQneckJAsDg5V8")
-            .header("User-Agent", "DiscordBot (https://github.com/mbenoukaiss/dirscod, 0.1.0)")
+            .header("User-Agent", "DiscordBot (https://github.com/mbenoukaiss/automate, 0.1.0)")
             .send()?
             .json()?
     }
@@ -82,8 +82,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             token: "NjA4NzI5NzIwMTgzNTg2ODM3.XU2syQ.MsPA9roJSfUMeRQneckJAsDg5V8".to_owned(),
                             properties: map! {
                                 "$os" => "linux",
-                                "$browser" => "dirscod",
-                                "$device" => "dirscod"
+                                "$browser" => "automate",
+                                "$device" => "automate"
                             }
                         };
 
@@ -160,7 +160,7 @@ fn setup_logging() -> Result<(), fern::InitError> {
             ))
         })
         .level(log::LevelFilter::Warn)
-        .level_for("dirscod", log::LevelFilter::Trace)
+        .level_for("automate", log::LevelFilter::Trace)
         .chain(std::io::stdout())
         .apply()?;
 
