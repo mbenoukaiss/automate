@@ -1,0 +1,12 @@
+[package]
+name = "dirscod-macros"
+version = "0.1.0"
+authors = ["mbenoukaiss <marwane.benou-kaiss@etu.u-bordeaux.fr>"]
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "1.0.3"
+quote = "1.0.2"
