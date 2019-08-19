@@ -1,7 +1,7 @@
 /target
 /Cargo.lock
-/macros/target
-/macros/Cargo.lock
+/proc/target
+/proc/Cargo.lock
 **/*.rs.bk
 
 /.idea/

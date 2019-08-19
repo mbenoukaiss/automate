@@ -1,7 +1,8 @@
 extern crate proc_macro;
 
 use proc_macro::{TokenStream, TokenTree};
-use syn::{parse_macro_input, DeriveInput};
+use proc_macro2::Ident;
+use syn::{parse_macro_input, DeriveInput, Data, Type};
 use quote::quote;
 
 macro_rules! extract_token {
@@ -25,9 +26,9 @@ enum StructSide {
 impl StructSide {
     fn appropriate_derive(&self) -> TokenStream {
         match self {
-            StructSide::Client => quote!(#[derive(Debug, Serialize)]),
+            StructSide::Client => quote!(#[derive(Debug, AsJson)]),
             StructSide::Server => quote!(#[derive(Debug, Deserialize)]),
-            StructSide::Both => quote!(#[derive(Debug, Serialize, Deserialize)])
+            StructSide::Both => quote!(#[derive(Debug, AsJson, Deserialize)])
         }.into()
     }
 }
@@ -43,8 +44,63 @@ impl From<String> for StructSide {
     }
 }
 
+fn create_json_structure(input: &DeriveInput) -> (String, Vec<&Ident>, Vec<&Ident>) {
+    if let Data::Struct(data_struct) = &input.data {
+        let mut json = String::new();
+        let mut fields = Vec::new();
+        let mut options = Vec::new();
+
+        for field in &data_struct.fields {
+            let ident = field.ident.as_ref().expect("Expected ident for field");
+
+            if let Type::Path(path) = &field.ty {
+                if path.path.segments.len() == 1 && path.path.segments.first().unwrap().ident == "Option" {
+                    options.push(ident);
+                    continue;
+                }
+            }
+
+            json.push_str(&format!(r#""{}":{{}},"#, ident));
+            fields.push(ident);
+        }
+
+        json.pop(); //remove trailing comma
+
+        return (json, fields, options);
+    } else {
+        panic!("AsJson can only be applied to structs"); //Expected struct for proc macros 'object' and 'payload'
+    }
+}
+
+#[proc_macro_derive(AsJson)]
+pub fn as_json(item: TokenStream) -> TokenStream {
+    let input: DeriveInput = parse_macro_input!(item as DeriveInput);
+
+    let name = &input.ident;
+    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
+    let (format, fields, options) = create_json_structure(&input);
+    let quote = quote! {
+           impl #impl_generics AsJson for #name #ty_generics #where_clause {
+               fn as_json(&self) -> String {
+                   let mut json = format!(#format, #(self.#fields.as_json()),*);
+
+                   #(
+                    if let Some(optional) = self.#options {
+                        json.push_str(&format!(r#","{}":{}"#, stringify!(#options), optional.as_json()));
+                    }
+                   )*
+
+                   json
+               }
+           }
+       };
+
+    quote.into()
+}
+
 #[proc_macro_attribute]
-pub fn discord_object(metadata: TokenStream, item: TokenStream) -> TokenStream {
+pub fn object(metadata: TokenStream, item: TokenStream) -> TokenStream {
     let metadata: Vec<TokenTree> = metadata.into_iter().collect();
 
     let side: StructSide = match metadata.len() {
@@ -60,7 +116,7 @@ pub fn discord_object(metadata: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn discord_payload(metadata: TokenStream, item: TokenStream) -> TokenStream {
+pub fn payload(metadata: TokenStream, item: TokenStream) -> TokenStream {
     let metadata: Vec<TokenTree> = metadata.into_iter().collect();
 
     let opcode: u8 = {
@@ -85,7 +141,7 @@ pub fn discord_payload(metadata: TokenStream, item: TokenStream) -> TokenStream 
             }
 
             StructSide::from(extract_token!(Ident in metadata.get(4)))
-        },
+        }
         _ => panic!(PAYLOAD_ERROR)
     };
 
@@ -97,17 +153,18 @@ pub fn discord_payload(metadata: TokenStream, item: TokenStream) -> TokenStream 
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     if let StructSide::Client = side {
-        let q = quote! {
+        let message_from = quote! {
             impl #impl_generics From<#name #ty_generics> for Message #where_clause {
                 fn from(origin: #name #ty_generics) -> Self {
-                    Message::Text(format!(r#"{{"op":{},"d":{}}}"#,
+                    Message::Text(format!(r#"{{"op":{},"d":{{{}}}}}"#,
                         #opcode,
-                        serde_json::to_string(&origin).expect("Failed to serialize payload")
+                        origin.as_json()
                     ))
                 }
             }
         };
-        quote.extend(TokenStream::from(q));
+
+        quote.extend(TokenStream::from(message_from));
     }
 
     quote

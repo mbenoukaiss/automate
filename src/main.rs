@@ -1,11 +1,14 @@
 #[macro_use] extern crate log;
 #[macro_use] extern crate automate_proc;
 
+mod as_json;
+
 use reqwest::Client;
-use serde::{Serialize, Deserialize};
+use serde::Deserialize;
 use ws::{Message, CloseCode};
 use std::io::{Error, ErrorKind};
 use std::collections::HashMap;
+use crate::as_json::AsJson;
 
 macro_rules! api {
     ($dest:expr) => {
@@ -38,12 +41,12 @@ macro_rules! map {
     }}
 }
 
-#[discord_object(server)]
+#[object(server)]
 pub struct Gateway {
     pub url: String
 }
 
-#[discord_object(both)]
+#[object(server)]
 pub struct Payload<D> {
     pub op: u8,
     pub d: D,
@@ -51,15 +54,16 @@ pub struct Payload<D> {
     pub t: Option<String>,
 }
 
-#[discord_payload(op = 10, server)]
+#[payload(op = 10, server)]
 pub struct Hello {
     pub heartbeat_interval: u32
 }
 
-#[discord_payload(op = 2, client)]
+#[payload(op = 2, client)]
 pub struct Identify {
     pub token: String,
-    pub properties: HashMap<String, String>
+    pub properties: HashMap<String, String>,
+    pub compress: Option<bool>
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -84,7 +88,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 "$os" => "linux",
                                 "$browser" => "automate",
                                 "$device" => "automate"
-                            }
+                            },
+                            compress: None
                         };
 
                         out.send(identify);
