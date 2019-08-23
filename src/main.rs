@@ -1,12 +1,14 @@
 extern crate self as automate;
-#[macro_use] extern crate log;
-#[macro_use] extern crate automate_proc;
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate automate_proc;
 
 pub mod models;
 
-pub use as_json::AsJson;
+pub use json::{AsJson, FromJson};
 
-mod as_json;
+mod json;
 
 use reqwest::Client;
 use ws::{Message, CloseCode};
@@ -54,8 +56,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ws::connect(gateway.url, |out| {
         move |msg: Message| {
             if let Message::Text(data) = msg {
-                match find_opcode(&data) {
+                match json_weak_search::<u8>("op", &data) {
                     Ok(0) => {
+                        if let Ok(event_type) = json_weak_search::<String>("t", &data) {
+                            println!("Received ready of type : {}", event_type);
+                        } else {
+                            println!("wtf");
+                        }
+
                         let ready: Payload<Ready> = deserialize!(data);
                         println!("Received ready : {:?}", ready);
                     }
@@ -70,17 +78,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 "$browser" => "automate",
                                 "$device" => "automate"
                             },
-                            compress: None
+                            compress: None,
                         };
 
                         out.send(identify);
-                    },
+                    }
                     Ok(op) => {
                         error!("Unknown opcode received: {}\n{}", op, data);
-                    },
+                    }
                     Err(e) => error!("{}", e)
                 }
-
             } else {
                 out.close_with_reason(CloseCode::Error, "Unknown message type")?;
             }
@@ -92,46 +99,50 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn find_opcode(candidate: &str) -> Result<u8, Error> {
-    //get candidate slice starting at the first digit of the opcode
-    let opcode_begin = {
-        let op_key_end = match candidate.find("\"op\"") {
+/// Searches for a value through the JSON candidate.
+/// The searched value can only be a string or a float/integer.
+fn json_weak_search<T>(key: &str, candidate: &str) -> Result<T, Error> where T: FromJson {
+    //get candidate slice starting at the first character of the value
+    let value_begin = {
+        let key = format!("\"{}\"", key);
+
+        let key_end = match candidate.find(&key) {
             Some(i) => i + 4,
-            None => return Err(Error::new(ErrorKind::InvalidData, "Could not find op key"))
+            None => return Err(Error::new(ErrorKind::InvalidData, "Could not find key"))
         };
 
-        match candidate[op_key_end..].find(char::is_numeric) {
-            Some(i) => &candidate[op_key_end + i..],
-            None => return Err(Error::new(ErrorKind::InvalidData, "Could not find op value"))
+        match candidate[key_end..].find(|c: char| c.is_numeric() || c == '"') {
+            Some(i) => &candidate[key_end + i..],
+            None => return Err(Error::new(ErrorKind::InvalidData, "Could not find value"))
         }
     };
 
-    let mut iter = opcode_begin.chars();
+    let mut iter = value_begin.chars();
 
     let mut prev_index = 0;
 
-    let mut opcode = None;
+    let mut value = None;
 
-    while opcode.is_none() {
+    while value.is_none() {
         if let Some(next) = iter.next() {
-            if !next.is_numeric() {
-                opcode = Some(&opcode_begin[..prev_index]);
+            if next == ',' { //reached the end of the json value
+                value = Some(&value_begin[..prev_index]);
             }
 
             prev_index += 1;
         } else {
-            opcode = Some(&opcode_begin[..prev_index]);
+            value = Some(&value_begin[..prev_index]);
         }
     }
 
-    if let Some(opcode) = opcode {
-        return match opcode.parse::<u8>() {
-            Ok(opcode) => Ok(opcode),
+    if let Some(value) = value {
+        return match T::from_json(value) {
+            Ok(value) => Ok(value),
             Err(e) => Err(Error::new(ErrorKind::InvalidData, e))
         };
     }
 
-    Err(Error::new(ErrorKind::InvalidData, "Failed to find opcode"))
+    Err(Error::new(ErrorKind::InvalidData, "Failed to find key"))
 }
 
 fn setup_logging() -> Result<(), fern::InitError> {
