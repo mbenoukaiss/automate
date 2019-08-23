@@ -1,14 +1,17 @@
+extern crate self as automate;
 #[macro_use] extern crate log;
 #[macro_use] extern crate automate_proc;
+
+pub mod models;
+
+pub use as_json::AsJson;
 
 mod as_json;
 
 use reqwest::Client;
-use serde::Deserialize;
 use ws::{Message, CloseCode};
 use std::io::{Error, ErrorKind};
-use std::collections::HashMap;
-use crate::as_json::AsJson;
+use crate::models::{Payload, Ready, Hello, Identify, Gateway};
 
 macro_rules! api {
     ($dest:expr) => {
@@ -19,7 +22,7 @@ macro_rules! api {
 macro_rules! get {
     ($client:expr, $dest:expr) => {
         $client.get(api!($dest))
-            .header("Authorization", "Bot NjA4NzI5NzIwMTgzNTg2ODM3.XU2syQ.MsPA9roJSfUMeRQneckJAsDg5V8")
+            .header("Authorization", "Bot NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY")
             .header("User-Agent", "DiscordBot (https://github.com/mbenoukaiss/automate, 0.1.0)")
             .send()?
             .json()?
@@ -41,31 +44,6 @@ macro_rules! map {
     }}
 }
 
-#[object(server)]
-pub struct Gateway {
-    pub url: String
-}
-
-#[object(server)]
-pub struct Payload<D> {
-    pub op: u8,
-    pub d: D,
-    pub s: Option<u32>,
-    pub t: Option<String>,
-}
-
-#[payload(op = 10, server)]
-pub struct Hello {
-    pub heartbeat_interval: u32
-}
-
-#[payload(op = 2, client)]
-pub struct Identify {
-    pub token: String,
-    pub properties: HashMap<String, String>,
-    pub compress: Option<bool>
-}
-
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     setup_logging()?;
 
@@ -77,13 +55,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         move |msg: Message| {
             if let Message::Text(data) = msg {
                 match find_opcode(&data) {
+                    Ok(0) => {
+                        let ready: Payload<Ready> = deserialize!(data);
+                        println!("Received ready : {:?}", ready);
+                    }
                     Ok(10) => {
                         let hello: Payload<Hello> = deserialize!(data);
-
                         println!("Received hello : {:?}", hello);
 
                         let identify = Identify {
-                            token: "NjA4NzI5NzIwMTgzNTg2ODM3.XU2syQ.MsPA9roJSfUMeRQneckJAsDg5V8".to_owned(),
+                            token: "NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY".to_owned(),
                             properties: map! {
                                 "$os" => "linux",
                                 "$browser" => "automate",
