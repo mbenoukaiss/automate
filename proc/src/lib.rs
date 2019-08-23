@@ -27,8 +27,8 @@ impl StructSide {
     fn appropriate_derive(&self) -> TokenStream {
         match self {
             StructSide::Client => quote!(#[derive(Debug, AsJson)]),
-            StructSide::Server => quote!(#[derive(Debug, Deserialize)]),
-            StructSide::Both => quote!(#[derive(Debug, AsJson, Deserialize)])
+            StructSide::Server => quote!(#[derive(Debug, ::serde::Deserialize)]),
+            StructSide::Both => quote!(#[derive(Debug, AsJson, ::serde::Deserialize)])
         }.into()
     }
 }
@@ -81,13 +81,13 @@ pub fn as_json(item: TokenStream) -> TokenStream {
 
     let (format, fields, options) = create_json_structure(&input);
     let quote = quote! {
-           impl #impl_generics AsJson for #name #ty_generics #where_clause {
+           impl #impl_generics ::automate::AsJson for #name #ty_generics #where_clause {
                fn as_json(&self) -> String {
-                   let mut json = format!(#format, #(self.#fields.as_json()),*);
+                   let mut json = format!(#format, #(::automate::AsJson::as_json(&self.#fields)),*);
 
                    #(
                     if let Some(optional) = self.#options {
-                        json.push_str(&format!(r#","{}":{}"#, stringify!(#options), optional.as_json()));
+                        json.push_str(&format!(r#","{}":{}"#, stringify!(#options), ::automate::AsJson::as_json(&optional)));
                     }
                    )*
 
@@ -154,11 +154,11 @@ pub fn payload(metadata: TokenStream, item: TokenStream) -> TokenStream {
 
     if let StructSide::Client = side {
         let message_from = quote! {
-            impl #impl_generics From<#name #ty_generics> for Message #where_clause {
+            impl #impl_generics From<#name #ty_generics> for ::ws::Message #where_clause {
                 fn from(origin: #name #ty_generics) -> Self {
-                    Message::Text(format!(r#"{{"op":{},"d":{{{}}}}}"#,
+                    ::ws::Message::Text(format!(r#"{{"op":{},"d":{{{}}}}}"#,
                         #opcode,
-                        origin.as_json()
+                        ::automate::AsJson::as_json(&origin)
                     ))
                 }
             }
