@@ -1,8 +1,9 @@
+#![feature(test)]
+
 extern crate self as automate;
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate automate_proc;
+extern crate test;
+#[macro_use] extern crate log;
+#[macro_use] extern crate automate_proc;
 
 pub mod models;
 
@@ -46,7 +47,7 @@ macro_rules! map {
     }}
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+pub fn launch() -> Result<(), Box<dyn std::error::Error>> {
     setup_logging()?;
 
     let client = Client::new();

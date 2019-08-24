@@ -44,9 +44,9 @@ impl From<String> for StructSide {
     }
 }
 
-fn create_json_structure(input: &DeriveInput) -> (String, Vec<&Ident>, Vec<&Ident>) {
+fn extract_fields(input: &DeriveInput) -> (Vec<&Ident>, Vec<&Ident>, usize) {
     if let Data::Struct(data_struct) = &input.data {
-        let mut json = String::new();
+        let mut recommended_size = 0;
         let mut fields = Vec::new();
         let mut options = Vec::new();
 
@@ -55,18 +55,18 @@ fn create_json_structure(input: &DeriveInput) -> (String, Vec<&Ident>, Vec<&Iden
 
             if let Type::Path(path) = &field.ty {
                 if path.path.segments.len() == 1 && path.path.segments.first().unwrap().ident == "Option" {
+                    recommended_size += ident.to_string().len() / 2 + 5;
                     options.push(ident);
                     continue;
                 }
             }
 
-            json.push_str(&format!(r#""{}":{{}},"#, ident));
+            recommended_size += ident.to_string().len() + 5;
+
             fields.push(ident);
         }
 
-        json.pop(); //remove trailing comma
-
-        return (json, fields, options);
+        return (fields, options, recommended_size);
     } else {
         panic!("AsJson can only be applied to structs"); //Expected struct for proc macros 'object' and 'payload'
     }
@@ -79,19 +79,47 @@ pub fn as_json(item: TokenStream) -> TokenStream {
     let name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
-    let (format, fields, options) = create_json_structure(&input);
+    let (fields, options, recommended_size) = extract_fields(&input);
+
     let quote = quote! {
            impl #impl_generics ::automate::AsJson for #name #ty_generics #where_clause {
                fn as_json(&self) -> String {
-                   let mut json = format!(#format, #(::automate::AsJson::as_json(&self.#fields)),*);
+                   let mut json = String::with_capacity(#recommended_size);
+                   json.push('{');
+
+                   #(
+                    json.push_str(concat!("\"", stringify!(#fields), "\":"));
+                    ::automate::AsJson::concat_json(&self.#fields, &mut json);
+                   )*
 
                    #(
                     if let Some(optional) = self.#options {
-                        json.push_str(&format!(r#","{}":{}"#, stringify!(#options), ::automate::AsJson::as_json(&optional)));
+                        json.push_str(concat!("\"", stringify!(#fields), "\":"));
+                        ::automate::AsJson::concat_json(&self.#fields, &mut json);
                     }
                    )*
 
+                   json.push('}');
+
                    json
+               }
+
+               fn concat_json(&self, dest: &mut String) {
+                   dest.push('{');
+
+                   #(
+                    dest.push_str(concat!("\"", stringify!(#fields), "\":"));
+                    ::automate::AsJson::concat_json(&self.#fields, dest);
+                   )*
+
+                   #(
+                    if let Some(optional) = self.#options {
+                        dest.push_str(concat!("\"", stringify!(#fields), "\":"));
+                        ::automate::AsJson::concat_json(&self.#fields, dest);
+                    }
+                   )*
+
+                   dest.push('}');
                }
            }
        };

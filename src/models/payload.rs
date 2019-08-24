@@ -20,6 +20,7 @@ pub struct Ready {
 }
 
 #[payload(op = 2, client)]
+#[derive(::serde::Serialize)]
 pub struct Identify {
     pub token: String,
     pub properties: HashMap<String, String>,
