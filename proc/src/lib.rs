@@ -95,9 +95,9 @@ pub fn as_json(item: TokenStream) -> TokenStream {
                 )*
 
                 #(
-                 if let Some(optional) = self.#options {
-                     json.push_str(concat!("\"", stringify!(#fields), "\":"));
-                     ::automatea::AsJson::concat_json(&self.#fields, &mut json);
+                 if let Some(optional) = &self.#options {
+                     json.push_str(concat!("\"", stringify!(#options), "\":"));
+                     ::automatea::AsJson::concat_json(optional, &mut json);
                      json.push(',');
                  }
                 )*
@@ -119,9 +119,9 @@ pub fn as_json(item: TokenStream) -> TokenStream {
                 )*
 
                 #(
-                 if let Some(optional) = self.#options {
-                     dest.push_str(concat!("\"", stringify!(#fields), "\":"));
-                     ::automatea::AsJson::concat_json(&self.#fields, dest);
+                 if let Some(optional) = &self.#options {
+                     dest.push_str(concat!("\"", stringify!(#options), "\":"));
+                     ::automatea::AsJson::concat_json(optional, dest);
                      dest.push(',');
                  }
                 )*
