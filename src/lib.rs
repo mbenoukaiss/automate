@@ -1,9 +1,9 @@
 #![feature(test)]
 
-extern crate self as automate;
+extern crate self as automatea;
 extern crate test;
 #[macro_use] extern crate log;
-#[macro_use] extern crate automate_proc;
+#[macro_use] extern crate automatea_proc;
 
 pub mod models;
 
@@ -13,7 +13,6 @@ mod json;
 
 use reqwest::Client;
 use ws::{Message, CloseCode};
-use std::io::{Error, ErrorKind};
 use crate::models::{Payload, Ready, Hello, Identify, Gateway};
 
 macro_rules! api {
@@ -26,7 +25,7 @@ macro_rules! get {
     ($client:expr, $dest:expr) => {
         $client.get(api!($dest))
             .header("Authorization", "Bot NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY")
-            .header("User-Agent", "DiscordBot (https://github.com/mbenoukaiss/automate, 0.1.0)")
+            .header("User-Agent", "DiscordBot (https://github.com/mbenoukaiss/automatea, 0.1.0)")
             .send()?
             .json()?
     }
@@ -57,9 +56,9 @@ pub fn launch() -> Result<(), Box<dyn std::error::Error>> {
     ws::connect(gateway.url, |out| {
         move |msg: Message| {
             if let Message::Text(data) = msg {
-                match json_weak_search::<u8>("op", &data) {
+                match json::json_root_search::<u8>("op", &data) {
                     Ok(0) => {
-                        if let Ok(event_type) = json_weak_search::<String>("t", &data) {
+                        if let Ok(event_type) = json::json_root_search::<String>("t", &data) {
                             println!("Received ready of type : {}", event_type);
                         } else {
                             println!("wtf");
@@ -76,8 +75,8 @@ pub fn launch() -> Result<(), Box<dyn std::error::Error>> {
                             token: "NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY".to_owned(),
                             properties: map! {
                                 "$os" => "linux",
-                                "$browser" => "automate",
-                                "$device" => "automate"
+                                "$browser" => "automatea",
+                                "$device" => "automatea"
                             },
                             compress: None,
                         };
@@ -100,52 +99,6 @@ pub fn launch() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Searches for a value through the JSON candidate.
-/// The searched value can only be a string or a float/integer.
-fn json_weak_search<T>(key: &str, candidate: &str) -> Result<T, Error> where T: FromJson {
-    //get candidate slice starting at the first character of the value
-    let value_begin = {
-        let key = format!("\"{}\"", key);
-
-        let key_end = match candidate.find(&key) {
-            Some(i) => i + 4,
-            None => return Err(Error::new(ErrorKind::InvalidData, "Could not find key"))
-        };
-
-        match candidate[key_end..].find(|c: char| c.is_numeric() || c == '"') {
-            Some(i) => &candidate[key_end + i..],
-            None => return Err(Error::new(ErrorKind::InvalidData, "Could not find value"))
-        }
-    };
-
-    let mut iter = value_begin.chars();
-
-    let mut prev_index = 0;
-
-    let mut value = None;
-
-    while value.is_none() {
-        if let Some(next) = iter.next() {
-            if next == ',' { //reached the end of the json value
-                value = Some(&value_begin[..prev_index]);
-            }
-
-            prev_index += 1;
-        } else {
-            value = Some(&value_begin[..prev_index]);
-        }
-    }
-
-    if let Some(value) = value {
-        return match T::from_json(value) {
-            Ok(value) => Ok(value),
-            Err(e) => Err(Error::new(ErrorKind::InvalidData, e))
-        };
-    }
-
-    Err(Error::new(ErrorKind::InvalidData, "Failed to find key"))
-}
-
 fn setup_logging() -> Result<(), fern::InitError> {
     fern::Dispatch::new()
         .format(move |out, message, record| {
@@ -158,7 +111,7 @@ fn setup_logging() -> Result<(), fern::InitError> {
             ))
         })
         .level(log::LevelFilter::Warn)
-        .level_for("automate", log::LevelFilter::Trace)
+        .level_for("automatea", log::LevelFilter::Trace)
         .chain(std::io::stdout())
         .apply()?;
 
