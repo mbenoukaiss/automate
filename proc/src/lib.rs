@@ -82,53 +82,55 @@ pub fn as_json(item: TokenStream) -> TokenStream {
     let (fields, options, recommended_size) = extract_fields(&input);
 
     let quote = quote! {
-           impl #impl_generics ::automatea::AsJson for #name #ty_generics #where_clause {
-               fn as_json(&self) -> String {
-                   let mut json = String::with_capacity(#recommended_size);
-                   json.push('{');
+        impl #impl_generics ::automatea::AsJson for #name #ty_generics #where_clause {
+            #[inline]
+            fn as_json(&self) -> String {
+                let mut json = String::with_capacity(#recommended_size);
+                json.push('{');
 
-                   #(
-                    json.push_str(concat!("\"", stringify!(#fields), "\":"));
-                    ::automatea::AsJson::concat_json(&self.#fields, &mut json);
-                    json.push(',');
-                   )*
+                #(
+                 json.push_str(concat!("\"", stringify!(#fields), "\":"));
+                 ::automatea::AsJson::concat_json(&self.#fields, &mut json);
+                 json.push(',');
+                )*
 
-                   #(
-                    if let Some(optional) = self.#options {
-                        json.push_str(concat!("\"", stringify!(#fields), "\":"));
-                        ::automatea::AsJson::concat_json(&self.#fields, &mut json);
-                        json.push(',');
-                    }
-                   )*
+                #(
+                 if let Some(optional) = self.#options {
+                     json.push_str(concat!("\"", stringify!(#fields), "\":"));
+                     ::automatea::AsJson::concat_json(&self.#fields, &mut json);
+                     json.push(',');
+                 }
+                )*
 
-                   json.pop(); //remove last comma
-                   json.push('}');
+                json.pop(); //remove last comma
+                json.push('}');
 
-                   json
-               }
+                json
+            }
 
-               fn concat_json(&self, dest: &mut String) {
-                   dest.push('{');
+            #[inline]
+            fn concat_json(&self, dest: &mut String) {
+                dest.push('{');
 
-                   #(
-                    dest.push_str(concat!("\"", stringify!(#fields), "\":"));
-                    ::automatea::AsJson::concat_json(&self.#fields, dest);
-                    dest.push(',');
-                   )*
+                #(
+                 dest.push_str(concat!("\"", stringify!(#fields), "\":"));
+                 ::automatea::AsJson::concat_json(&self.#fields, dest);
+                 dest.push(',');
+                )*
 
-                   #(
-                    if let Some(optional) = self.#options {
-                        dest.push_str(concat!("\"", stringify!(#fields), "\":"));
-                        ::automatea::AsJson::concat_json(&self.#fields, dest);
-                        dest.push(',');
-                    }
-                   )*
+                #(
+                 if let Some(optional) = self.#options {
+                     dest.push_str(concat!("\"", stringify!(#fields), "\":"));
+                     ::automatea::AsJson::concat_json(&self.#fields, dest);
+                     dest.push(',');
+                 }
+                )*
 
-                   dest.pop(); //remove last comma
-                   dest.push('}');
-               }
-           }
-       };
+                dest.pop(); //remove last comma
+                dest.push('}');
+            }
+        }
+    };
 
     quote.into()
 }

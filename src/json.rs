@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::str::FromStr;
-use std::fmt::{Display, Formatter, Error, Debug};
+use std::fmt::{Display, Formatter, Error, Debug, Write};
 
 /// A data structure that can be represented in a
 /// JSON string.
@@ -93,16 +93,24 @@ macro_rules! impl_json_for_num {
     ( $($ty:ty),* ) => (
         $(
             impl AsJson for $ty {
+                #[inline]
                 fn as_json(&self) -> String {
                     self.to_string()
                 }
 
+                #[allow(unused_must_use)]
+                #[inline]
                 fn concat_json(&self, dest: &mut String) {
-                    dest.push_str(&self.to_string());
+                    #[cfg(feature = "squeeze_performance")]
+                    dest.write_fmt(format_args!("{}", self));
+
+                    #[cfg(not(feature = "squeeze_performance"))]
+                    dest.write_fmt(format_args!("{}", self)).expect("A Display implementation returned an error unexpectedly");
                 }
             }
 
             impl FromJson for $ty {
+                #[inline]
                 fn from_json(json: &str) -> Result<$ty, JsonError> {
                     <$ty>::from_str(json)
                         .map_err(|_| JsonError::new(format!("Failed to parse {} into {}", json, stringify!($ty))))
@@ -116,28 +124,33 @@ macro_rules! impl_json_for_large_num {
     ( $($ty:ty),* ) => (
         $(
             impl AsJson for $ty {
+                #[allow(unused_must_use)]
+                #[inline]
                 fn as_json(&self) -> String {
-                    let as_string = self.to_string();
+                    let mut string = String::new();
 
-                    let mut string = String::with_capacity(as_string.len() + 2);
-                    string.push('"');
-                    string.push_str(&as_string);
-                    string.push('"');
+                    #[cfg(feature = "squeeze_performance")]
+                    string.write_fmt(format_args!("\"{}\"", self));
+
+                    #[cfg(not(feature = "squeeze_performance"))]
+                    string.write_fmt(format_args!("\"{}\"", self)).expect("A Display implementation returned an error unexpectedly");
 
                     string
                 }
 
+                #[allow(unused_must_use)]
+                #[inline]
                 fn concat_json(&self, dest: &mut String) {
-                    let as_string = self.to_string();
+                    #[cfg(feature = "squeeze_performance")]
+                    dest.write_fmt(format_args!("\"{}\"", self));
 
-                    dest.reserve(as_string.len() + 2);
-                    dest.push('"');
-                    dest.push_str(&as_string);
-                    dest.push('"');
+                    #[cfg(not(feature = "squeeze_performance"))]
+                    dest.write_fmt(format_args!("\"{}\"", self)).expect("A Display implementation returned an error unexpectedly");
                 }
             }
 
             impl FromJson for $ty {
+                #[inline]
                 fn from_json(json: &str) -> Result<$ty, JsonError> {
                     if json.len() >= 2 && json.chars().next().unwrap() == '"' && json.chars().last().unwrap() == '"' {
                         <$ty>::from_str(&json[1..json.len()-1])
@@ -165,8 +178,9 @@ impl_json_for_large_num! {
 }
 
 impl AsJson for String {
+    #[inline]
     fn as_json(&self) -> String {
-        let mut string = String::with_capacity(self.len() + 3);
+        let mut string = String::with_capacity(self.len() + 2);
         string.push('"');
         string.push_str(&self);
         string.push('"');
@@ -174,8 +188,9 @@ impl AsJson for String {
         string
     }
 
+    #[inline]
     fn concat_json(&self, dest: &mut String) {
-        dest.reserve(self.len() + 3);
+        dest.reserve(self.len() + 2);
         dest.push('"');
         dest.push_str(&self);
         dest.push('"');
@@ -183,6 +198,7 @@ impl AsJson for String {
 }
 
 impl FromJson for String {
+    #[inline]
     fn from_json(json: &str) -> Result<String, JsonError> {
         if json.len() >= 2 && json.chars().next().unwrap() == '"' && json.chars().last().unwrap() == '"' {
             Ok(String::from(&json[1..json.len() - 1]))
@@ -193,6 +209,7 @@ impl FromJson for String {
 }
 
 impl AsJson for &str {
+    #[inline]
     fn as_json(&self) -> String {
         let mut string = String::with_capacity(self.len() + 3);
         string.push('"');
@@ -202,6 +219,7 @@ impl AsJson for &str {
         string
     }
 
+    #[inline]
     fn concat_json(&self, dest: &mut String) {
         dest.reserve(self.len() + 3);
         dest.push('"');
@@ -211,6 +229,7 @@ impl AsJson for &str {
 }
 
 impl<J> AsJson for Vec<J> where J: AsJson {
+    #[inline]
     fn as_json(&self) -> String {
         let mut json = String::from("[");
 
@@ -225,6 +244,7 @@ impl<J> AsJson for Vec<J> where J: AsJson {
         json
     }
 
+    #[inline]
     fn concat_json(&self, dest: &mut String) {
         dest.push('[');
 
@@ -239,6 +259,7 @@ impl<J> AsJson for Vec<J> where J: AsJson {
 }
 
 impl<J, K> AsJson for HashMap<J, K> where J: AsJson, K: AsJson {
+    #[inline]
     fn as_json(&self) -> String {
         let mut json = String::from("{");
 
@@ -255,6 +276,7 @@ impl<J, K> AsJson for HashMap<J, K> where J: AsJson, K: AsJson {
         json
     }
 
+    #[inline]
     fn concat_json(&self, dest: &mut String) {
         dest.push('{');
 
