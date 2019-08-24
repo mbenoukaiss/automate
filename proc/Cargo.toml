@@ -1,5 +1,5 @@
 [package]
-name = "automate-proc"
+name = "automatea-proc"
 version = "0.1.0"
 authors = ["mbenoukaiss <marwane.benou-kaiss@etu.u-bordeaux.fr>"]
 edition = "2018"

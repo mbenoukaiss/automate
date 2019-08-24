@@ -82,23 +82,26 @@ pub fn as_json(item: TokenStream) -> TokenStream {
     let (fields, options, recommended_size) = extract_fields(&input);
 
     let quote = quote! {
-           impl #impl_generics ::automate::AsJson for #name #ty_generics #where_clause {
+           impl #impl_generics ::automatea::AsJson for #name #ty_generics #where_clause {
                fn as_json(&self) -> String {
                    let mut json = String::with_capacity(#recommended_size);
                    json.push('{');
 
                    #(
                     json.push_str(concat!("\"", stringify!(#fields), "\":"));
-                    ::automate::AsJson::concat_json(&self.#fields, &mut json);
+                    ::automatea::AsJson::concat_json(&self.#fields, &mut json);
+                    json.push(',');
                    )*
 
                    #(
                     if let Some(optional) = self.#options {
                         json.push_str(concat!("\"", stringify!(#fields), "\":"));
-                        ::automate::AsJson::concat_json(&self.#fields, &mut json);
+                        ::automatea::AsJson::concat_json(&self.#fields, &mut json);
+                        json.push(',');
                     }
                    )*
 
+                   json.pop(); //remove last comma
                    json.push('}');
 
                    json
@@ -109,16 +112,19 @@ pub fn as_json(item: TokenStream) -> TokenStream {
 
                    #(
                     dest.push_str(concat!("\"", stringify!(#fields), "\":"));
-                    ::automate::AsJson::concat_json(&self.#fields, dest);
+                    ::automatea::AsJson::concat_json(&self.#fields, dest);
+                    dest.push(',');
                    )*
 
                    #(
                     if let Some(optional) = self.#options {
                         dest.push_str(concat!("\"", stringify!(#fields), "\":"));
-                        ::automate::AsJson::concat_json(&self.#fields, dest);
+                        ::automatea::AsJson::concat_json(&self.#fields, dest);
+                        dest.push(',');
                     }
                    )*
 
+                   dest.pop(); //remove last comma
                    dest.push('}');
                }
            }
@@ -186,7 +192,7 @@ pub fn payload(metadata: TokenStream, item: TokenStream) -> TokenStream {
                 fn from(origin: #name #ty_generics) -> Self {
                     ::ws::Message::Text(format!(r#"{{"op":{},"d":{{{}}}}}"#,
                         #opcode,
-                        ::automate::AsJson::as_json(&origin)
+                        ::automatea::AsJson::as_json(&origin)
                     ))
                 }
             }
