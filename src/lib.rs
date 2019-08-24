@@ -9,7 +9,7 @@ pub mod models;
 
 pub use json::{AsJson, FromJson};
 
-mod json;
+pub mod json;
 
 use reqwest::Client;
 use ws::{Message, CloseCode};

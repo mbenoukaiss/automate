@@ -447,7 +447,6 @@ mod tests {
     }
 }
 
-#[cfg(test)]
 mod benchmarks {
     use super::*;
     use serde::Serialize;
@@ -484,17 +483,92 @@ mod benchmarks {
         }
     }
 
-    #[bench]
-    fn bench_serde(b: &mut Bencher) {
-        let something = Something::create();
+    #[derive(Serialize, AsJson)]
+    struct Short {
+        a: u8,
+        b: u16,
+        c: u32,
+    }
 
+    impl Short {
+        fn create() -> Short {
+            Short {
+                a: 0,
+                b: 1,
+                c: 2,
+            }
+        }
+    }
+
+    #[derive(Serialize, AsJson)]
+    struct LongStr {
+        first: String,
+        second: String,
+    }
+
+    impl LongStr {
+        fn create() -> LongStr {
+            let mut first = String::new();
+            let mut second = String::new();
+
+            for _ in 0..500 {
+                first.push_str("abc");
+                second.push_str("d");
+            }
+
+            LongStr {
+                first,
+                second,
+            }
+        }
+    }
+
+    #[derive(Serialize, AsJson)]
+    struct Options {
+        first: Option<String>,
+        second: Option<u32>,
+        third: Option<String>,
+        fourth: Option<u8>,
+    }
+
+    impl Options {
+        fn all_some() -> Options {
+            Options {
+                first: Some(String::from("I am some!")),
+                second: Some(37),
+                third: Some(String::from("Me too...")),
+                fourth: Some(250)
+            }
+        }
+
+        fn half_some() -> Options {
+            Options {
+                first: Some(String::from("I am some!")),
+                second: Some(37),
+                third: None,
+                fourth: None
+            }
+        }
+
+        fn no_some() -> Options {
+            Options {
+                first: None,
+                second: None,
+                third: None,
+                fourth: None
+            }
+        }
+    }
+
+    #[bench]
+    fn bench_json_root_search(b: &mut Bencher) {
         b.iter(|| {
-            serde_json::to_string(&something).unwrap();
+            json_root_search::<String>("second", r#"{"first":123,"second":"Hello","third":-78}"#).unwrap();
         });
     }
 
     #[bench]
-    fn bench_automatea(b: &mut Bencher) {
+    fn bench_serializer_average_automatea(b: &mut Bencher) {
         let something = Something::create();
 
         b.iter(|| {
@@ -503,9 +577,185 @@ mod benchmarks {
     }
 
     #[bench]
-    fn bench_json_root_search(b: &mut Bencher) {
+    fn bench_serializer_average_serde(b: &mut Bencher) {
+        let something = Something::create();
+
         b.iter(|| {
-            json_root_search::<String>("second", r#"{"first":123,"second":"Hello","third":-78}"#).unwrap();
+            serde_json::to_string(&something).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_serializer_short_automatea(b: &mut Bencher) {
+        let short = Short::create();
+
+        b.iter(|| {
+            short.as_json();
+        });
+    }
+
+    #[bench]
+    fn bench_serializer_short_serde(b: &mut Bencher) {
+        let short = Short::create();
+
+        b.iter(|| {
+            serde_json::to_string(&short).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_serializer_long_string_automatea(b: &mut Bencher) {
+        let long_str = LongStr::create();
+
+        b.iter(|| {
+            long_str.as_json();
+        });
+    }
+
+    #[bench]
+    fn bench_serializer_long_string_serde(b: &mut Bencher) {
+        let long_str = LongStr::create();
+
+        b.iter(|| {
+            serde_json::to_string(&long_str).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_serializer_empty_hashmap_automatea(b: &mut Bencher) {
+        let map: HashMap<String, String> = HashMap::new();
+
+        b.iter(|| {
+            map.as_json();
+        });
+    }
+
+    #[bench]
+    fn bench_serializer_empty_hashmap_serde(b: &mut Bencher) {
+        let map: HashMap<String, String> = HashMap::new();
+
+        b.iter(|| {
+            serde_json::to_string(&map).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_serializer_full_hashmap_automatea(b: &mut Bencher) {
+        let mut map: HashMap<String, String> = HashMap::new();
+        for _ in 0..500 {
+            map.insert(String::from("hello"), String::from("world"));
+        }
+
+        b.iter(|| {
+            map.as_json();
+        });
+    }
+
+    #[bench]
+    fn bench_serializer_full_hashmap_serde(b: &mut Bencher) {
+        let mut map: HashMap<String, String> = HashMap::new();
+        for _ in 0..500 {
+            map.insert(String::from("hello"), String::from("world"));
+        }
+
+        b.iter(|| {
+            serde_json::to_string(&map).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_serializer_empty_vec_automatea(b: &mut Bencher) {
+        let vec: Vec<String> = Vec::new();
+
+        b.iter(|| {
+            vec.as_json();
+        });
+    }
+
+    #[bench]
+    fn bench_serializer_empty_vec_serde(b: &mut Bencher) {
+        let vec: Vec<String> = Vec::new();
+
+        b.iter(|| {
+            serde_json::to_string(&vec).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_serializer_full_vec_automatea(b: &mut Bencher) {
+        let mut vec: Vec<String> = Vec::new();
+        for _ in 0..500 {
+            vec.push(String::from("hello world"));
+        }
+
+        b.iter(|| {
+            vec.as_json();
+        });
+    }
+
+    #[bench]
+    fn bench_serializer_full_vec_serde(b: &mut Bencher) {
+        let mut vec: Vec<String> = Vec::new();
+        for _ in 0..500 {
+            vec.push(String::from("hello world"));
+        }
+
+        b.iter(|| {
+            serde_json::to_string(&vec).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_serializer_options_all_some_automatea(b: &mut Bencher) {
+        let options = Options::all_some();
+
+        b.iter(|| {
+            options.as_json();
+        });
+    }
+
+    #[bench]
+    fn bench_serializer_options_all_some_serde(b: &mut Bencher) {
+        let options = Options::all_some();
+
+        b.iter(|| {
+            serde_json::to_string(&options).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_serializer_options_half_some_automatea(b: &mut Bencher) {
+        let options = Options::half_some();
+
+        b.iter(|| {
+            options.as_json();
+        });
+    }
+
+    #[bench]
+    fn bench_serializer_options_half_some_serde(b: &mut Bencher) {
+        let options = Options::half_some();
+
+        b.iter(|| {
+            serde_json::to_string(&options).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_serializer_options_no_some_automatea(b: &mut Bencher) {
+        let options = Options::no_some();
+
+        b.iter(|| {
+            options.as_json();
+        });
+    }
+
+    #[bench]
+    fn bench_serializer_options_no_some_serde(b: &mut Bencher) {
+        let options = Options::no_some();
+
+        b.iter(|| {
+            serde_json::to_string(&options).unwrap();
         });
     }
 }
