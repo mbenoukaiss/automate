@@ -1,6 +1,9 @@
-use std::collections::HashMap;
+use std::collections::{VecDeque, LinkedList, HashMap, BTreeMap, HashSet, BTreeSet};
 use std::str::FromStr;
 use std::fmt::{Display, Formatter, Error, Debug, Write};
+use std::hash::Hash;
+use std::mem::MaybeUninit;
+use url::{Url, ParseError};
 
 /// A data structure that can be represented in a
 /// JSON string.
@@ -69,10 +72,12 @@ pub struct JsonError {
 
 impl JsonError {
     pub fn new<S>(msg: S) -> JsonError where S: Into<String> {
+        panic!("{}", msg.into());
         JsonError { msg: msg.into() }
     }
 
     pub fn err<S, T>(msg: S) -> Result<T, JsonError> where S: Into<String> {
+        panic!("{}", msg.into());
         Err(JsonError { msg: msg.into() })
     }
 }
@@ -89,8 +94,32 @@ impl Debug for JsonError {
     }
 }
 
-macro_rules! impl_json_for_num {
-    ( $($ty:ty),* ) => (
+impl From<ParseError> for JsonError {
+    fn from(_: ParseError) -> Self {
+        JsonError::new("Failed to parse URL")
+    }
+}
+
+/// A value that has to be included in the JSON
+/// string but can contain the value null.
+///
+/// Some values in discord can be omitted from
+/// the JSON string, these are represented as
+/// Option<T>. Some other values must be in the
+/// JSON string but may contain the null value
+/// and should be represented using Nullable<T>.
+#[derive(Debug)]
+pub enum Nullable<T> {
+    Value(T),
+    Null,
+}
+
+/// Implements [AsJson](automatea::AsJson) and
+/// [FromJson](automatea::FromJson) for simple numeric and
+/// other types that should be represented as is in the
+/// JSON string.
+macro_rules! impl_for_num {
+    ($($ty:ty),*) => (
         $(
             impl AsJson for $ty {
                 #[inline]
@@ -120,8 +149,12 @@ macro_rules! impl_json_for_num {
     )
 }
 
-macro_rules! impl_json_for_large_num {
-    ( $($ty:ty),* ) => (
+/// Implements [AsJson](automatea::AsJson) and
+/// [FromJson](automatea::FromJson) for larger numeric
+/// that should be represented as strings in the
+/// JSON string.
+macro_rules! impl_for_large_num {
+    ($($ty:ty),*) => (
         $(
             impl AsJson for $ty {
                 #[allow(unused_must_use)]
@@ -164,17 +197,306 @@ macro_rules! impl_json_for_large_num {
     )
 }
 
-impl_json_for_num! {
+/// Implements [AsJson](automatea::AsJson) and
+/// [FromJson](automatea::FromJson) for collections.
+macro_rules! impl_for_single_collection {
+    ($($ty:ident:$insert_method:ident <$($rq_trait:ident),*> ),*) => {
+        $(
+            impl<J> AsJson for $ty<J> where J: AsJson {
+                #[inline]
+                fn as_json(&self) -> String {
+                    let mut json = String::with_capacity(self.len() * 5 + 2);
+                    json.push('[');
+
+                    for val in self {
+                        val.concat_json(&mut json);
+                        json.push(',');
+                    }
+
+                    json.pop(); //remove last comma
+                    json.push(']');
+
+                    json
+                }
+
+                #[inline]
+                fn concat_json(&self, dest: &mut String) {
+                    dest.reserve(self.len() * 5 + 2);
+                    dest.push('[');
+
+                    for val in self {
+                        val.concat_json(dest);
+                        dest.push(',');
+                    }
+
+                    dest.pop(); //remove last comma
+                    dest.push(']');
+                }
+            }
+
+            impl<J> FromJson for $ty<J> where J: FromJson $(+ $rq_trait)* {
+                #[inline]
+                fn from_json(json: &str) -> Result<$ty<J>, JsonError> {
+                    if json.len() >= 2 && & json.chars().next().unwrap() == &'[' && json.chars().last().unwrap() == ']' {
+                        let mut col: $ty<J> = $ty::new();
+                        if (&json[1..json.len()-1]).trim().is_empty() {
+                            return Ok(col);
+                        }
+
+                        let mut nesting_level = 0;
+                        let mut val_begin: usize = 0;
+
+                        for (i, c) in json.chars().enumerate() {
+                            if c == '{' || c == '[' {
+                                nesting_level += 1;
+
+                                //we enter the root object
+                                if nesting_level == 1 {
+                                    val_begin = i + 1;
+                                }
+
+                                continue;
+                            } else if c == '}' || c == ']' {
+                                nesting_level -= 1;
+
+                                //we hit end of json, but because there isn't a final comma, there is still 1 value
+                                //waiting to be added to the collection
+                                if nesting_level == 0 && val_begin != 0 {
+                                    col.$insert_method(J::from_json((&json[val_begin..i]).trim())?);
+                                    return Ok(col);
+                                }
+
+                                continue;
+                            }
+
+                            if nesting_level == 1 {
+                                if c == ',' {
+                                    col.$insert_method(J::from_json((&json[val_begin..i]).trim())?);
+
+                                    val_begin = i + 1;
+                                }
+                            }
+                        }
+
+                        return Ok(col);
+                    }
+
+                    JsonError::err("Invalid array format given")
+                }
+            }
+        )*
+    };
+}
+
+/// Implements [AsJson](automatea::AsJson) and
+/// [FromJson](automatea::FromJson) for collections.
+macro_rules! impl_for_double_collection {
+    ($($ty:ident <$($rq_first_trait:ident),*>  <$($rq_second_trait:ident),*> ),*) => {
+        $(
+            impl<J, K> AsJson for $ty<J, K> where J: AsJson, K: AsJson {
+                #[inline]
+                fn as_json(&self) -> String {
+                    let mut json = String::with_capacity(self.len() * 10 + 2);
+                    json.push('{');
+
+                    for (key, val) in self {
+                        key.concat_json(&mut json);
+                        json.push(':');
+                        val.concat_json(&mut json);
+                        json.push(',');
+                    }
+
+                    json.pop(); //remove last comma
+                    json.push('}');
+
+                    json
+                }
+
+                #[inline]
+                fn concat_json(&self, dest: &mut String) {
+                    dest.reserve(self.len() * 10 + 2);
+                    dest.push('{');
+
+                    for (key, val) in self {
+                        key.concat_json(dest);
+                        dest.push(':');
+                        val.concat_json(dest);
+                        dest.push(',');
+                    }
+
+                    dest.pop(); //remove last comma
+                    dest.push('}');
+                }
+            }
+
+            impl<J, K> FromJson for $ty<J, K> where J: FromJson $(+ $rq_first_trait)*, K: FromJson $(+ $rq_second_trait)* {
+                #[inline]
+                fn from_json(json: &str) -> Result<$ty<J, K>, JsonError> {
+                    if json.len() >= 2 && & json.chars().next().unwrap() == &'{' && json.chars().last().unwrap() == '}' {
+                        return json.split(',')
+                            .map(|row| {
+                                if let Some(sep) = row.find(':') {
+                                    Ok((&row[..sep], &row[sep+1..]))
+                                } else {
+                                    JsonError::err(concat!("Expected {key:value,...} in a ", stringify!($ty)))
+                                }
+                            })
+                            .map(|row| {
+                                if let Ok((key, val)) = row {
+                                    let key = J::from_json(key.trim());
+                                    let val = K::from_json(val.trim());
+
+                                    if let Ok(key) = key {
+                                        if let Ok(val) = val {
+                                            return Ok((key, val))
+                                        } else {
+                                            return Err(val.err().unwrap())
+                                        }
+                                    } else {
+                                        return Err(key.err().unwrap())
+                                    }
+                                }
+
+                                Err(row.err().unwrap())
+                            })
+                            .collect::<Result<$ty<J, K>, JsonError>>()
+                    }
+
+                    JsonError::err("Invalid object format given")
+                }
+            }
+        )*
+    };
+}
+
+macro_rules! impl_for_arrays {
+    ($($size:tt),*) => (
+        $(
+            impl<T> AsJson for [T; $size] where T: AsJson {
+                #[inline]
+                fn as_json(&self) -> String {
+                    let mut json = String::with_capacity($size * 2 + 2);
+                    json.push('[');
+
+                    for val in self {
+                        val.concat_json(&mut json);
+                        json.push(',');
+                    }
+
+                    json.pop();
+                    json.push(']');
+
+                    json
+                }
+
+                #[allow(unused_must_use)]
+                #[inline]
+                fn concat_json(&self, dest: &mut String) {
+                    dest.reserve($size * 2 + 2);
+                    dest.push('[');
+
+                    for val in self {
+                        val.concat_json(dest);
+                        dest.push(',');
+                    }
+
+                    dest.pop();
+                    dest.push(']');
+                }
+            }
+
+            impl<T> FromJson for [T; $size] where T: FromJson  {
+                #[inline]
+                fn from_json(json: &str) -> Result<[T; $size], JsonError> {
+                    if json.len() >= 2 && & json.chars().next().unwrap() == &'[' && json.chars().last().unwrap() == ']' {
+                        let split = json.split(',');
+                        let mut count = 0;
+
+                        let array: [T; $size] = unsafe {
+                            let mut arr: MaybeUninit<[T; $size]> = MaybeUninit::uninit();
+                            let arr_ptr = arr.as_mut_ptr() as *mut T; // pointer to 1st element
+
+                            for val in split {
+                                arr_ptr.add(count).write(T::from_json(val.trim())?);
+                                count += 1;
+                            }
+
+                            if count != $size {
+                                return JsonError::err(format!("Expected an array of size {}, got {}", $size, count));
+                            }
+
+                            arr.assume_init()
+                        };
+
+
+                        return Ok(array);
+                    }
+
+                    JsonError::err("Invalid array format given")
+                }
+            }
+        )*
+    )
+}
+
+impl_for_num! {
     i8, i16, i32, isize,
     u8, u16, u32, usize,
     f32,
     bool
 }
 
-impl_json_for_large_num! {
+impl_for_large_num! {
     i64, i128,
     u64, u128,
     f64
+}
+
+impl_for_single_collection! {
+    Vec:push <>, VecDeque:push_back <>, LinkedList:push_back <>,
+    HashSet:insert <Eq, Hash>, BTreeSet:insert <Ord>
+}
+
+impl_for_double_collection! {
+    HashMap<Hash, Eq><>, BTreeMap<Ord><>
+}
+
+impl_for_arrays! {
+     1,  2,  3,  4,  5,  6,  7,  8,
+     9, 10, 11, 12, 13, 14, 15, 16,
+    17, 18, 19, 20, 21, 22, 23, 24,
+    25, 26, 27, 28, 29, 30, 31, 32
+}
+
+impl AsJson for Url {
+    #[inline]
+    fn as_json(&self) -> String {
+        let mut string = String::with_capacity(self.as_str().len() + 2);
+        string.push('"');
+        string.push_str(self.as_str());
+        string.push('"');
+
+        string
+    }
+
+    #[inline]
+    fn concat_json(&self, dest: &mut String) {
+        dest.reserve(self.as_str().len() + 2);
+        dest.push('"');
+        dest.push_str(self.as_str());
+        dest.push('"');
+    }
+}
+
+impl FromJson for Url {
+    #[inline]
+    fn from_json(json: &str) -> Result<Url, JsonError> {
+        if json.len() >= 2 && json.chars().next().unwrap() == '"' && json.chars().last().unwrap() == '"' {
+            Url::from_str(&json[1..json.len() - 1]).map_err(JsonError::from)
+        } else {
+            JsonError::err("Incorrect JSON string value received")
+        }
+    }
 }
 
 impl AsJson for String {
@@ -228,67 +550,89 @@ impl AsJson for &str {
     }
 }
 
-impl<J> AsJson for Vec<J> where J: AsJson {
-    #[inline]
+impl<T> AsJson for Nullable<T> where T: AsJson {
     fn as_json(&self) -> String {
-        let mut json = String::from("[");
-
-        for val in self {
-            json.push_str(&val.as_json());
-            json.push(',');
+        if let Nullable::Value(val) = self {
+            val.as_json()
+        } else {
+            "null".to_owned()
         }
-
-        json.pop(); //remove last comma
-        json.push(']');
-
-        json
     }
 
-    #[inline]
     fn concat_json(&self, dest: &mut String) {
-        dest.push('[');
-
-        for val in self {
+        if let Nullable::Value(val) = self {
             val.concat_json(dest);
-            dest.push(',');
+        } else {
+            dest.push_str("null");
         }
-
-        dest.pop(); //remove last comma
-        dest.push(']');
     }
 }
 
-impl<J, K> AsJson for HashMap<J, K> where J: AsJson, K: AsJson {
-    #[inline]
-    fn as_json(&self) -> String {
-        let mut json = String::from("{");
+impl<T> FromJson for Nullable<T> where T: FromJson {
+    fn from_json(json: &str) -> Result<Nullable<T>, JsonError> where Self: Sized {
+        Ok(match json {
+            "null" => Nullable::Null,
+            val => Nullable::Value(T::from_json(val)?)
+        })
+    }
+}
 
-        for (key, val) in self {
-            json.push_str(&key.as_json());
-            json.push(':');
-            json.push_str(&val.as_json());
-            json.push(',');
+pub fn json_object_to_map(input: &str) -> Result<HashMap<&str, &str>, JsonError> {
+    let mut map = HashMap::new();
+    let mut nesting_level = 0;
+    let mut key_idxs: [usize; 2] = [0; 2];
+    let mut val_idxs: [usize; 2] = [0; 2];
+
+    for (i, c) in input.chars().enumerate() {
+        if c == '{' || c == '[' {
+            nesting_level += 1;
+            continue;
+        } else if c == '}' || c == ']' {
+            nesting_level -= 1;
+
+            //we hit end of json, but because there isn't a final comma, there is still 1 key/value
+            //pair waiting to be added to the map
+            if nesting_level == 0 && val_idxs[0] != 0 {
+                val_idxs[1] = i;
+
+                map.insert(
+                    &input[key_idxs[0]..key_idxs[1]],
+                    (&input[val_idxs[0]..val_idxs[1]]).trim(),
+                );
+
+                return Ok(map);
+            }
+
+            continue;
         }
 
-        json.pop(); //remove last comma
-        json.push('}');
+        if nesting_level == 1 {
+            if c == '"' {
+                if key_idxs[0] == 0 {
+                    key_idxs[0] = i + 1;
+                } else if key_idxs[1] == 0 {
+                    key_idxs[1] = i;
+                }
+            } else if val_idxs[0] == 0 && c == ':' {
+                val_idxs[0] = i + 1;
+            } else if val_idxs[1] == 0 && c == ',' {
+                val_idxs[1] = i;
 
-        json
+                map.insert(
+                    &input[key_idxs[0]..key_idxs[1]],
+                    (&input[val_idxs[0]..val_idxs[1]]).trim(),
+                );
+
+                key_idxs = [0; 2];
+                val_idxs = [0; 2];
+            }
+        }
     }
 
-    #[inline]
-    fn concat_json(&self, dest: &mut String) {
-        dest.push('{');
-
-        for (key, val) in self {
-            key.concat_json(dest);
-            dest.push(':');
-            val.concat_json(dest);
-            dest.push(',');
-        }
-
-        dest.pop(); //remove last comma
-        dest.push('}');
+    if nesting_level == 0 {
+        Ok(map)
+    } else {
+        JsonError::err("Given string is not a valid JSON string")
     }
 }
 
@@ -323,6 +667,10 @@ pub fn json_root_search<T>(key: &str, candidate: &str) -> Result<T, JsonError> w
         let mut key_end = None;
 
         while key_end.is_none() {
+            if nesting_level < 0 {
+                return JsonError::err("Incorrectly formatted JSON string");
+            }
+
             if let Some(next) = iter.next() {
                 if next == '{' || next == '[' {
                     nesting_level += 1
@@ -406,25 +754,32 @@ mod tests {
     }
 
     #[test]
-    fn test_root_search_vec() {
-        let contains_array = r#"{"array":["a","b","c"],"b":40}"#;
-
-        assert_eq!(json_root_search::<u8>("b", contains_array).unwrap(), 40);
-    }
-
-    #[test]
-    fn test_root_search_fail() {
+    fn test_root_search_key_not_found() {
         let simple = r#"{"key":"value"}"#;
 
         assert_eq!(json_root_search::<String>("ke", simple).err().unwrap().msg, "Could not find key in candidate");
         assert_eq!(json_root_search::<String>("ey", simple).err().unwrap().msg, "Could not find key in candidate");
-        assert_eq!(json_root_search::<String>("", simple).err().unwrap().msg, "The searched key can't be empty");
         assert_eq!(json_root_search::<String>("aaa", simple).err().unwrap().msg, "Could not find key in candidate");
         assert_eq!(json_root_search::<String>("value", simple).err().unwrap().msg, "Could not find key in candidate");
     }
 
     #[test]
-    fn test_root_search_nested() {
+    fn test_root_search_empty_key() {
+        let simple = r#"{"key":"value"}"#;
+
+        assert_eq!(json_root_search::<String>("", simple).err().unwrap().msg, "The searched key can't be empty");
+    }
+
+    #[test]
+    fn test_root_search_nested_vec() {
+        let contains_array = r#"{"array":["a","b","c"],"b":40}"#;
+
+        assert_eq!(json_root_search::<u8>("b", contains_array).unwrap(), 40);
+        assert_eq!(json_root_search::<String>("c", contains_array).err().unwrap().msg, "Could not find key in candidate");
+    }
+
+    #[test]
+    fn test_root_search_nested_object() {
         let nested_safe_order = r#"{"a":700,"nested":{"a":700}}"#;
         let nested_risky_order = r#"{"nested":{"a":1000},"a":700}"#;
 
@@ -433,20 +788,39 @@ mod tests {
     }
 
     #[test]
-    fn test_search_invalid() {
+    fn test_search_invalid_json() {
+        let no_first_brace = r#""key":"value"}"#;
         let no_final_brace = r#"{"key":"value""#;
         let no_comma = r#"{"key":"value""other":5}"#;
+        let no_key_quote = r#"{"key:"value","other":5}"#;
+        let no_val_quote = r#"{"key":value","other":5}"#;
         let wrong_type = r#"{"int":"value"}"#;
 
+        assert_eq!(json_root_search::<String>("key", no_first_brace).err().unwrap().msg,
+                   "Incorrectly formatted JSON string");
         assert_eq!(json_root_search::<String>("key", no_final_brace).err().unwrap().msg,
                    "Unexpected end of string");
         assert_eq!(json_root_search::<String>("key", no_comma).err().unwrap().msg,
                    "Failed to parse JSON: Incorrect JSON string value received");
+        assert_eq!(json_root_search::<String>("key", no_key_quote).err().unwrap().msg,
+                   "Could not find key in candidate"); //the function can hardly know that the string is not correctly formatted
+        assert_eq!(json_root_search::<String>("key", no_val_quote).err().unwrap().msg,
+                   "Failed to parse JSON: Incorrect JSON string value received");
         assert_eq!(json_root_search::<u32>("int", wrong_type).err().unwrap().msg,
                    "Failed to parse JSON: Failed to parse \"value\" into u32");
     }
+
+    #[test]
+    fn test_object_to_map_basic() {
+        let no_final_brace = r#"{"key":"value"}"#;
+        let no_final_brace_result = json_object_to_map(no_final_brace).unwrap();
+
+        assert!(no_final_brace_result.contains_key("key"));
+        assert_eq!(no_final_brace_result.get("key").unwrap(), &"\"value\"");
+    }
 }
 
+#[cfg(test)]
 mod benchmarks {
     use super::*;
     use serde::Serialize;
@@ -537,7 +911,7 @@ mod benchmarks {
                 first: Some(String::from("I am some!")),
                 second: Some(37),
                 third: Some(String::from("Me too...")),
-                fourth: Some(250)
+                fourth: Some(250),
             }
         }
 
@@ -546,7 +920,7 @@ mod benchmarks {
                 first: Some(String::from("I am some!")),
                 second: Some(37),
                 third: None,
-                fourth: None
+                fourth: None,
             }
         }
 
@@ -555,7 +929,7 @@ mod benchmarks {
                 first: None,
                 second: None,
                 third: None,
-                fourth: None
+                fourth: None,
             }
         }
     }
