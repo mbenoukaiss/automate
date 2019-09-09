@@ -2,10 +2,18 @@ extern crate proc_macro;
 
 use proc_macro::{TokenStream, TokenTree};
 use proc_macro2::Ident;
-use syn::{parse_macro_input, DeriveInput, Data, Type};
+use syn::{parse_macro_input, DeriveInput, Data, Expr, Error};
 use quote::quote;
+use crate::discord::StructSide;
+use syn::spanned::Spanned;
 
 macro_rules! extract_token {
+    ($type:ident in $token:ident) => {
+        match $token {
+            ::proc_macro::TokenTree::$type(ident) => ident.to_string(),
+            _ => panic!("Not enough arguments provided to proc macro")
+        }
+    };
     ($type:ident in $token:expr) => {
         match $token {
             Some(::proc_macro::TokenTree::$type(ident)) => ident.to_string(),
@@ -14,63 +22,8 @@ macro_rules! extract_token {
     };
 }
 
-const OBJECT_ERROR: &'static str = "Expected arguments under the format: ([client|server|both])";
-const PAYLOAD_ERROR: &'static str = "Expected arguments under the format: (op = <u8>, [client|server|both])";
-
-enum StructSide {
-    Server = 1,
-    Client = 2,
-    Both = 3,
-}
-
-impl StructSide {
-    fn appropriate_derive(&self) -> TokenStream {
-        match self {
-            StructSide::Client => quote!(#[derive(Debug, AsJson)]),
-            StructSide::Server => quote!(#[derive(Debug, ::serde::Deserialize)]),
-            StructSide::Both => quote!(#[derive(Debug, AsJson, ::serde::Deserialize)])
-        }.into()
-    }
-}
-
-impl From<String> for StructSide {
-    fn from(side: String) -> Self {
-        match side.as_str() {
-            "server" => StructSide::Server,
-            "client" => StructSide::Client,
-            "both" => StructSide::Both,
-            _ => panic!("Unknown side '{}', expected 'server', 'client', or 'both'", side)
-        }
-    }
-}
-
-fn extract_fields(input: &DeriveInput) -> (Vec<&Ident>, Vec<&Ident>, usize) {
-    if let Data::Struct(data_struct) = &input.data {
-        let mut recommended_size = 0;
-        let mut fields = Vec::new();
-        let mut options = Vec::new();
-
-        for field in &data_struct.fields {
-            let ident = field.ident.as_ref().expect("Expected ident for field");
-
-            if let Type::Path(path) = &field.ty {
-                if path.path.segments.len() == 1 && path.path.segments.first().unwrap().ident == "Option" {
-                    recommended_size += ident.to_string().len() / 2 + 5;
-                    options.push(ident);
-                    continue;
-                }
-            }
-
-            recommended_size += ident.to_string().len() + 5;
-
-            fields.push(ident);
-        }
-
-        return (fields, options, recommended_size);
-    } else {
-        panic!("AsJson can only be applied to structs"); //Expected struct for proc macros 'object' and 'payload'
-    }
-}
+mod json;
+mod discord;
 
 #[proc_macro_derive(AsJson)]
 pub fn as_json(item: TokenStream) -> TokenStream {
@@ -79,7 +32,7 @@ pub fn as_json(item: TokenStream) -> TokenStream {
     let name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
-    let (fields, options, recommended_size) = extract_fields(&input);
+    let (fields, options, recommended_size) = json::extract_fields(&input);
 
     let quote = quote! {
         impl #impl_generics ::automatea::AsJson for #name #ty_generics #where_clause {
@@ -135,6 +88,44 @@ pub fn as_json(item: TokenStream) -> TokenStream {
     quote.into()
 }
 
+#[proc_macro_derive(FromJson)]
+pub fn from_json(item: TokenStream) -> TokenStream {
+    let input: DeriveInput = parse_macro_input!(item as DeriveInput);
+
+    let name = &input.ident;
+    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
+    let (fields, options, _) = json::extract_fields(&input);
+
+    let quote = quote! {
+        impl #impl_generics ::automatea::FromJson for #name #ty_generics #where_clause {
+            #[inline]
+            fn from_json(json: &str) -> Result<#name #ty_generics, ::automatea::json::JsonError> {
+                let map = ::automatea::json::json_object_to_map(json)?;
+println!(concat!(stringify!(#name), ": {:#?}"), map);
+
+                Ok(
+                    #name {
+                        #(
+                         #fields : ::automatea::FromJson::from_json(map.get(stringify!(#fields)).ok_or_else(|| ::automatea::json::JsonError::new(concat!("Could not find ", stringify!(#fields), " in JSON input")))?)?
+                         ,
+                        )*
+
+                        #(
+                         #options : match map.get(stringify!(#options)) {
+                            Some(&val) => Some(::automatea::FromJson::from_json(val)?),
+                            None => None
+                         },
+                        )*
+                    }
+                )
+            }
+        }
+    };
+
+    quote.into()
+}
+
 #[proc_macro_attribute]
 pub fn object(metadata: TokenStream, item: TokenStream) -> TokenStream {
     let metadata: Vec<TokenTree> = metadata.into_iter().collect();
@@ -142,7 +133,7 @@ pub fn object(metadata: TokenStream, item: TokenStream) -> TokenStream {
     let side: StructSide = match metadata.len() {
         0 => StructSide::Both,
         1 => StructSide::from(extract_token!(Ident in metadata.get(0))),
-        _ => panic!(OBJECT_ERROR)
+        _ => panic!(discord::OBJECT_ERROR)
     };
 
     let mut quote = side.appropriate_derive();
@@ -153,55 +144,310 @@ pub fn object(metadata: TokenStream, item: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn payload(metadata: TokenStream, item: TokenStream) -> TokenStream {
-    let metadata: Vec<TokenTree> = metadata.into_iter().collect();
+    let arguments = discord::parse_arguments_list(metadata);
 
-    let opcode: u8 = {
-        if extract_token!(Ident in metadata.get(0)) != "op" {
-            panic!(PAYLOAD_ERROR);
+    let opcode: u8 = if let Some(tokens) = arguments.get("op") {
+        if tokens.len() != 2 {
+            panic!(discord::PAYLOAD_ERROR);
         }
 
-        if extract_token!(Punct in metadata.get(1)) != "=" {
-            panic!(PAYLOAD_ERROR);
+        if tokens.get(0).unwrap() != "=" {
+            panic!(discord::PAYLOAD_ERROR);
         }
 
-        extract_token!(Literal in metadata.get(2))
+        tokens.get(1).unwrap()
             .parse::<u8>()
             .expect("Expected u8 argument for 'op'")
+    } else {
+        panic!(discord::PAYLOAD_ERROR);
     };
 
-    let side: StructSide = match metadata.len() {
-        3 => StructSide::Both,
-        5 => {
-            if extract_token!(Punct in metadata.get(3)) != "," {
-                panic!(PAYLOAD_ERROR);
+
+    let event_name: Option<String> = match arguments.get("event") {
+        Some(tokens) => {
+            if tokens.len() != 2 {
+                panic!(discord::PAYLOAD_ERROR);
             }
 
-            StructSide::from(extract_token!(Ident in metadata.get(4)))
+            if tokens.get(0).unwrap() != "=" {
+                panic!(discord::PAYLOAD_ERROR);
+            }
+
+            let name = tokens.get(1).unwrap();
+            if name.len() < 3 {
+                panic!(discord::PAYLOAD_ERROR);
+            }
+
+            Some((&name[1..name.len()-1]).to_owned())
         }
-        _ => panic!(PAYLOAD_ERROR)
+        None => None
+    };
+
+    let side: StructSide = if let Some(_) = arguments.get("client") {
+        StructSide::Client
+    } else if let Some(_) = arguments.get("server") {
+        StructSide::Server
+    } else {
+        StructSide::Both
     };
 
     let mut quote = side.appropriate_derive();
     quote.extend(item.clone());
 
     let input: DeriveInput = parse_macro_input!(item as DeriveInput);
-    let name = &input.ident;
+    let struct_name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
-    if let StructSide::Client = side {
-        let message_from = quote! {
-            impl #impl_generics From<#name #ty_generics> for ::ws::Message #where_clause {
-                fn from(origin: #name #ty_generics) -> Self {
-                    ::ws::Message::Text(format!(r#"{{"op":{},"d":{{{}}}}}"#,
-                        #opcode,
-                        ::automatea::AsJson::as_json(&origin)
-                    ))
-                }
+    if let Some(event_name) = event_name {
+        let constant_impl = quote! {
+            impl #impl_generics #struct_name #ty_generics #where_clause {
+                pub const EVENT_NAME: &'static str = #event_name;
             }
         };
 
-        quote.extend(TokenStream::from(message_from));
+        quote.extend(TokenStream::from(constant_impl));
+    }
+
+
+    if let StructSide::Client = side {
+        discord::append_client_quote(&input, opcode, &mut quote);
+    } else if let StructSide::Server = side {
+        discord::append_server_quote(&input, &mut quote);
+    } else {
+        discord::append_client_quote(&input, opcode, &mut quote);
+        discord::append_server_quote(&input, &mut quote);
     }
 
     quote
+}
+
+#[proc_macro_attribute]
+pub fn convert(metadata: TokenStream, item: TokenStream) -> TokenStream {
+    let mut convertible: TokenStream = quote!(#[derive(Debug)]).into();
+    convertible.extend(item.clone());
+
+    let input: DeriveInput = parse_macro_input!(item as DeriveInput);
+    let struct_name: &Ident = &input.ident;
+    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
+    let (as_method_name, from_method_name, convertion_type): (Ident, Ident, Ident) = match metadata.into_iter().next() {
+        Some(TokenTree::Ident(ty)) => {
+            let as_method = Ident::new(&format!("as_{}", ty.to_string()), ty.span().into());
+            let from_method = Ident::new(&format!("from_{}", ty.to_string()), ty.span().into());
+            let ty = Ident::new(&ty.to_string(), ty.span().into());
+
+            (as_method.into(), from_method.into(), ty.into())
+        },
+        _ => panic!("Expected arguments under the format (type)")
+    };
+
+    let mut fields_ident: Vec<&Ident> = Vec::new();
+    let mut fields_expr: Vec<&Expr> = Vec::new();
+
+    if let Data::Enum(en) = &input.data {
+        for variant in &en.variants {
+            if variant.discriminant.is_none() {
+                return Error::new(variant.span(), "Convert attribute only supports C-like enums")
+                    .to_compile_error()
+                    .into();
+            }
+
+            let (_, expr) = variant.discriminant.as_ref().unwrap();
+
+            fields_ident.push(&variant.ident);
+            fields_expr.push(expr);
+        }
+    } else {
+        return Error::new(input.span(), "The convert attribute only works on enums")
+            .to_compile_error()
+            .into();
+    }
+
+    let as_impl = quote! {
+        impl #impl_generics #struct_name #ty_generics #where_clause {
+            fn #as_method_name(&self) -> #convertion_type {
+                match self {
+                    #(
+                     #struct_name #ty_generics :: #fields_ident => #fields_expr
+                    ),*
+                }
+            }
+
+            fn #from_method_name(num: #convertion_type) -> #struct_name #ty_generics {
+                match num {
+                    #(
+                     v if #fields_expr == v => #struct_name #ty_generics :: #fields_ident,
+                    )*
+                    _ => panic!(format!("{} does not match with any of {}'s values", num, stringify!(#struct_name)))
+                }
+            }
+        }
+
+        impl #impl_generics ::automatea::json::AsJson for #struct_name #ty_generics #where_clause {
+            #[inline]
+            fn as_json(&self) -> String {
+                self.#as_method_name().to_string()
+            }
+
+            #[inline]
+            fn concat_json(&self, dest: &mut String) {
+                #[cfg(feature = "squeeze_performance")]
+                 ::std::fmt::Write::write_fmt(dest, format_args!("{}", self.#as_method_name()));
+
+                #[cfg(not(feature = "squeeze_performance"))]
+                ::std::fmt::Write::write_fmt(dest, format_args!("{}", self.#as_method_name())).expect("A Display implementation returned an error unexpectedly");
+            }
+        }
+
+        impl #impl_generics ::automatea::json::FromJson for #struct_name #ty_generics #where_clause {
+            #[inline]
+            fn from_json(json: &str) -> Result<#struct_name #ty_generics, ::automatea::json::JsonError> {
+                return match json.parse::<#convertion_type>() {
+                    #(
+                     Ok(v) if #fields_expr == v => Ok(#struct_name #ty_generics :: #fields_ident),
+                    )*
+                    Ok(v) => ::automatea::json::JsonError::err(format!("{} is not a variant of {}", v, stringify!(#struct_name))),
+                    Err(err) => ::automatea::json::JsonError::err(format!("Failed to parse {} to {}", json, stringify!(#struct_name)))
+                }
+            }
+        }
+    };
+
+    convertible.extend(TokenStream::from(as_impl));
+
+    convertible
+}
+
+fn pascal_to_snake(val: String) -> String {
+    let mut snake = String::new();
+
+    for c in val.chars() {
+        let lc = c.to_ascii_lowercase();
+
+        if !snake.is_empty() && lc != c {
+            snake.push('_');
+        }
+
+        snake.push(lc);
+    }
+
+    snake
+}
+
+fn pascal_to_upper_snake(val: String) -> String {
+    pascal_to_snake(val).to_ascii_uppercase()
+}
+
+fn pascal_to_camel(val: String) -> String {
+    if val.len() > 0 {
+        let fc = val.chars().next().unwrap();
+
+        if fc.to_ascii_lowercase() != fc {
+            let mut camel = String::from(&val[0..1]);
+            camel.push_str(&val[1..]);
+
+            return camel;
+        }
+    }
+
+    val
+
+}
+
+#[proc_macro_attribute]
+pub fn stringify(metadata: TokenStream, item: TokenStream) -> TokenStream {
+    let mut convertible: TokenStream = quote!(#[derive(Debug)]).into();
+    convertible.extend(item.clone());
+
+    let input: DeriveInput = parse_macro_input!(item as DeriveInput);
+    let struct_name: &Ident = &input.ident;
+    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
+    let case: String = match metadata.into_iter().next() {
+        Some(TokenTree::Ident(ident)) => ident.to_string().to_ascii_lowercase(),
+        _ => panic!("Expected arguments under the format (snake_case|upper_snake_case|camel_case|pascal_case)")
+    };
+
+    let mut fields_ident: Vec<&Ident> = Vec::new();
+    let mut fields_str: Vec<String> = Vec::new();
+
+    if let Data::Enum(en) = &input.data {
+        for variant in &en.variants {
+            if variant.fields.iter().count() > 0 || variant.discriminant.is_some() {
+                return Error::new(variant.span(), "Stringify attribute only supports enums without fields")
+                    .to_compile_error()
+                    .into();
+            }
+
+            let name = match case.as_str() {
+                "snake_case" => pascal_to_snake(variant.ident.to_string()),
+                "upper_snake_case" => pascal_to_upper_snake(variant.ident.to_string()),
+                "camel_case" => pascal_to_camel(variant.ident.to_string()),
+                "pascal_case" => variant.ident.to_string(),
+                _ => panic!("Expected arguments under the format (snake_case|upper_snake_case|camel_case|pascal_case)")
+            };
+
+            fields_ident.push(&variant.ident);
+            fields_str.push(name);
+        }
+    } else {
+        return Error::new(input.span(), "The stringify attribute only works on enums")
+            .to_compile_error()
+            .into();
+    }
+
+    let as_impl = quote! {
+        impl #impl_generics #struct_name #ty_generics #where_clause {
+            #[inline]
+            fn as_string(&self) -> &'static str {
+                match self {
+                    #(
+                        #struct_name #ty_generics :: #fields_ident => #fields_str
+                    ),*
+                }
+            }
+
+            #[inline]
+            fn from_string(val: &str) -> #struct_name #ty_generics {
+                match val {
+                    #(
+                        #fields_str => #struct_name #ty_generics :: #fields_ident,
+                    )*
+                    _ => panic!(format!("{} does not match with any of {}'s values", val, stringify!(#struct_name)))
+                }
+            }
+        }
+
+        impl #impl_generics ::automatea::json::AsJson for #struct_name #ty_generics #where_clause {
+            #[inline]
+            fn as_json(&self) -> String {
+                self.as_string().to_owned()
+            }
+
+            #[inline]
+            fn concat_json(&self, dest: &mut String) {
+                dest.push_str(self.as_string());
+            }
+        }
+
+        impl #impl_generics ::automatea::json::FromJson for #struct_name #ty_generics #where_clause {
+            #[inline]
+            fn from_json(json: &str) -> Result<#struct_name #ty_generics, ::automatea::json::JsonError> {
+                if json.len() >= 2 && json.chars().next().unwrap() == '"' && json.chars().last().unwrap() == '"' {
+                    return match &json[1..json.len()-1] {
+                        #(
+                            #fields_str => Ok(#struct_name #ty_generics :: #fields_ident),
+                        )*
+                        unknown => ::automatea::json::JsonError::err(format!("{} is not a variant of {}", unknown, stringify!(#struct_name)))
+                    }
+                }
+
+                ::automatea::json::JsonError::err("Given JSON is not a string")
+            }
+        }
+    };
+
+    convertible.extend(TokenStream::from(as_impl));
+
+    convertible
 }

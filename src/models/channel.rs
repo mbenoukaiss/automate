@@ -1,5 +1,5 @@
 
-#[object(server)]
+#[object(both)]
 pub struct Channel {
 
 }
