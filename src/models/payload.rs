@@ -64,13 +64,15 @@ pub struct GuildCreate {
     pub preferred_locale: String
 }
 
+#[payload(op = 1, client)]
+pub struct Heartbeat(pub Nullable<u32>);
+
 #[payload(op = 2, client)]
 pub struct Identify {
     pub token: String,
     pub properties: HashMap<String, String>,
     pub compress: Option<bool>
 }
-
 
 #[payload(op = 10, server)]
 pub struct Hello {

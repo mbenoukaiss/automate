@@ -1,12 +1,25 @@
 use ws::{Sender, Settings, WebSocket};
 use crate::{json, AutomateaError};
-use crate::{get, map, deserialize};
-use crate::models::{Payload, Ready, GuildCreate, Hello, Identify, Gateway};
+use crate::{get, map};
+use crate::models::{Payload, Ready, GuildCreate, Hello, Identify, Gateway, Heartbeat};
+use std::thread;
+use std::thread::JoinHandle;
+use std::time::Duration;
+use crate::json::Nullable;
+
+macro_rules! handle_payload {
+    ($data:ident as $payload:ty => $self:ident.$method:ident) => {{
+        let payload: $payload = <$payload as ::automatea::json::FromJson>::from_json(&$data)?;
+
+        $self.last_sequence_number = Nullable::from(payload.s);
+        $self.$method(payload.d)?
+    }};
+}
 
 const CONNECTIONS: usize = 10_000;
 
 pub struct GatewayClient {
-    ws: WebSocket<ClientFactory>
+    _ws: WebSocket<ClientFactory>
 }
 
 impl GatewayClient {
@@ -23,10 +36,9 @@ impl GatewayClient {
         websocket.connect(gateway.url)?;
 
         Ok(GatewayClient {
-            ws: websocket.run()?
+            _ws: websocket.run()?
         })
     }
-
 }
 
 struct ClientFactory;
@@ -36,14 +48,17 @@ impl ws::Factory for ClientFactory {
 
     fn connection_made(&mut self, ws: Sender) -> Self::Handler {
         ClientHandler {
-            ws
+            ws,
+            last_sequence_number: Nullable::Null,
+            heartbeat: None,
         }
     }
-
 }
 
 struct ClientHandler {
-    ws: ws::Sender
+    ws: ws::Sender,
+    last_sequence_number: Nullable<u32>,
+    heartbeat: Option<JoinHandle<()>>,
 }
 
 impl ClientHandler {
@@ -59,8 +74,24 @@ impl ClientHandler {
         Ok(())
     }
 
-    fn on_hello(&self, payload: Hello) -> Result<(), AutomateaError> {
+    fn on_hello(&mut self, payload: Hello) -> Result<(), AutomateaError> {
         println!("{:?}", payload);
+
+        self.heartbeat = {
+            let hearbeat_snd = self.ws.clone();
+
+            Some(thread::spawn(move || {
+                loop {
+                    thread::sleep(Duration::from_millis(payload.heartbeat_interval as u64));
+
+                    if let Err(e) = hearbeat_snd.send(Heartbeat(Nullable::Null)) {
+                        error!("Failed to send heartbeat: {}", e);
+                    } else {
+                        info!("Successfully sent heartbeat");
+                    }
+                }
+            }))
+        };
 
         let identify = Identify {
             token: "NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY".to_owned(),
@@ -84,11 +115,11 @@ impl ws::Handler for ClientHandler {
             let err: Result<(), AutomateaError> = try {
                 match json::json_root_search::<u8>("op", &data)? {
                     0 => match json::json_root_search::<String>("t", &data)?.as_str() {
-                        Ready::EVENT_NAME => self.on_ready(deserialize!(data as Payload<Ready>)?.d)?,
-                        GuildCreate::EVENT_NAME => self.on_guild_create(deserialize!(data as Payload<GuildCreate>)?.d)?,
+                        Ready::EVENT_NAME => handle_payload!(data as Payload<Ready> => self.on_ready),
+                        GuildCreate::EVENT_NAME => handle_payload!(data as Payload<GuildCreate> => self.on_guild_create),
                         unknown_event => error!("Unknown event: '{}': \n{}", unknown_event, data)
                     },
-                    10 => self.on_hello(deserialize!(data as Payload<Hello>)?.d)?,
+                    10 => handle_payload!(data as Payload<Hello> => self.on_hello),
                     unknown_op => error!("Received unknown opcode '{}': \n{}", unknown_op, data)
                 }
             };
@@ -96,7 +127,6 @@ impl ws::Handler for ClientHandler {
             if let Err(err) = err {
                 error!("An error occurred while reading message: {}\n{}", err.msg, data);
             }
-
         } else {
             error!("Unknown message type received");
         }

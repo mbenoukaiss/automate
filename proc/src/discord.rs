@@ -68,10 +68,12 @@ pub fn append_client_quote(input: &DeriveInput, opcode: u8, quote: &mut TokenStr
     let message_from = quote! {
             impl #impl_generics From<#struct_name #ty_generics> for ::ws::Message #where_clause {
                 fn from(origin: #struct_name #ty_generics) -> Self {
-                    ::ws::Message::Text(format!(r#"{{"op":{},"d":{}}}"#,
-                        #opcode,
-                        ::automatea::AsJson::as_json(&origin)
-                    ))
+                    let mut msg = String::with_capacity(14);
+                    msg.push_str(concat!("{\"op\":", #opcode, ",\"d\":"));
+                    msg.push_str(&::automatea::AsJson::as_json(&origin));
+                    msg.push('}');
+
+                    ::ws::Message::Text(msg)
                 }
             }
         };

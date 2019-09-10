@@ -2,10 +2,11 @@ extern crate proc_macro;
 
 use proc_macro::{TokenStream, TokenTree};
 use proc_macro2::Ident;
-use syn::{parse_macro_input, DeriveInput, Data, Expr, Error};
+use syn::{parse_macro_input, DeriveInput, Data, Fields, Expr, Error};
 use quote::quote;
 use crate::discord::StructSide;
 use syn::spanned::Spanned;
+use quote::__rt::ext::RepToTokensExt;
 
 macro_rules! extract_token {
     ($type:ident in $token:ident) => {
@@ -32,60 +33,86 @@ pub fn as_json(item: TokenStream) -> TokenStream {
     let name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
-    let (fields, options, recommended_size) = json::extract_fields(&input);
+    if let Data::Struct(data_struct) = &input.data {
+        if let Fields::Unnamed(unnamed) = &data_struct.fields {
+            if unnamed.unnamed.len() == 1 {
+                let quote = quote! {
+                    impl #impl_generics ::automatea::AsJson for #name #ty_generics #where_clause {
+                        #[inline]
+                        fn as_json(&self) -> String {
+                            self.0.as_json()
+                        }
 
-    let quote = quote! {
-        impl #impl_generics ::automatea::AsJson for #name #ty_generics #where_clause {
-            #[inline]
-            fn as_json(&self) -> String {
-                let mut json = String::with_capacity(#recommended_size);
-                json.push('{');
+                        #[inline]
+                        fn concat_json(&self, dest: &mut String) {
+                            self.0.concat_json(dest)
+                        }
+                    }
+                };
 
-                #(
-                 json.push_str(concat!("\"", stringify!(#fields), "\":"));
-                 ::automatea::AsJson::concat_json(&self.#fields, &mut json);
-                 json.push(',');
-                )*
-
-                #(
-                 if let Some(optional) = &self.#options {
-                     json.push_str(concat!("\"", stringify!(#options), "\":"));
-                     ::automatea::AsJson::concat_json(optional, &mut json);
-                     json.push(',');
-                 }
-                )*
-
-                json.pop(); //remove last comma
-                json.push('}');
-
-                json
-            }
-
-            #[inline]
-            fn concat_json(&self, dest: &mut String) {
-                dest.push('{');
-
-                #(
-                 dest.push_str(concat!("\"", stringify!(#fields), "\":"));
-                 ::automatea::AsJson::concat_json(&self.#fields, dest);
-                 dest.push(',');
-                )*
-
-                #(
-                 if let Some(optional) = &self.#options {
-                     dest.push_str(concat!("\"", stringify!(#options), "\":"));
-                     ::automatea::AsJson::concat_json(optional, dest);
-                     dest.push(',');
-                 }
-                )*
-
-                dest.pop(); //remove last comma
-                dest.push('}');
+                return quote.into();
+            } else {
+                panic!("Structs with multiple unnamed fields are not supported yet");
             }
         }
-    };
 
-    quote.into()
+        let (fields, options, recommended_size) = json::extract_fields(data_struct);
+
+        let quote = quote! {
+            impl #impl_generics ::automatea::AsJson for #name #ty_generics #where_clause {
+                #[inline]
+                fn as_json(&self) -> String {
+                    let mut json = String::with_capacity(#recommended_size);
+                    json.push('{');
+
+                    #(
+                     json.push_str(concat!("\"", stringify!(#fields), "\":"));
+                     ::automatea::AsJson::concat_json(&self.#fields, &mut json);
+                     json.push(',');
+                    )*
+
+                    #(
+                     if let Some(optional) = &self.#options {
+                         json.push_str(concat!("\"", stringify!(#options), "\":"));
+                         ::automatea::AsJson::concat_json(optional, &mut json);
+                         json.push(',');
+                     }
+                    )*
+
+                    json.pop(); //remove last comma
+                    json.push('}');
+
+                    json
+                }
+
+                #[inline]
+                fn concat_json(&self, dest: &mut String) {
+                    dest.push('{');
+
+                    #(
+                     dest.push_str(concat!("\"", stringify!(#fields), "\":"));
+                     ::automatea::AsJson::concat_json(&self.#fields, dest);
+                     dest.push(',');
+                    )*
+
+                    #(
+                     if let Some(optional) = &self.#options {
+                         dest.push_str(concat!("\"", stringify!(#options), "\":"));
+                         ::automatea::AsJson::concat_json(optional, dest);
+                         dest.push(',');
+                     }
+                    )*
+
+                    dest.pop(); //remove last comma
+                    dest.push('}');
+                }
+            }
+        };
+
+        return quote.into();
+    } else {
+        panic!("AsJson can only be applied to structs");
+    }
 }
 
 #[proc_macro_derive(FromJson)]
@@ -95,35 +122,55 @@ pub fn from_json(item: TokenStream) -> TokenStream {
     let name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
-    let (fields, options, _) = json::extract_fields(&input);
-
-    let quote = quote! {
-        impl #impl_generics ::automatea::FromJson for #name #ty_generics #where_clause {
-            #[inline]
-            fn from_json(json: &str) -> Result<#name #ty_generics, ::automatea::json::JsonError> {
-                let map = ::automatea::json::json_object_to_map(json)?;
-println!(concat!(stringify!(#name), ": {:#?}"), map);
-
-                Ok(
-                    #name {
-                        #(
-                         #fields : ::automatea::FromJson::from_json(map.get(stringify!(#fields)).ok_or_else(|| ::automatea::json::JsonError::new(concat!("Could not find ", stringify!(#fields), " in JSON input")))?)?
-                         ,
-                        )*
-
-                        #(
-                         #options : match map.get(stringify!(#options)) {
-                            Some(&val) => Some(::automatea::FromJson::from_json(val)?),
-                            None => None
-                         },
-                        )*
+    if let Data::Struct(data_struct) = &input.data {
+        if let Fields::Unnamed(unnamed) = &data_struct.fields {
+            if unnamed.unnamed.len() == 1 {
+                let quote = quote! {
+                    impl #impl_generics ::automatea::FromJson for #name #ty_generics #where_clause {
+                        #[inline]
+                        fn from_json(json: &str) -> Result<#name #ty_generics, ::automatea::json::JsonError> {
+                            ::automatea::FromJson::from_json(json)
+                        }
                     }
-                )
+                };
+
+                return quote.into();
+            } else {
+                panic!("Structs with multiple unnamed fields are not supported yet");
             }
         }
-    };
 
-    quote.into()
+        let (fields, options, recommended_size) = json::extract_fields(data_struct);
+
+        let quote = quote! {
+            impl #impl_generics ::automatea::FromJson for #name #ty_generics #where_clause {
+                #[inline]
+                fn from_json(json: &str) -> Result<#name #ty_generics, ::automatea::json::JsonError> {
+                    let map = ::automatea::json::json_object_to_map(json)?;
+
+                    Ok(
+                        #name {
+                            #(
+                             #fields : ::automatea::FromJson::from_json(map.get(stringify!(#fields)).ok_or_else(|| ::automatea::json::JsonError::new(concat!("Could not find ", stringify!(#fields), " in JSON input")))?)?
+                             ,
+                            )*
+
+                            #(
+                             #options : match map.get(stringify!(#options)) {
+                                Some(&val) => Some(::automatea::FromJson::from_json(val)?),
+                                None => None
+                             },
+                            )*
+                        }
+                    )
+                }
+            }
+        };
+
+       return quote.into();
+    } else {
+        panic!("AsJson can only be applied to structs");
+    }
 }
 
 #[proc_macro_attribute]
@@ -178,7 +225,7 @@ pub fn payload(metadata: TokenStream, item: TokenStream) -> TokenStream {
                 panic!(discord::PAYLOAD_ERROR);
             }
 
-            Some((&name[1..name.len()-1]).to_owned())
+            Some((&name[1..name.len() - 1]).to_owned())
         }
         None => None
     };
@@ -237,7 +284,7 @@ pub fn convert(metadata: TokenStream, item: TokenStream) -> TokenStream {
             let ty = Ident::new(&ty.to_string(), ty.span().into());
 
             (as_method.into(), from_method.into(), ty.into())
-        },
+        }
         _ => panic!("Expected arguments under the format (type)")
     };
 
@@ -351,7 +398,6 @@ fn pascal_to_camel(val: String) -> String {
     }
 
     val
-
 }
 
 #[proc_macro_attribute]
