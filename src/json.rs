@@ -3,6 +3,7 @@ use std::str::FromStr;
 use std::fmt::{Display, Formatter, Error, Debug, Write};
 use std::hash::Hash;
 use std::mem::MaybeUninit;
+use backtrace::Backtrace;
 use url::{Url, ParseError};
 
 /// A data structure that can be represented in a
@@ -72,13 +73,11 @@ pub struct JsonError {
 
 impl JsonError {
     pub fn new<S>(msg: S) -> JsonError where S: Into<String> {
-        panic!("{}", msg.into());
-        JsonError { msg: msg.into() }
+        JsonError { msg: format!("{}\n{:#?}", msg.into(), Backtrace::new()) }
     }
 
     pub fn err<S, T>(msg: S) -> Result<T, JsonError> where S: Into<String> {
-        panic!("{}", msg.into());
-        Err(JsonError { msg: msg.into() })
+        Err(JsonError { msg: format!("{}\n{:#?}", msg.into(), Backtrace::new()) })
     }
 }
 
@@ -574,6 +573,16 @@ impl<T> FromJson for Nullable<T> where T: FromJson {
             "null" => Nullable::Null,
             val => Nullable::Value(T::from_json(val)?)
         })
+    }
+}
+
+impl<T> From<Option<T>> for Nullable<T> {
+    fn from(opt: Option<T>) -> Self {
+        if let Some(opt) = opt {
+            Nullable::Value(opt)
+        } else {
+            Nullable::Null
+        }
     }
 }
 
