@@ -20,4 +20,11 @@ serde = "1.0.98"
 
 [features]
 default = []
+
+# Removes some checks that are not necessary
 squeeze_performance = []
+
+# Checks for unused fields when deserializing an object.
+# Should only be used in development to make sure no field
+# was forgotten as it slows down the deserializer.
+strict_deserializer = []

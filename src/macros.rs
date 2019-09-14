@@ -1,8 +1,16 @@
 #[macro_export]
 macro_rules! api {
+    () => {
+        "https://discordapp.com/api/v6"
+    };
     ($dest:expr) => {
-        concat!("https://discordapp.com/api/v6", $dest)
-    }
+        concat!(::automatea::api!(), $dest)
+    };
+    ($($dest:expr),*) => {{
+        let mut s = String::from(::automatea::api!());
+        $(::std::fmt::Write::write_fmt(&mut s, format_args!("{}", $dest)).expect("Failed to write api string");)*
+        s
+    }}
 }
 
 #[macro_export]
@@ -26,6 +34,26 @@ macro_rules! get {
                 .text()?
                 .as_ref()
         )?
+    }
+}
+
+#[macro_export]
+macro_rules! post {
+    ($client:expr, $dest:expr, $content:expr) => {{
+        ::reqwest::Client::post(&$client, &$dest)
+            .header("Authorization", "Bot NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY")
+            .header("User-Agent", "DiscordBot (https://github.com/mbenoukaiss/automatea, 0.1.0)")
+            .header("Content-Type", "application/json")
+            .body($content.as_json())
+            .send()?
+    }};
+    ($dest:expr, $content:expr) => {
+        ::reqwest::Client::post(&::reqwest::Client::new(), &$dest)
+            .header("Authorization", "Bot NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY")
+            .header("User-Agent", "DiscordBot (https://github.com/mbenoukaiss/automatea, 0.1.0)")
+            .header("Content-Type", "application/json")
+            .body(::automatea::json::AsJson::as_json(&$content))
+            .send()?
     }
 }
 
