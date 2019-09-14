@@ -1,4 +1,5 @@
 use crate::json::Nullable;
+use crate::models::PartialGuildMember;
 
 /// Users in Discord are generally considered the
 /// base entity. Users can spawn across the entire
@@ -42,6 +43,22 @@ pub struct PartialUser {
     pub locale: Option<String>,
     pub verified: Option<bool>,
     pub email: Option<String>,
+    pub flags: Option<i32>,
+    pub premium_type: Option<i32>
+}
+
+#[object(server)]
+pub struct MentionnedUser {
+    pub id: u64,
+    pub member: PartialGuildMember,
+    pub username: String,
+    pub discriminator: String,
+    pub avatar: Nullable<String>,
+    pub bot: Option<bool>,
+    pub mfa_enabled: Option<bool>,
+    pub locale: Option<String>,
+    pub verified: Option<bool>,
+    pub email: Option<Nullable<String>>,
     pub flags: Option<i32>,
     pub premium_type: Option<i32>
 }

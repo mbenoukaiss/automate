@@ -1,5 +1,5 @@
 use crate::json::Nullable;
-use crate::models::{User, PartialUser};
+use crate::models::{User, PartialUser, PartialVoiceState, Channel};
 
 #[object(server)]
 pub struct Guild {
@@ -26,6 +26,14 @@ pub struct Guild {
     pub widget_enabled: Option<bool>,
     pub widget_channel_id: Option<u64>,
     pub system_channel_id: Nullable<u64>,
+    pub joined_at: Option<String>,
+    pub large: Option<bool>,
+    pub unavailable: Option<bool>,
+    pub member_count: Option<i32>,
+    pub voice_states: Option<Vec<PartialVoiceState>>,
+    pub members: Option<Vec<GuildMember>>,
+    pub channels: Option<Vec<Channel>>,
+    pub presences: Option<Vec<PartialPresenceUpdate>>,
     pub max_presences: Option<Nullable<i32>>,
     pub max_members: Option<i32>,
     pub vanity_url_code: Nullable<String>,
@@ -125,12 +133,36 @@ pub struct Emoji {
 }
 
 #[object(server)]
+pub struct PartialEmoji {
+    pub id: Nullable<u64>,
+    pub name: String,
+    pub roles: Option<Vec<Role>>,
+    pub user: Option<User>,
+    pub require_colons: Option<bool>,
+    pub managed: Option<bool>,
+    pub animated: Option<bool>
+}
+
+#[object(server)]
 pub struct GuildMember {
     pub user: User,
-    pub nick: Option<String>,
+    pub nick: Option<Nullable<String>>,
     pub roles: Vec<u64>,
     pub joined_at: String,
-    pub premium_since: Option<String>,
+    pub premium_since: Option<Nullable<String>>,
+    pub hoisted_role: Nullable<bool>, //TODO: get the right type
+    pub deaf: bool,
+    pub mute: bool
+}
+
+#[object(server)]
+pub struct PartialGuildMember {
+    pub user: Option<User>,
+    pub nick: Option<Nullable<String>>,
+    pub roles: Vec<u64>,
+    pub joined_at: String,
+    pub premium_since: Option<Nullable<String>>,
+    pub hoisted_role: Nullable<bool>, //TODO: get the right type
     pub deaf: bool,
     pub mute: bool
 }
@@ -199,7 +231,7 @@ pub struct ClientStatus {
 /// A user's displayed activity.
 ///
 /// More information on [Discord's documentation](https://discordapp.com/developers/docs/topics/gateway#activity-object)
-#[object(server)]
+#[object(both)]
 pub struct Activity {
     pub name: String,
     pub _type: ActivityType,
@@ -236,21 +268,21 @@ pub enum ActivityFlags {
 /// end of the activity in milliseconds.
 ///
 /// More information on [Discord's documentation](https://discordapp.com/developers/docs/topics/gateway#activity-object-activity-timestamps)
-#[object(server)]
+#[object(both)]
 pub struct ActivityTimestamps {
     pub start: Option<i32>,
     pub end: Option<i32>
 }
 
 /// More information on [Discord's documentation](https://discordapp.com/developers/docs/topics/gateway#activity-object-activity-party)
-#[object(server)]
+#[object(both)]
 pub struct ActivityParty {
     pub id: Option<String>,
     pub size: Option<[i32; 2]>
 }
 
 /// More information on [Discord's documentation](https://discordapp.com/developers/docs/topics/gateway#activity-object-activity-assets)
-#[object(server)]
+#[object(both)]
 pub struct ActivityAssets {
     pub large_image: Option<String>,
     pub large_text: Option<String>,
@@ -259,7 +291,7 @@ pub struct ActivityAssets {
 }
 
 /// More information on [Discord's documentation](https://discordapp.com/developers/docs/topics/gateway#activity-object-activity-secrets)
-#[object(server)]
+#[object(both)]
 pub struct ActivitySecrets {
     pub join: Option<String>,
     pub spectate: Option<String>,

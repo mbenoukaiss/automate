@@ -107,7 +107,7 @@ impl From<ParseError> for JsonError {
 /// Option<T>. Some other values must be in the
 /// JSON string but may contain the null value
 /// and should be represented using Nullable<T>.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Nullable<T> {
     Value(T),
     Null,
@@ -245,7 +245,7 @@ macro_rules! impl_for_single_collection {
                         let mut nesting_level = 0;
                         let mut val_begin: usize = 0;
 
-                        for (i, c) in json.chars().enumerate() {
+                        for (i, c) in json.char_indices() {
                             if c == '{' || c == '[' {
                                 nesting_level += 1;
 
@@ -592,7 +592,7 @@ pub fn json_object_to_map(input: &str) -> Result<HashMap<&str, &str>, JsonError>
     let mut key_idxs: [usize; 2] = [0; 2];
     let mut val_idxs: [usize; 2] = [0; 2];
 
-    for (i, c) in input.chars().enumerate() {
+    for (i, c) in input.char_indices() {
         if c == '{' || c == '[' {
             nesting_level += 1;
             continue;
@@ -641,7 +641,7 @@ pub fn json_object_to_map(input: &str) -> Result<HashMap<&str, &str>, JsonError>
     if nesting_level == 0 {
         Ok(map)
     } else {
-        JsonError::err("Given string is not a valid JSON string")
+        JsonError::err(format!("Given string is not a valid JSON string: {}", nesting_level))
     }
 }
 

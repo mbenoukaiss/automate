@@ -6,7 +6,6 @@ use syn::{parse_macro_input, DeriveInput, Data, Fields, Expr, Error};
 use quote::quote;
 use crate::discord::StructSide;
 use syn::spanned::Spanned;
-use quote::__rt::ext::RepToTokensExt;
 
 macro_rules! extract_token {
     ($type:ident in $token:ident) => {
@@ -56,7 +55,7 @@ pub fn as_json(item: TokenStream) -> TokenStream {
             }
         }
 
-        let (fields, options, recommended_size) = json::extract_fields(data_struct);
+        let (fs, fns, os, ons, recommended_size) = json::extract_fields(data_struct);
 
         let quote = quote! {
             impl #impl_generics ::automatea::AsJson for #name #ty_generics #where_clause {
@@ -66,14 +65,14 @@ pub fn as_json(item: TokenStream) -> TokenStream {
                     json.push('{');
 
                     #(
-                     json.push_str(concat!("\"", stringify!(#fields), "\":"));
-                     ::automatea::AsJson::concat_json(&self.#fields, &mut json);
+                     json.push_str(concat!("\"", #fns, "\":"));
+                     ::automatea::AsJson::concat_json(&self.#fs, &mut json);
                      json.push(',');
                     )*
 
                     #(
-                     if let Some(optional) = &self.#options {
-                         json.push_str(concat!("\"", stringify!(#options), "\":"));
+                     if let Some(optional) = &self.#os {
+                         json.push_str(concat!("\"", #ons, "\":"));
                          ::automatea::AsJson::concat_json(optional, &mut json);
                          json.push(',');
                      }
@@ -90,14 +89,14 @@ pub fn as_json(item: TokenStream) -> TokenStream {
                     dest.push('{');
 
                     #(
-                     dest.push_str(concat!("\"", stringify!(#fields), "\":"));
-                     ::automatea::AsJson::concat_json(&self.#fields, dest);
+                     dest.push_str(concat!("\"", #fns, "\":"));
+                     ::automatea::AsJson::concat_json(&self.#fs, dest);
                      dest.push(',');
                     )*
 
                     #(
-                     if let Some(optional) = &self.#options {
-                         dest.push_str(concat!("\"", stringify!(#options), "\":"));
+                     if let Some(optional) = &self.#os {
+                         dest.push_str(concat!("\"", #ons, "\":"));
                          ::automatea::AsJson::concat_json(optional, dest);
                          dest.push(',');
                      }
@@ -125,11 +124,13 @@ pub fn from_json(item: TokenStream) -> TokenStream {
     if let Data::Struct(data_struct) = &input.data {
         if let Fields::Unnamed(unnamed) = &data_struct.fields {
             if unnamed.unnamed.len() == 1 {
+                let contained = &unnamed.unnamed.first().unwrap().ty;
+
                 let quote = quote! {
                     impl #impl_generics ::automatea::FromJson for #name #ty_generics #where_clause {
                         #[inline]
                         fn from_json(json: &str) -> Result<#name #ty_generics, ::automatea::json::JsonError> {
-                            ::automatea::FromJson::from_json(json)
+                            Ok(#name #ty_generics(::automatea::FromJson::from_json(json)?))
                         }
                     }
                 };
@@ -140,7 +141,7 @@ pub fn from_json(item: TokenStream) -> TokenStream {
             }
         }
 
-        let (fields, options, recommended_size) = json::extract_fields(data_struct);
+        let (fs, fns, os, ons, _) = json::extract_fields(data_struct);
 
         let quote = quote! {
             impl #impl_generics ::automatea::FromJson for #name #ty_generics #where_clause {
@@ -151,12 +152,12 @@ pub fn from_json(item: TokenStream) -> TokenStream {
                     Ok(
                         #name {
                             #(
-                             #fields : ::automatea::FromJson::from_json(map.get(stringify!(#fields)).ok_or_else(|| ::automatea::json::JsonError::new(concat!("Could not find ", stringify!(#fields), " in JSON input")))?)?
+                             #fs : ::automatea::FromJson::from_json(map.get(#fns).ok_or_else(|| ::automatea::json::JsonError::new(concat!("Could not find ", #fns, " in JSON input")))?)?
                              ,
                             )*
 
                             #(
-                             #options : match map.get(stringify!(#options)) {
+                             #os : match map.get(#ons) {
                                 Some(&val) => Some(::automatea::FromJson::from_json(val)?),
                                 None => None
                              },

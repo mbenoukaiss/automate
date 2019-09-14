@@ -12,7 +12,7 @@ pub struct Payload<D> where D: FromJson {
 }
 
 #[payload(op = 0, event = "READY", server)]
-pub struct Ready {
+pub struct DispatchReady {
     pub v: u16,
     pub user: User,
     pub private_channels: Vec<Channel>,
@@ -22,46 +22,37 @@ pub struct Ready {
 }
 
 #[payload(op = 0, event = "GUILD_CREATE", server)]
-pub struct GuildCreate {
+pub struct DispatchGuildCreate(pub Guild);
+
+/// This payload should not be handled by bots
+/// as it will always be empty and does not mean
+/// anything.
+///
+/// More information in [this issue](https://github.com/discordapp/discord-api-docs/issues/683)
+#[payload(op = 0, event = "PRESENCES_REPLACE", server)]
+pub struct DispatchPresencesReplace(pub Vec<PresenceUpdate>);
+
+#[payload(op = 0, event = "PRESENCE_UPDATE", server)]
+pub struct DispatchPresenceUpdate(pub PresenceUpdate);
+
+#[payload(op = 0, event = "MESSAGE_CREATE", server)]
+pub struct DispatchMessageCreate(pub Message);
+
+#[payload(op = 0, event = "MESSAGE_UPDATE", server)]
+pub struct DispatchMessageUpdate(pub Message);
+
+#[payload(op = 0, event = "MESSAGE_DELETE", server)]
+pub struct DispatchMessageDelete {
     pub id: u64,
-    pub name: String,
-    pub icon: Nullable<String>,
-    pub splash: Nullable<String>,
-    pub owner: Option<bool>,
-    pub owner_id: u64,
-    pub permissions: Option<u32>,
-    pub region: String,
-    pub afk_channel_id: Nullable<u64>,
-    pub afk_timeout: i32,
-    pub embed_enabled: Option<bool>,
-    pub embed_channel_id: Option<u64>,
-    pub verification_level: VerificationLevel,
-    pub default_message_notifications: DefaultMessageNotificationLevel,
-    pub explicit_content_filter: ExplicitContentFilterLevel,
-    pub roles: Vec<Role>,
-    pub emojis: Vec<Emoji>,
-    pub features: Vec<GuildFeature>,
-    pub mfa_level: MFALevel,
-    pub application_id: Nullable<u64>,
-    pub widget_enabled: Option<bool>,
-    pub widget_channel_id: Option<u64>,
-    pub system_channel_id: Nullable<u64>,
-    pub joined_at: Option<String>,
-    pub large: Option<bool>,
-    pub unavailable: Option<bool>,
-    pub member_count: Option<i32>,
-    pub voice_states: Option<Vec<PartialVoiceState>>,
-    pub members: Option<Vec<GuildMember>>,
-    pub channels: Option<Vec<Channel>>,
-    pub presences: Option<Vec<PartialPresenceUpdate>>,
-    pub max_presences: Option<Nullable<i32>>,
-    pub max_members: Option<i32>,
-    pub vanity_url_code: Nullable<String>,
-    pub description: Nullable<String>,
-    pub banner: Nullable<String>,
-    pub premium_tier: PremiumTier,
-    pub premium_subscription_count: Option<i32>,
-    pub preferred_locale: String
+    pub channel_id: u64,
+    pub guild_id: Option<u64>
+}
+
+#[payload(op = 0, event = "MESSAGE_DELETE_BULK", server)]
+pub struct DispatchMessageDeleteBulk {
+    pub ids: Vec<u64>,
+    pub channel_id: u64,
+    pub guild_id: Option<u64>
 }
 
 #[payload(op = 1, client)]
@@ -71,10 +62,31 @@ pub struct Heartbeat(pub Nullable<u32>);
 pub struct Identify {
     pub token: String,
     pub properties: HashMap<String, String>,
-    pub compress: Option<bool>
+    pub compress: Option<bool>,
+    pub large_threshold: Option<u8>,
+    pub shard: Option<[i32; 2]>,
+    pub presence: Option<UpdateStatus>,
+    pub guild_subscriptions: Option<bool>
 }
 
 #[payload(op = 10, server)]
 pub struct Hello {
     pub heartbeat_interval: u32
+}
+
+#[object(client)]
+pub struct UpdateStatus {
+    pub since: Nullable<i32>,
+    pub game: Nullable<Activity>,
+    pub status: StatusType,
+    pub afk: bool
+}
+
+#[stringify(snake_case)]
+pub enum StatusType {
+    Online,
+    Dnd,
+    Idle,
+    Invisible,
+    Offline
 }
