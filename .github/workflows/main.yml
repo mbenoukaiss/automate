@@ -1,0 +1,43 @@
+name: Checks
+on: push
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - id: component
+        name: Retrieve nightly components toolchain
+        uses: actions-rs/components-nightly@master
+        with:
+          target: x86_64-unknown-linux-gnu
+          component: clippy
+      - name: Install toolchain
+        uses: actions-rs/toolchain@master
+        with:
+          toolchain: ${{ steps.component.outputs.toolchain }}
+          override: true
+      - name: Install clippy
+        run: rustup component add clippy
+      - name: Run clippy
+        uses: actions-rs/cargo@master
+        with:
+          command: clippy
+          args: -- -D warnings
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - name: Install toolchain
+        uses: actions-rs/toolchain@master
+        with:
+          toolchain: nightly
+          override: true
+      - name: Run tests
+        uses: actions-rs/cargo@master
+        with:
+          command: test
+          args: --all-targets
