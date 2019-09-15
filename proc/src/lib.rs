@@ -124,8 +124,6 @@ pub fn from_json(item: TokenStream) -> TokenStream {
     if let Data::Struct(data_struct) = &input.data {
         if let Fields::Unnamed(unnamed) = &data_struct.fields {
             if unnamed.unnamed.len() == 1 {
-                let contained = &unnamed.unnamed.first().unwrap().ty;
-
                 let quote = quote! {
                     impl #impl_generics ::automatea::FromJson for #name #ty_generics #where_clause {
                         #[inline]
@@ -271,7 +269,7 @@ pub fn payload(metadata: TokenStream, item: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn convert(metadata: TokenStream, item: TokenStream) -> TokenStream {
-    let mut convertible: TokenStream = quote!(#[derive(Debug)]).into();
+    let mut convertible: TokenStream = quote!(#[derive(Debug)] #[allow(clippy::identity_op)]).into();
     convertible.extend(item.clone());
 
     let input: DeriveInput = parse_macro_input!(item as DeriveInput);
@@ -480,7 +478,7 @@ pub fn stringify(metadata: TokenStream, item: TokenStream) -> TokenStream {
         impl #impl_generics ::automatea::json::FromJson for #struct_name #ty_generics #where_clause {
             #[inline]
             fn from_json(json: &str) -> Result<#struct_name #ty_generics, ::automatea::json::JsonError> {
-                if json.len() >= 2 && json.chars().next().unwrap() == '"' && json.chars().last().unwrap() == '"' {
+                if json.len() >= 2 && json.starts_with('"') && json.ends_with('"') {
                     return match &json[1..json.len()-1] {
                         #(
                             #fields_str => Ok(#struct_name #ty_generics :: #fields_ident),

@@ -7,6 +7,7 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 use crate::json::Nullable;
 use std::sync::{Mutex, Arc};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 macro_rules! handle_payload {
     ($data:ident as $payload:ty => $self:ident.$method:ident) => {{
@@ -51,7 +52,7 @@ impl ws::Factory for ClientFactory {
         ClientHandler {
             ws,
             last_sequence_number: Arc::new(Mutex::new(Nullable::Null)),
-            last_heartbeat_confirmed: Arc::new(Mutex::new(true)),
+            last_heartbeat_confirmed: Arc::new(AtomicBool::new(true)),
             heartbeat: None,
         }
     }
@@ -60,11 +61,38 @@ impl ws::Factory for ClientFactory {
 struct ClientHandler {
     ws: ws::Sender,
     last_sequence_number: Arc<Mutex<Nullable<u32>>>,
-    last_heartbeat_confirmed: Arc<Mutex<bool>>,
+    last_heartbeat_confirmed: Arc<AtomicBool>,
     heartbeat: Option<JoinHandle<()>>,
 }
 
 impl ClientHandler {
+    fn dispatch_payload(&mut self, data: &String) -> Result<(), AutomateaError> {
+        match json::json_root_search::<u8>("op", data)? {
+            0 => self.dispatch_event(data)?,
+            10 => handle_payload!(data as Payload<Hello> => self.on_hello),
+            11 => self.on_heartbeat_ack()?,
+            unknown_op => warn!("Received unknown opcode '{}': \n{}", unknown_op, data)
+        }
+
+        Ok(())
+    }
+
+    fn dispatch_event(&mut self, data: &String) -> Result<(), AutomateaError>{
+        match json::json_root_search::<String>("t", data)?.as_str() {
+            DispatchReady::EVENT_NAME => handle_payload!(data as Payload<DispatchReady> => self.on_ready),
+            DispatchGuildCreate::EVENT_NAME => handle_payload!(data as Payload<DispatchGuildCreate> => self.on_guild_create),
+            DispatchPresencesReplace::EVENT_NAME => info!("Ignoring presence replace event"),
+            DispatchPresenceUpdate::EVENT_NAME => handle_payload!(data as Payload<DispatchPresenceUpdate> => self.on_presence_update),
+            DispatchMessageCreate::EVENT_NAME => handle_payload!(data as Payload<DispatchMessageCreate> => self.on_message_create),
+            DispatchMessageUpdate::EVENT_NAME => handle_payload!(data as Payload<DispatchMessageUpdate> => self.on_message_update),
+            DispatchMessageDelete::EVENT_NAME => handle_payload!(data as Payload<DispatchMessageDelete> => self.on_message_delete),
+            DispatchMessageDeleteBulk::EVENT_NAME => handle_payload!(data as Payload<DispatchMessageDeleteBulk> => self.on_message_delete_bulk),
+            unknown_event => warn!("Received unknown event: '{}': \n{}", unknown_event, data)
+        }
+
+        Ok(())
+    }
+
     fn on_ready(&self, payload: DispatchReady) -> Result<(), AutomateaError> {
         println!("{:?}", payload);
         Ok(())
@@ -123,16 +151,14 @@ impl ClientHandler {
                 loop {
                     thread::sleep(Duration::from_millis(payload.heartbeat_interval as u64));
 
-                    let mut previous_heartbeat_confirmed = last_heartbeat_confirmed.lock().unwrap();
-
-                    if *previous_heartbeat_confirmed == false {
+                    if !last_heartbeat_confirmed.load(Ordering::Relaxed) {
                         warn!("Zombied connection detected");
                     }
 
                     if let Err(e) = heartbeat_snd.send(Heartbeat(*last_sequence_number.lock().unwrap())) {
                         error!("Failed to send heartbeat: {}", e);
                     } else {
-                        *previous_heartbeat_confirmed = false;
+                        last_heartbeat_confirmed.store(false, Ordering::Relaxed);
                         info!("Successfully sent heartbeat");
                     }
                 }
@@ -158,37 +184,18 @@ impl ClientHandler {
         Ok(())
     }
 
-    fn on_heartbeat_ack(&self) {
-        let mut previous_heartbeat_confirmed = self.last_heartbeat_confirmed.lock().unwrap();
-        *previous_heartbeat_confirmed = true;
+    fn on_heartbeat_ack(&mut self) -> Result<(), AutomateaError> {
+        self.last_heartbeat_confirmed.store(true, Ordering::Relaxed);
 
         info!("Received heartbeat acknowledgement");
+        Ok(())
     }
 }
 
 impl ws::Handler for ClientHandler {
     fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {
         if let ws::Message::Text(data) = msg {
-            let err: Result<(), AutomateaError> = try {
-                match json::json_root_search::<u8>("op", &data)? {
-                    0 => match json::json_root_search::<String>("t", &data)?.as_str() {
-                        DispatchReady::EVENT_NAME => handle_payload!(data as Payload<DispatchReady> => self.on_ready),
-                        DispatchGuildCreate::EVENT_NAME => handle_payload!(data as Payload<DispatchGuildCreate> => self.on_guild_create),
-                        DispatchPresencesReplace::EVENT_NAME => info!("Ignoring presence replace event"),
-                        DispatchPresenceUpdate::EVENT_NAME => handle_payload!(data as Payload<DispatchPresenceUpdate> => self.on_presence_update),
-                        DispatchMessageCreate::EVENT_NAME => handle_payload!(data as Payload<DispatchMessageCreate> => self.on_message_create),
-                        DispatchMessageUpdate::EVENT_NAME => handle_payload!(data as Payload<DispatchMessageUpdate> => self.on_message_update),
-                        DispatchMessageDelete::EVENT_NAME => handle_payload!(data as Payload<DispatchMessageDelete> => self.on_message_delete),
-                        DispatchMessageDeleteBulk::EVENT_NAME => handle_payload!(data as Payload<DispatchMessageDeleteBulk> => self.on_message_delete_bulk),
-                        unknown_event => warn!("Received unknown event: '{}': \n{}", unknown_event, data)
-                    },
-                    10 => handle_payload!(data as Payload<Hello> => self.on_hello),
-                    11 => self.on_heartbeat_ack(),
-                    unknown_op => warn!("Received unknown opcode '{}': \n{}", unknown_op, data)
-                }
-            };
-
-            if let Err(err) = err {
+            if let Err(err) = self.dispatch_payload(&data) {
                 error!("An error occurred while reading message: {}\n{}", err.msg, data);
             }
         } else {

@@ -81,6 +81,7 @@ pub fn append_client_quote(input: &DeriveInput, opcode: u8, quote: &mut TokenStr
     quote.extend(TokenStream::from(message_from));
 }
 
+#[allow(unused_variables)]
 pub fn append_server_quote(input: &DeriveInput, quote: &mut TokenStream) {
 
 }

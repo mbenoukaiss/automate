@@ -69,15 +69,16 @@ pub trait FromJson {
 /// not a correctly formatted JSON string.
 pub struct JsonError {
     pub msg: String,
+    pub backtrace: String
 }
 
 impl JsonError {
     pub fn new<S>(msg: S) -> JsonError where S: Into<String> {
-        JsonError { msg: format!("{}\n{:#?}", msg.into(), Backtrace::new()) }
+        JsonError { msg: msg.into(), backtrace: format!("{:#?}", Backtrace::new()) }
     }
 
     pub fn err<S, T>(msg: S) -> Result<T, JsonError> where S: Into<String> {
-        Err(JsonError { msg: format!("{}\n{:#?}", msg.into(), Backtrace::new()) })
+        Err(JsonError { msg: msg.into(), backtrace: format!("{:#?}", Backtrace::new()) })
     }
 }
 
@@ -184,7 +185,7 @@ macro_rules! impl_for_large_num {
             impl FromJson for $ty {
                 #[inline]
                 fn from_json(json: &str) -> Result<$ty, JsonError> {
-                    if json.len() >= 2 && json.chars().next().unwrap() == '"' && json.chars().last().unwrap() == '"' {
+                    if json.len() >= 2 && json.starts_with('"') && json.ends_with('"') {
                         <$ty>::from_str(&json[1..json.len()-1])
                             .map_err(|_| JsonError::new(format!("Failed to parse {} into {}", json, stringify!($ty))))
                     } else {
@@ -236,7 +237,7 @@ macro_rules! impl_for_single_collection {
             impl<J> FromJson for $ty<J> where J: FromJson $(+ $rq_trait)* {
                 #[inline]
                 fn from_json(json: &str) -> Result<$ty<J>, JsonError> {
-                    if json.len() >= 2 && & json.chars().next().unwrap() == &'[' && json.chars().last().unwrap() == ']' {
+                    if json.len() >= 2 && json.starts_with('[') && json.ends_with(']') {
                         let mut col: $ty<J> = $ty::new();
                         if (&json[1..json.len()-1]).trim().is_empty() {
                             return Ok(col);
@@ -331,7 +332,7 @@ macro_rules! impl_for_double_collection {
             impl<J, K> FromJson for $ty<J, K> where J: FromJson $(+ $rq_first_trait)*, K: FromJson $(+ $rq_second_trait)* {
                 #[inline]
                 fn from_json(json: &str) -> Result<$ty<J, K>, JsonError> {
-                    if json.len() >= 2 && & json.chars().next().unwrap() == &'{' && json.chars().last().unwrap() == '}' {
+                    if json.len() >= 2 && json.starts_with('{') && json.ends_with('}') {
                         return json.split(',')
                             .map(|row| {
                                 if let Some(sep) = row.find(':') {
@@ -407,7 +408,7 @@ macro_rules! impl_for_arrays {
             impl<T> FromJson for [T; $size] where T: FromJson  {
                 #[inline]
                 fn from_json(json: &str) -> Result<[T; $size], JsonError> {
-                    if json.len() >= 2 && & json.chars().next().unwrap() == &'[' && json.chars().last().unwrap() == ']' {
+                    if json.len() >= 2 && json.starts_with('[') && json.ends_with(']') {
                         let split = json.split(',');
                         let mut count = 0;
 
@@ -490,7 +491,7 @@ impl AsJson for Url {
 impl FromJson for Url {
     #[inline]
     fn from_json(json: &str) -> Result<Url, JsonError> {
-        if json.len() >= 2 && json.chars().next().unwrap() == '"' && json.chars().last().unwrap() == '"' {
+        if json.len() >= 2 && json.starts_with('"') && json.ends_with('"') {
             Url::from_str(&json[1..json.len() - 1]).map_err(JsonError::from)
         } else {
             JsonError::err("Incorrect JSON string value received")
@@ -521,7 +522,7 @@ impl AsJson for String {
 impl FromJson for String {
     #[inline]
     fn from_json(json: &str) -> Result<String, JsonError> {
-        if json.len() >= 2 && json.chars().next().unwrap() == '"' && json.chars().last().unwrap() == '"' {
+        if json.len() >= 2 && json.starts_with('"') && json.ends_with('"') {
             Ok(String::from(&json[1..json.len() - 1]))
         } else {
             JsonError::err("Incorrect JSON string value received")
@@ -658,7 +659,7 @@ pub fn json_object_to_map(input: &str) -> Result<HashMap<&str, &str>, JsonError>
 /// JSON string or if the function failed to find the key and
 /// its associated value in the string.
 pub fn json_root_search<T>(key: &str, candidate: &str) -> Result<T, JsonError> where T: FromJson {
-    if key.len() == 0 {
+    if key.is_empty() {
         return JsonError::err("The searched key can't be empty");
     }
 
