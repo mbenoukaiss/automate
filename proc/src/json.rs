@@ -1,10 +1,10 @@
 use proc_macro2::Ident;
-use syn::{DataStruct, Data, Type};
+use syn::{DataStruct, Type};
 
 pub fn rename_field(field: &Ident) -> String {
     let name = field.to_string();
 
-    if name.chars().next().unwrap() == '_' {
+    if name.starts_with('_') {
         (&name[1..]).to_owned()
     } else {
         name

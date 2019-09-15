@@ -28,3 +28,6 @@ squeeze_performance = []
 # Should only be used in development to make sure no field
 # was forgotten as it slows down the deserializer.
 strict_deserializer = []
+
+# Shows backtrace when
+json_backtrace = []
