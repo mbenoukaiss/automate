@@ -1,7 +1,7 @@
 use ws::{Sender, Settings, WebSocket};
 use crate::{json, AutomateaError};
 use crate::{api, get, post, map};
-use crate::models::{Payload, DispatchReady, DispatchGuildCreate, Hello, Identify, Gateway, Heartbeat, DispatchPresencesReplace, DispatchPresenceUpdate, DispatchMessageCreate, DispatchMessageUpdate, DispatchMessageDeleteBulk, DispatchMessageDelete};
+use crate::models::*;
 use std::thread;
 use std::thread::JoinHandle;
 use std::time::Duration;
@@ -66,7 +66,7 @@ struct ClientHandler {
 }
 
 impl ClientHandler {
-    fn dispatch_payload(&mut self, data: &String) -> Result<(), AutomateaError> {
+    fn dispatch_payload(&mut self, data: &str) -> Result<(), AutomateaError> {
         match json::json_root_search::<u8>("op", data)? {
             0 => self.dispatch_event(data)?,
             10 => handle_payload!(data as Payload<Hello> => self.on_hello),
@@ -77,42 +77,46 @@ impl ClientHandler {
         Ok(())
     }
 
-    fn dispatch_event(&mut self, data: &String) -> Result<(), AutomateaError>{
+    fn dispatch_event(&mut self, data: &str) -> Result<(), AutomateaError>{
         match json::json_root_search::<String>("t", data)?.as_str() {
-            DispatchReady::EVENT_NAME => handle_payload!(data as Payload<DispatchReady> => self.on_ready),
-            DispatchGuildCreate::EVENT_NAME => handle_payload!(data as Payload<DispatchGuildCreate> => self.on_guild_create),
-            DispatchPresencesReplace::EVENT_NAME => info!("Ignoring presence replace event"),
-            DispatchPresenceUpdate::EVENT_NAME => handle_payload!(data as Payload<DispatchPresenceUpdate> => self.on_presence_update),
-            DispatchMessageCreate::EVENT_NAME => handle_payload!(data as Payload<DispatchMessageCreate> => self.on_message_create),
-            DispatchMessageUpdate::EVENT_NAME => handle_payload!(data as Payload<DispatchMessageUpdate> => self.on_message_update),
-            DispatchMessageDelete::EVENT_NAME => handle_payload!(data as Payload<DispatchMessageDelete> => self.on_message_delete),
-            DispatchMessageDeleteBulk::EVENT_NAME => handle_payload!(data as Payload<DispatchMessageDeleteBulk> => self.on_message_delete_bulk),
+            ReadyDispatch::EVENT_NAME => handle_payload!(data as Payload<ReadyDispatch> => self.on_ready),
+            GuildCreateDispatch::EVENT_NAME => handle_payload!(data as Payload<GuildCreateDispatch> => self.on_guild_create),
+            PresencesReplaceDispatch::EVENT_NAME => info!("Ignoring presence replace event"),
+            PresenceUpdateDispatch::EVENT_NAME => handle_payload!(data as Payload<PresenceUpdateDispatch> => self.on_presence_update),
+            MessageCreateDispatch::EVENT_NAME => handle_payload!(data as Payload<MessageCreateDispatch> => self.on_message_create),
+            MessageUpdateDispatch::EVENT_NAME => handle_payload!(data as Payload<MessageUpdateDispatch> => self.on_message_update),
+            MessageDeleteDispatch::EVENT_NAME => handle_payload!(data as Payload<MessageDeleteDispatch> => self.on_message_delete),
+            MessageDeleteBulkDispatch::EVENT_NAME => handle_payload!(data as Payload<MessageDeleteBulkDispatch> => self.on_message_delete_bulk),
+            MessageReactionAddDispatch::EVENT_NAME => handle_payload!(data as Payload<MessageReactionAddDispatch> => self.on_message_reaction_add),
+            MessageReactionRemoveDispatch::EVENT_NAME => handle_payload!(data as Payload<MessageReactionRemoveDispatch> => self.on_message_reaction_remove),
+            MessageReactionRemoveAllDispatch::EVENT_NAME => handle_payload!(data as Payload<MessageReactionRemoveAllDispatch> => self.on_message_reaction_remove_all),
+            TypingStartDispatch::EVENT_NAME => handle_payload!(data as Payload<TypingStartDispatch> => self.on_typing_start),
             unknown_event => warn!("Received unknown event: '{}': \n{}", unknown_event, data)
         }
 
         Ok(())
     }
 
-    fn on_ready(&self, payload: DispatchReady) -> Result<(), AutomateaError> {
+    fn on_ready(&self, payload: ReadyDispatch) -> Result<(), AutomateaError> {
         println!("{:?}", payload);
         Ok(())
     }
 
-    fn on_guild_create(&self, payload: DispatchGuildCreate) -> Result<(), AutomateaError> {
+    fn on_guild_create(&self, payload: GuildCreateDispatch) -> Result<(), AutomateaError> {
         //TODO: keep a list of guilds and users
 
         println!("{:?}", payload);
         Ok(())
     }
 
-    fn on_presence_update(&self, payload: DispatchPresenceUpdate) -> Result<(), AutomateaError> {
+    fn on_presence_update(&self, payload: PresenceUpdateDispatch) -> Result<(), AutomateaError> {
         //TODO: keep track of user presences
 
         println!("{:?}", payload);
         Ok(())
     }
 
-    fn on_message_create(&self, payload: DispatchMessageCreate) -> Result<(), AutomateaError> {
+    fn on_message_create(&self, payload: MessageCreateDispatch) -> Result<(), AutomateaError> {
         println!("{:?}", payload);
 
         if payload.0.author.username != "Rust" { //dirty "if it's not the bot"
@@ -124,17 +128,37 @@ impl ClientHandler {
         Ok(())
     }
 
-    fn on_message_update(&self, payload: DispatchMessageUpdate) -> Result<(), AutomateaError> {
+    fn on_message_update(&self, payload: MessageUpdateDispatch) -> Result<(), AutomateaError> {
         println!("{:?}", payload);
         Ok(())
     }
 
-    fn on_message_delete(&self, payload: DispatchMessageDelete) -> Result<(), AutomateaError> {
+    fn on_message_delete(&self, payload: MessageDeleteDispatch) -> Result<(), AutomateaError> {
         println!("{:?}", payload);
         Ok(())
     }
 
-    fn on_message_delete_bulk(&self, payload: DispatchMessageDeleteBulk) -> Result<(), AutomateaError> {
+    fn on_message_delete_bulk(&self, payload: MessageDeleteBulkDispatch) -> Result<(), AutomateaError> {
+        println!("{:?}", payload);
+        Ok(())
+    }
+
+    fn on_message_reaction_add(&self, payload: MessageReactionAddDispatch) -> Result<(), AutomateaError> {
+        println!("{:?}", payload);
+        Ok(())
+    }
+
+    fn on_message_reaction_remove(&self, payload: MessageReactionRemoveDispatch) -> Result<(), AutomateaError> {
+        println!("{:?}", payload);
+        Ok(())
+    }
+
+    fn on_message_reaction_remove_all(&self, payload: MessageReactionRemoveAllDispatch) -> Result<(), AutomateaError> {
+        println!("{:?}", payload);
+        Ok(())
+    }
+
+    fn on_typing_start(&self, payload: TypingStartDispatch) -> Result<(), AutomateaError> {
         println!("{:?}", payload);
         Ok(())
     }
@@ -149,7 +173,7 @@ impl ClientHandler {
 
             Some(thread::spawn(move || {
                 loop {
-                    thread::sleep(Duration::from_millis(payload.heartbeat_interval as u64));
+                    thread::sleep(Duration::from_millis(u64::from(payload.heartbeat_interval)));
 
                     if !last_heartbeat_confirmed.load(Ordering::Relaxed) {
                         warn!("Zombied connection detected");
