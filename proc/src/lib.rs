@@ -269,7 +269,7 @@ pub fn payload(metadata: TokenStream, item: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn convert(metadata: TokenStream, item: TokenStream) -> TokenStream {
-    let mut convertible: TokenStream = quote!(#[derive(Debug)] #[allow(clippy::identity_op)]).into();
+    let mut convertible: TokenStream = quote!(#[derive(Debug)]).into();
     convertible.extend(item.clone());
 
     let input: DeriveInput = parse_macro_input!(item as DeriveInput);
