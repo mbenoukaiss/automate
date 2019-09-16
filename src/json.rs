@@ -1,10 +1,11 @@
 use std::collections::{VecDeque, LinkedList, HashMap, BTreeMap, HashSet, BTreeSet};
 use std::str::FromStr;
 use std::fmt::{Display, Formatter, Error, Debug, Write};
-use std::hash::Hash;
+use std::hash::{Hash, BuildHasher};
 use std::mem::MaybeUninit;
 use backtrace::Backtrace;
 use url::{Url, ParseError};
+use std::collections::hash_map::RandomState;
 
 /// A data structure that can be represented in a
 /// JSON string.
@@ -69,7 +70,7 @@ pub trait FromJson {
 /// not a correctly formatted JSON string.
 pub struct JsonError {
     pub msg: String,
-    pub backtrace: String
+    pub backtrace: String,
 }
 
 impl JsonError {
@@ -269,12 +270,10 @@ macro_rules! impl_for_single_collection {
                                 continue;
                             }
 
-                            if nesting_level == 1 {
-                                if c == ',' {
-                                    col.$insert_method(J::from_json((&json[val_begin..i]).trim())?);
+                            if c == ',' {
+                                col.$insert_method(J::from_json((&json[val_begin..i]).trim())?);
 
-                                    val_begin = i + 1;
-                                }
+                                val_begin = i + 1;
                             }
                         }
 
@@ -453,12 +452,12 @@ impl_for_large_num! {
 }
 
 impl_for_single_collection! {
-    Vec:push <>, VecDeque:push_back <>, LinkedList:push_back <>,
-    HashSet:insert <Eq, Hash>, BTreeSet:insert <Ord>
+    Vec:push <>, VecDeque:push_back <>,
+    LinkedList:push_back <>, BTreeSet:insert <Ord>
 }
 
 impl_for_double_collection! {
-    HashMap<Hash, Eq><>, BTreeMap<Ord><>
+    BTreeMap<Ord><>
 }
 
 impl_for_arrays! {
@@ -584,6 +583,160 @@ impl<T> From<Option<T>> for Nullable<T> {
         } else {
             Nullable::Null
         }
+    }
+}
+
+impl<J, S: BuildHasher> AsJson for HashSet<J, S> where J: AsJson {
+    #[inline]
+    fn as_json(&self) -> String {
+        let mut json = String::with_capacity(self.len() * 5 + 2);
+        json.push('[');
+
+        for val in self {
+            val.concat_json(&mut json);
+            json.push(',');
+        }
+
+        json.pop(); //remove last comma
+        json.push(']');
+
+        json
+    }
+
+    #[inline]
+    fn concat_json(&self, dest: &mut String) {
+        dest.reserve(self.len() * 5 + 2);
+        dest.push('[');
+
+        for val in self {
+            val.concat_json(dest);
+            dest.push(',');
+        }
+
+        dest.pop(); //remove last comma
+        dest.push(']');
+    }
+}
+
+impl<J> FromJson for HashSet<J, RandomState> where J: FromJson + Hash + Eq {
+    #[inline]
+    fn from_json(json: &str) -> Result<HashSet<J, RandomState>, JsonError> {
+        if json.len() >= 2 && json.starts_with('[') && json.ends_with(']') {
+            let mut col: HashSet<J, RandomState> = HashSet::new();
+            if (&json[1..json.len() - 1]).trim().is_empty() {
+                return Ok(col);
+            }
+
+            let mut nesting_level = 0;
+            let mut val_begin: usize = 0;
+
+            for (i, c) in json.char_indices() {
+                if c == '{' || c == '[' {
+                    nesting_level += 1;
+
+                    //we enter the root object
+                    if nesting_level == 1 {
+                        val_begin = i + 1;
+                    }
+
+                    continue;
+                } else if c == '}' || c == ']' {
+                    nesting_level -= 1;
+
+                    //we hit end of json, but because there isn't a final comma, there is still 1 value
+                    //waiting to be added to the collection
+                    if nesting_level == 0 && val_begin != 0 {
+                        col.insert(J::from_json((&json[val_begin..i]).trim())?);
+                        return Ok(col);
+                    }
+
+                    continue;
+                }
+
+                if c == ',' {
+                    col.insert(J::from_json((&json[val_begin..i]).trim())?);
+
+                    val_begin = i + 1;
+                }
+            }
+
+            return Ok(col);
+        }
+
+        JsonError::err("Invalid array format given")
+    }
+}
+
+impl<J, K, S: BuildHasher> AsJson for HashMap<J, K, S> where J: AsJson, K: AsJson {
+    #[inline]
+    fn as_json(&self) -> String {
+        let mut json = String::with_capacity(self.len() * 10 + 2);
+        json.push('{');
+
+        for (key, val) in self {
+            key.concat_json(&mut json);
+            json.push(':');
+            val.concat_json(&mut json);
+            json.push(',');
+        }
+
+        json.pop(); //remove last comma
+        json.push('}');
+
+        json
+    }
+
+    #[inline]
+    fn concat_json(&self, dest: &mut String) {
+        dest.reserve(self.len() * 10 + 2);
+        dest.push('{');
+
+        for (key, val) in self {
+            key.concat_json(dest);
+            dest.push(':');
+            val.concat_json(dest);
+            dest.push(',');
+        }
+
+        dest.pop(); //remove last comma
+        dest.push('}');
+    }
+}
+
+impl<J, K> FromJson for HashMap<J, K, RandomState> where J: FromJson + Hash + Eq, K: FromJson {
+    #[inline]
+    fn from_json(json: &str) -> Result<HashMap<J, K, RandomState>, JsonError> {
+        if json.len() >= 2 && json.starts_with('{') && json.ends_with('}') {
+            return json.split(',')
+                .map(|row| {
+                    if let Some(sep) = row.find(':') {
+                        Ok((&row[..sep], &row[sep + 1..]))
+                    } else {
+                        JsonError::err(concat!("Expected {key:value,...} in a ", stringify!(HashMap)))
+                    }
+                })
+                .map(|row| {
+                    if let Ok((key, val)) = row {
+                        let key = J::from_json(key.trim());
+                        let val = K::from_json(val.trim());
+
+                        if let Ok(key) = key {
+                            if let Ok(val) = val {
+                                return Ok((key, val));
+                            } else {
+                                return Err(val.err().unwrap());
+                            }
+                        } else {
+                            return Err(key.err().unwrap());
+                        }
+                    }
+
+                    Err(row.err().unwrap())
+                })
+                .collect::<Result<HashMap<J, K, RandomState>, JsonError>>();
+        }
+
+        JsonError::err("Invalid object format given")
     }
 }
 
