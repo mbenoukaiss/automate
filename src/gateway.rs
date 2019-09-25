@@ -2,10 +2,10 @@ use ws::{Sender, Settings, WebSocket};
 use crate::{json, AutomateaError};
 use crate::{api, get, post, map};
 use crate::models::*;
+use crate::json::Nullable;
 use std::thread;
 use std::thread::JoinHandle;
 use std::time::Duration;
-use crate::json::Nullable;
 use std::sync::{Mutex, Arc};
 use std::sync::atomic::{AtomicBool, Ordering};
 
