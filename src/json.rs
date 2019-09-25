@@ -270,10 +270,12 @@ macro_rules! impl_for_single_collection {
                                 continue;
                             }
 
-                            if c == ',' {
-                                col.$insert_method(J::from_json((&json[val_begin..i]).trim())?);
+                            if nesting_level == 1 {
+                                if c == ',' {
+                                    col.$insert_method(J::from_json((&json[val_begin..i]).trim())?);
 
-                                val_begin = i + 1;
+                                    val_begin = i + 1;
+                                }
                             }
                         }
 
@@ -290,9 +292,9 @@ macro_rules! impl_for_single_collection {
 /// Implements [AsJson](automatea::AsJson) and
 /// [FromJson](automatea::FromJson) for collections.
 macro_rules! impl_for_double_collection {
-    ($($ty:ident <$($rq_first_trait:ident),*>  <$($rq_second_trait:ident),*> ),*) => {
+    ($($ty:ident <$($rq_first_trait:ident),*> ),*) => {
         $(
-            impl<J, K> AsJson for $ty<J, K> where J: AsJson, K: AsJson {
+            impl<J> AsJson for $ty<String, J> where J: AsJson {
                 #[inline]
                 fn as_json(&self) -> String {
                     let mut json = String::with_capacity(self.len() * 10 + 2);
@@ -328,37 +330,19 @@ macro_rules! impl_for_double_collection {
                 }
             }
 
-            impl<J, K> FromJson for $ty<J, K> where J: FromJson $(+ $rq_first_trait)*, K: FromJson $(+ $rq_second_trait)* {
+            impl<J> FromJson for $ty<String, J> where J: FromJson $(+ $rq_first_trait)* {
                 #[inline]
-                fn from_json(json: &str) -> Result<$ty<J, K>, JsonError> {
+                fn from_json(json: &str) -> Result<$ty<String, J>, JsonError> {
                     if json.len() >= 2 && json.starts_with('{') && json.ends_with('}') {
-                        return json.split(',')
-                            .map(|row| {
-                                if let Some(sep) = row.find(':') {
-                                    Ok((&row[..sep], &row[sep+1..]))
-                                } else {
-                                    JsonError::err(concat!("Expected {key:value,...} in a ", stringify!($ty)))
+                        return json_object_to_map(json)?
+                            .iter()
+                            .map(|(&k, &v)| {
+                                match J::from_json(v.trim()) {
+                                    Ok(v) => Ok((String::from(k), v)),
+                                    Err(err) => Err(err)
                                 }
                             })
-                            .map(|row| {
-                                if let Ok((key, val)) = row {
-                                    let key = J::from_json(key.trim());
-                                    let val = K::from_json(val.trim());
-
-                                    if let Ok(key) = key {
-                                        if let Ok(val) = val {
-                                            return Ok((key, val))
-                                        } else {
-                                            return Err(val.err().unwrap())
-                                        }
-                                    } else {
-                                        return Err(key.err().unwrap())
-                                    }
-                                }
-
-                                Err(row.err().unwrap())
-                            })
-                            .collect::<Result<$ty<J, K>, JsonError>>()
+                            .collect::<Result<$ty<String, J>, JsonError>>()
                     }
 
                     JsonError::err("Invalid object format given")
@@ -457,7 +441,7 @@ impl_for_single_collection! {
 }
 
 impl_for_double_collection! {
-    BTreeMap<Ord><>
+    BTreeMap<>
 }
 
 impl_for_arrays! {
@@ -667,7 +651,7 @@ impl<J> FromJson for HashSet<J, RandomState> where J: FromJson + Hash + Eq {
     }
 }
 
-impl<J, K, S: BuildHasher> AsJson for HashMap<J, K, S> where J: AsJson, K: AsJson {
+impl<J, S: BuildHasher> AsJson for HashMap<String, J, S> where J: AsJson {
     #[inline]
     fn as_json(&self) -> String {
         let mut json = String::with_capacity(self.len() * 10 + 2);
@@ -703,37 +687,19 @@ impl<J, K, S: BuildHasher> AsJson for HashMap<J, K, S> where J: AsJson, K: AsJso
     }
 }
 
-impl<J, K> FromJson for HashMap<J, K, RandomState> where J: FromJson + Hash + Eq, K: FromJson {
+impl<J> FromJson for HashMap<String, J, RandomState> where J: FromJson {
     #[inline]
-    fn from_json(json: &str) -> Result<HashMap<J, K, RandomState>, JsonError> {
+    fn from_json(json: &str) -> Result<HashMap<String, J, RandomState>, JsonError> {
         if json.len() >= 2 && json.starts_with('{') && json.ends_with('}') {
-            return json.split(',')
-                .map(|row| {
-                    if let Some(sep) = row.find(':') {
-                        Ok((&row[..sep], &row[sep + 1..]))
-                    } else {
-                        JsonError::err(concat!("Expected {key:value,...} in a ", stringify!(HashMap)))
+            return json_object_to_map(json)?
+                .iter()
+                .map(|(&sk, &sv)| {
+                    match J::from_json(sv.trim()) {
+                        Ok(v) => Ok((String::from(sk), v)),
+                        Err(err) => Err(err)
                     }
                 })
-                .map(|row| {
-                    if let Ok((key, val)) = row {
-                        let key = J::from_json(key.trim());
-                        let val = K::from_json(val.trim());
-
-                        if let Ok(key) = key {
-                            if let Ok(val) = val {
-                                return Ok((key, val));
-                            } else {
-                                return Err(val.err().unwrap());
-                            }
-                        } else {
-                            return Err(key.err().unwrap());
-                        }
-                    }
-
-                    Err(row.err().unwrap())
-                })
-                .collect::<Result<HashMap<J, K, RandomState>, JsonError>>();
+                .collect();
         }
 
         JsonError::err("Invalid object format given")
@@ -904,6 +870,7 @@ pub fn json_root_search<T>(key: &str, candidate: &str) -> Result<T, JsonError> w
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::map;
 
     #[test]
     fn test_root_search() {
@@ -980,6 +947,23 @@ mod tests {
 
         assert!(no_final_brace_result.contains_key("key"));
         assert_eq!(no_final_brace_result.get("key").unwrap(), &"\"value\"");
+    }
+
+    #[test]
+    fn test_serialize_map() {
+        let str_map_of_vec = r#"{"key":["vec","of","strings"]}"#;
+        let str_map_of_empty_vec = r#"{"key":[]}"#;
+
+        let map_of_vec: HashMap<String, Vec<String>> = map! {
+            "key".to_owned() => vec!["vec".to_owned(), "of".to_owned(), "strings".to_owned()]
+        };
+
+        let map_of_empty_vec: HashMap<String, Vec<String>> = map! {
+            "key".to_owned() => vec![]
+        };
+
+        assert_eq!(HashMap::from_json(str_map_of_vec).unwrap(), map_of_vec);
+        assert_eq!(HashMap::from_json(str_map_of_empty_vec).unwrap(), map_of_empty_vec);
     }
 }
 

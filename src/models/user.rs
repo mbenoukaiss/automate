@@ -13,7 +13,7 @@ use crate::models::PartialGuildMember;
 /// a part of.
 ///
 /// More information on [Discord's documentation](https://discordapp.com/developers/docs/resources/user#user-object)
-#[object(server)]
+#[object(both)]
 pub struct User {
     pub id: u64,
     pub username: String,
