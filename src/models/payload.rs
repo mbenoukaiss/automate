@@ -7,7 +7,7 @@ use crate::FromJson;
 pub struct Payload<D> where D: FromJson {
     pub op: u8,
     pub d: D,
-    pub s: Nullable<u32>,
+    pub s: Nullable<i32>,
     pub t: Nullable<String>,
 }
 
@@ -20,6 +20,9 @@ pub struct ReadyDispatch {
     pub session_id: String,
     pub shard: Option<[u32; 2]>
 }
+
+#[payload(op = 0, event = "RESUMED", server)]
+pub struct ResumedDispatch;
 
 #[payload(op = 0, event = "GUILD_CREATE", server)]
 pub struct GuildCreateDispatch(pub Guild);
@@ -137,7 +140,7 @@ pub struct TypingStartDispatch {
 }
 
 #[payload(op = 1, client)]
-pub struct Heartbeat(pub Nullable<u32>);
+pub struct Heartbeat(pub Nullable<i32>);
 
 #[payload(op = 2, client)]
 pub struct Identify {
@@ -149,6 +152,16 @@ pub struct Identify {
     pub presence: Option<UpdateStatus>,
     pub guild_subscriptions: Option<bool>
 }
+
+#[payload(op = 6, client)]
+pub struct Resume {
+    pub token: String,
+    pub session_id: String,
+    pub seq: i32,
+}
+
+#[payload(op = 9, server)]
+pub struct InvalidSession(pub bool);
 
 #[payload(op = 10, server)]
 pub struct Hello {

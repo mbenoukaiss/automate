@@ -40,7 +40,7 @@ pub struct Guild {
     pub description: Nullable<String>,
     pub banner: Nullable<String>,
     pub premium_tier: PremiumTier,
-    pub premium_subscription_count: Option<i32>,
+    pub premium_subscription_count: Nullable<i32>,
     pub preferred_locale: String
 }
 

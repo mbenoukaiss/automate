@@ -1,5 +1,6 @@
 #![feature(test)]
 #![feature(try_blocks)]
+#![feature(never_type)]
 #![allow(clippy::identity_op)]
 
 extern crate self as automatea;
