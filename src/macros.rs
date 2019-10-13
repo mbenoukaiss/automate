@@ -16,45 +16,57 @@ macro_rules! api {
 #[macro_export]
 macro_rules! get {
     ($client:expr, $dest:expr) => {
-        ::automatea::json::FromJson::from_json(
-            ::reqwest::Client::get(&$client, ::automatea::api!($dest))
-                .header("Authorization", "Bot NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY")
-                .header("User-Agent", "DiscordBot (https://github.com/mbenoukaiss/automatea, 0.1.0)")
-                .send()?
-                .text()?
-                .as_ref()
-        )?
+        try {
+            ::automatea::json::FromJson::from_json(
+                ::reqwest::Client::get(&$client, ::automatea::api!($dest))
+                    .header("Authorization", "Bot NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY")
+                    .header("User-Agent", "DiscordBot (https://github.com/mbenoukaiss/automatea, 0.1.0)")
+                    .send()?
+                    .text()?
+                    .as_ref()
+            )?
+        }
     };
     ($dest:expr) => {
-        ::automatea::json::FromJson::from_json(
-            ::reqwest::Client::get(&::reqwest::Client::new(), ::automatea::api!($dest))
-                .header("Authorization", "Bot NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY")
-                .header("User-Agent", "DiscordBot (https://github.com/mbenoukaiss/automatea, 0.1.0)")
-                .send()?
-                .text()?
-                .as_ref()
-        )?
+        try {
+            ::automatea::json::FromJson::from_json(
+                ::reqwest::Client::get(&::reqwest::Client::new(), ::automatea::api!($dest))
+                    .header("Authorization", "Bot NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY")
+                    .header("User-Agent", "DiscordBot (https://github.com/mbenoukaiss/automatea, 0.1.0)")
+                    .send()?
+                    .text()?
+                    .as_ref()
+            )?
+        }
     }
 }
 
 #[macro_export]
 macro_rules! post {
     ($client:expr, $dest:expr, $content:expr) => {{
-        ::reqwest::Client::post(&$client, &$dest)
-            .header("Authorization", "Bot NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY")
-            .header("User-Agent", "DiscordBot (https://github.com/mbenoukaiss/automatea, 0.1.0)")
-            .header("Content-Type", "application/json")
-            .body($content.as_json())
-            .send()?
+        let res: Result<_, AutomateaError> = try {
+            ::reqwest::Client::post(&$client, &$dest)
+                .header("Authorization", "Bot NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY")
+                .header("User-Agent", "DiscordBot (https://github.com/mbenoukaiss/automatea, 0.1.0)")
+                .header("Content-Type", "application/json")
+                .body($content.as_json())
+                .send()?
+        };
+
+        res
     }};
-    ($dest:expr, $content:expr) => {
-        ::reqwest::Client::post(&::reqwest::Client::new(), &$dest)
-            .header("Authorization", "Bot NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY")
-            .header("User-Agent", "DiscordBot (https://github.com/mbenoukaiss/automatea, 0.1.0)")
-            .header("Content-Type", "application/json")
-            .body(::automatea::json::AsJson::as_json(&$content))
-            .send()?
-    }
+    ($dest:expr, $content:expr) => {{
+        let res: Result<_, AutomateaError> = try {
+            ::reqwest::Client::post(&::reqwest::Client::new(), &$dest)
+                .header("Authorization", "Bot NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY")
+                .header("User-Agent", "DiscordBot (https://github.com/mbenoukaiss/automatea, 0.1.0)")
+                .header("Content-Type", "application/json")
+                .body(::automatea::json::AsJson::as_json(&$content))
+                .send()?
+        };
+
+        res
+    }}
 }
 
 #[macro_export]

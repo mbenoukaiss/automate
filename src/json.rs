@@ -533,6 +533,15 @@ impl AsJson for &str {
     }
 }
 
+impl<T> Display for Nullable<T> where T: Display {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        match self {
+            Nullable::Value(v) => f.write_fmt(format_args!("{}", v)),
+            Nullable::Null => f.write_str("null")
+        }
+    }
+}
+
 impl<T> AsJson for Nullable<T> where T: AsJson {
     fn as_json(&self) -> String {
         if let Nullable::Value(val) = self {
