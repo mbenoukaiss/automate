@@ -6,9 +6,11 @@ edition = "2018"
 
 [dependencies]
 automatea-proc = { path = "proc" }
-reqwest = "0.9.19"
+tokio = "0.2.0-alpha.6"
+hyper = { version = "0.13.0-alpha.4", features = ["unstable-stream"] }
+hyper-tls = "0.4.0-alpha.4"
+futures-preview = { version = "0.3.0-alpha.19", features = ["compat"] }
 ws = { version = "0.9.0", features = ["ssl"] }
-url = "2.1.0"
 chrono = "0.4.7"
 log = "0.4.8"
 fern = "0.5.8"
