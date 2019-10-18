@@ -174,15 +174,9 @@ pub fn from_json(item: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn object(metadata: TokenStream, item: TokenStream) -> TokenStream {
-    let metadata: Vec<TokenTree> = metadata.into_iter().collect();
+    let arguments = discord::parse_arguments_list(metadata);
 
-    let side: StructSide = match metadata.len() {
-        0 => StructSide::Both,
-        1 => StructSide::from(extract_token!(Ident in metadata.get(0))),
-        _ => panic!(discord::OBJECT_ERROR)
-    };
-
-    let mut quote = side.appropriate_derive();
+    let mut quote = StructSide::from_args(&arguments).appropriate_derive(&arguments);
     quote.extend(item);
 
     quote
@@ -229,15 +223,9 @@ pub fn payload(metadata: TokenStream, item: TokenStream) -> TokenStream {
         None => None
     };
 
-    let side: StructSide = if let Some(_) = arguments.get("client") {
-        StructSide::Client
-    } else if let Some(_) = arguments.get("server") {
-        StructSide::Server
-    } else {
-        StructSide::Both
-    };
+    let side = StructSide::from_args(&arguments);
 
-    let mut quote = side.appropriate_derive();
+    let mut quote = side.appropriate_derive(&arguments);
     quote.extend(item.clone());
 
     let input: DeriveInput = parse_macro_input!(item as DeriveInput);

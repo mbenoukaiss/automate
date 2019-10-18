@@ -1,9 +1,11 @@
 #![feature(never_type)]
 
-use automatea::{GatewayClient, AutomateaError};
+use automatea::{GatewayAPI, Error, HttpAPI};
 
-fn main() -> Result<!, AutomateaError> {
+#[tokio::main]
+async fn main() -> Result<!, Error> {
     automatea::setup_logging()?;
 
-    GatewayClient::connect()
+    let http = HttpAPI::new("NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY");
+    GatewayAPI::connect(http.gateway_bot().await?)
 }

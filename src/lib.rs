@@ -5,20 +5,22 @@
 
 extern crate self as automatea;
 extern crate test;
-#[macro_use] extern crate log;
 #[macro_use] extern crate automatea_proc;
+#[macro_use] extern crate log;
 
 mod json;
 mod models;
+mod http;
 mod gateway;
 mod macros;
 mod errors;
 
-pub use gateway::GatewayClient;
+pub use http::HttpAPI;
+pub use gateway::GatewayAPI;
 pub use json::{AsJson, FromJson};
-pub use errors::AutomateaError;
+pub use errors::Error;
 
-pub fn setup_logging() -> Result<(), AutomateaError> {
+pub fn setup_logging() -> Result<(), Error> {
     fern::Dispatch::new()
         .format(move |out, message, record| {
             out.finish(format_args!(

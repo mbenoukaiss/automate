@@ -1,61 +1,61 @@
 use std::{fmt, result};
-use std::error::Error;
+use std::error::Error as StdError;
 use crate::json::JsonError;
 
 /// Represents an error that occurred while using
 /// Automatea library.
-pub struct AutomateaError {
+pub struct Error {
     pub msg: String,
 }
 
-impl AutomateaError {
-    pub fn new<S>(msg: S) -> AutomateaError where S: Into<String> {
-        AutomateaError { msg: msg.into() }
+impl Error {
+    pub fn new<S>(msg: S) -> Error where S: Into<String> {
+        Error { msg: msg.into() }
     }
 
-    pub fn err<S, T>(msg: S) -> Result<T, AutomateaError> where S: Into<String> {
-        Err(AutomateaError { msg: msg.into() })
+    pub fn err<S, T>(msg: S) -> Result<T, Error> where S: Into<String> {
+        Err(Error { msg: msg.into() })
     }
 }
 
-impl fmt::Display for AutomateaError {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> result::Result<(), fmt::Error> {
         write!(f, "{}", self.msg)
     }
 }
 
-impl fmt::Debug for AutomateaError {
+impl fmt::Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> result::Result<(), fmt::Error> {
         write!(f, "{{ msg: {} }}", self.msg)
     }
 }
 
-impl From<JsonError> for AutomateaError {
+impl From<JsonError> for Error {
     fn from(err: JsonError) -> Self {
-        AutomateaError::new(err.msg)
+        Error::new(err.msg)
     }
 }
 
-impl From<ws::Error> for AutomateaError {
+impl From<ws::Error> for Error {
     fn from(err: ws::Error) -> Self {
-        AutomateaError::new(err.details)
+        Error::new(err.details)
     }
 }
 
-impl From<reqwest::Error> for AutomateaError {
-    fn from(err: reqwest::Error) -> Self {
-        AutomateaError::new(err.description())
+impl From<hyper::Error> for Error {
+    fn from(err: hyper::Error) -> Self {
+        Error::new(err.description())
     }
 }
 
-impl From<fern::InitError> for AutomateaError {
+impl From<fern::InitError> for Error {
     fn from(err: fern::InitError) -> Self {
-        AutomateaError::new(err.description())
+        Error::new(err.description())
     }
 }
 
-impl From<log::SetLoggerError> for AutomateaError {
+impl From<log::SetLoggerError> for Error {
     fn from(err: log::SetLoggerError) -> Self {
-        AutomateaError::new(err.description())
+        Error::new(err.description())
     }
 }

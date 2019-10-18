@@ -4,7 +4,6 @@ use std::fmt::{Display, Formatter, Error, Debug, Write};
 use std::hash::{Hash, BuildHasher};
 use std::mem::MaybeUninit;
 use backtrace::Backtrace;
-use url::{Url, ParseError};
 use std::collections::hash_map::RandomState;
 
 /// A data structure that can be represented in a
@@ -92,12 +91,6 @@ impl Display for JsonError {
 impl Debug for JsonError {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         write!(f, "{{ msg: {} }}", self.msg)
-    }
-}
-
-impl From<ParseError> for JsonError {
-    fn from(_: ParseError) -> Self {
-        JsonError::new("Failed to parse URL")
     }
 }
 
@@ -451,37 +444,6 @@ impl_for_arrays! {
     25, 26, 27, 28, 29, 30, 31, 32
 }
 
-impl AsJson for Url {
-    #[inline]
-    fn as_json(&self) -> String {
-        let mut string = String::with_capacity(self.as_str().len() + 2);
-        string.push('"');
-        string.push_str(self.as_str());
-        string.push('"');
-
-        string
-    }
-
-    #[inline]
-    fn concat_json(&self, dest: &mut String) {
-        dest.reserve(self.as_str().len() + 2);
-        dest.push('"');
-        dest.push_str(self.as_str());
-        dest.push('"');
-    }
-}
-
-impl FromJson for Url {
-    #[inline]
-    fn from_json(json: &str) -> Result<Url, JsonError> {
-        if json.len() >= 2 && json.starts_with('"') && json.ends_with('"') {
-            Url::from_str(&json[1..json.len() - 1]).map_err(JsonError::from)
-        } else {
-            JsonError::err("Incorrect JSON string value received")
-        }
-    }
-}
-
 impl AsJson for String {
     #[inline]
     fn as_json(&self) -> String {
@@ -566,6 +528,12 @@ impl<T> FromJson for Nullable<T> where T: FromJson {
             "null" => Nullable::Null,
             val => Nullable::Value(T::from_json(val)?)
         })
+    }
+}
+
+impl<T> Default for Nullable<T> {
+    fn default() -> Self {
+        Nullable::Null
     }
 }
 

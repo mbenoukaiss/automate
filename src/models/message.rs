@@ -29,6 +29,16 @@ pub struct Message {
     pub flags: Option<u32>
 }
 
+#[object(client, default)]
+pub struct CreateMessage {
+    pub content: Option<String>,
+    pub nonce: Option<u64>,
+    pub tts: Option<bool>,
+    pub file: Option<String>,
+    pub embed: Option<Embed>,
+    pub payload_json: Option<String>
+}
+
 #[convert(u8)]
 pub enum MessageType {
     Default = 0,
@@ -64,7 +74,7 @@ pub struct Attachment {
     pub width: Option<u32>
 }
 
-#[object(server)]
+#[object(both)]
 pub struct Embed {
     pub title: Option<String>,
     pub _type: Option<String>,
@@ -81,14 +91,14 @@ pub struct Embed {
     pub fields: Option<Vec<EmbedField>>
 }
 
-#[object(server)]
+#[object(both)]
 pub struct EmbedFooter {
     pub text: String,
     pub icon_url: Option<String>,
     pub proxy_icon_url: Option<String>
 }
 
-#[object(server)]
+#[object(both)]
 pub struct EmbedImage {
     pub url: Option<String>,
     pub proxy_url: Option<String>,
@@ -96,7 +106,7 @@ pub struct EmbedImage {
     pub width: Option<u32>
 }
 
-#[object(server)]
+#[object(both)]
 pub struct EmbedThumbnail {
     pub url: Option<String>,
     pub proxy_url: Option<String>,
@@ -104,20 +114,20 @@ pub struct EmbedThumbnail {
     pub width: Option<u32>
 }
 
-#[object(server)]
+#[object(both)]
 pub struct EmbedVideo {
     pub url: Option<String>,
     pub height: Option<u32>,
     pub width: Option<u32>
 }
 
-#[object(server)]
+#[object(both)]
 pub struct EmbedProvider {
     pub name: Option<String>,
     pub url: Option<String>
 }
 
-#[object(server)]
+#[object(both)]
 pub struct EmbedAuthor {
     pub name: Option<String>,
     pub url: Option<String>,
@@ -125,7 +135,7 @@ pub struct EmbedAuthor {
     pub proxy_icon_url: Option<String>
 }
 
-#[object(server)]
+#[object(both)]
 pub struct EmbedField {
     pub name: String,
     pub value: String,
