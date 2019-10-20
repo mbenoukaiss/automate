@@ -5,8 +5,10 @@
 
 extern crate self as automatea;
 extern crate test;
-#[macro_use] extern crate automatea_proc;
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate automatea_proc;
+#[macro_use]
+extern crate log;
 
 mod json;
 mod models;
@@ -20,21 +22,42 @@ pub use gateway::GatewayAPI;
 pub use json::{AsJson, FromJson};
 pub use errors::Error;
 
-pub fn setup_logging() -> Result<(), Error> {
-    fern::Dispatch::new()
-        .format(move |out, message, record| {
-            out.finish(format_args!(
-                "{date} in {target} [{level}]: {message}",
-                date = chrono::Local::now().format("%H:%M:%S"),
-                target = record.target(),
-                level = record.level(),
-                message = message
-            ))
-        })
-        .level(log::LevelFilter::Warn)
-        .level_for("automatea", log::LevelFilter::Trace)
-        .chain(std::io::stdout())
-        .apply()?;
+use log::{Log, Metadata, Record, LevelFilter, Level};
+use chrono::{Local, Timelike};
 
-    Ok(())
+struct QuickLogger;
+
+impl Log for QuickLogger {
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        metadata.level() == Level::Error || metadata.target().starts_with(env!("CARGO_PKG_NAME"))
+    }
+
+    fn log(&self, record: &Record) {
+        if !self.enabled(record.metadata()) {
+            return;
+        }
+
+        let time = Local::now();
+
+        println!(
+            "{:02}:{:02}:{:02} in {} [{}]: {}",
+            time.hour(),
+            time.minute(),
+            time.second(),
+            record.target(),
+            record.level(),
+            record.args()
+        );
+    }
+
+    fn flush(&self) {}
 }
+
+static QUICK_LOGGER: QuickLogger = QuickLogger;
+
+pub fn setup_logging() {
+    log::set_logger(&QUICK_LOGGER).unwrap();
+    log::set_max_level(LevelFilter::Info);
+}
+
+
