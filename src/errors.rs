@@ -47,15 +47,3 @@ impl From<hyper::Error> for Error {
         Error::new(err.description())
     }
 }
-
-impl From<fern::InitError> for Error {
-    fn from(err: fern::InitError) -> Self {
-        Error::new(err.description())
-    }
-}
-
-impl From<log::SetLoggerError> for Error {
-    fn from(err: log::SetLoggerError) -> Self {
-        Error::new(err.description())
-    }
-}

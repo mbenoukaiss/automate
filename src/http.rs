@@ -13,7 +13,7 @@ macro_rules! api {
     }}
 }
 
-const USER_AGENT: &'static str = concat!("DiscordBot (https://github.com/mbenoukaiss/automatea, ", env!("CARGO_PKG_VERSION"), ")");
+const USER_AGENT: &str = concat!("DiscordBot (https://github.com/mbenoukaiss/automatea, ", env!("CARGO_PKG_VERSION"), ")");
 
 pub struct HttpAPI {
     client: Client<HttpsConnector<HttpConnector>>,

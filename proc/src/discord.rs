@@ -3,8 +3,8 @@ use syn::DeriveInput;
 use quote::quote;
 use std::collections::HashMap;
 
-pub const OBJECT_ERROR: &'static str = "Expected arguments under the format: ([client|server|both])";
-pub const PAYLOAD_ERROR: &'static str = "Expected arguments under the format: (op = <u8>, [client|server|both])";
+pub const OBJECT_ERROR: &str = "Expected arguments under the format: ([client|server|both])";
+pub const PAYLOAD_ERROR: &str = "Expected arguments under the format: (op = <u8>, [client|server|both])";
 
 pub type Arguments = HashMap<String, Vec<String>>;
 
