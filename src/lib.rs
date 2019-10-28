@@ -10,54 +10,51 @@ extern crate automatea_proc;
 #[macro_use]
 extern crate log;
 
+pub mod models;
 mod json;
-mod models;
+mod events;
 mod http;
 mod gateway;
 mod macros;
 mod errors;
+mod logger;
 
+pub use events::Listener;
 pub use http::HttpAPI;
-pub use gateway::GatewayAPI;
+pub use gateway::{GatewayAPI, Session};
 pub use json::{AsJson, FromJson};
+pub use logger::setup_logging;
 pub use errors::Error;
+use std::ops::Deref;
+use std::sync::{Mutex, Arc};
 
-use log::{Log, Metadata, Record, LevelFilter, Level};
-use chrono::{Local, Timelike};
+pub struct Discord {
+    http: HttpAPI,
+    listeners: Arc<Mutex<Vec<Box<dyn Listener + Send>>>>,
+}
 
-struct QuickLogger;
-
-impl Log for QuickLogger {
-    fn enabled(&self, metadata: &Metadata) -> bool {
-        metadata.level() == Level::Error || metadata.target().starts_with(env!("CARGO_PKG_NAME"))
-    }
-
-    fn log(&self, record: &Record) {
-        if !self.enabled(record.metadata()) {
-            return;
+impl Discord {
+    pub fn new() -> Discord {
+        Discord {
+            http: HttpAPI::new("NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY"),
+            listeners: Arc::new(Mutex::new(Vec::new())),
         }
-
-        let time = Local::now();
-
-        println!(
-            "{:02}:{:02}:{:02} in {} [{}]: {}",
-            time.hour(),
-            time.minute(),
-            time.second(),
-            record.target(),
-            record.level(),
-            record.args()
-        );
     }
 
-    fn flush(&self) {}
+    pub fn register_listener(self, listener: Box<dyn Listener + Send>) -> Self {
+        self.listeners.lock().unwrap().push(listener);
+        self
+    }
+
+    pub async fn connect(self) -> Result<!, Error> {
+        GatewayAPI::connect(self.http.clone(), self.listeners.clone()).await
+    }
 }
 
-static QUICK_LOGGER: QuickLogger = QuickLogger;
+impl Deref for Discord {
+    type Target = HttpAPI;
 
-pub fn setup_logging() {
-    log::set_logger(&QUICK_LOGGER).unwrap();
-    log::set_max_level(LevelFilter::Info);
+    fn deref(&self) -> &Self::Target {
+        &self.http
+    }
 }
-
-

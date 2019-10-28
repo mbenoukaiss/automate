@@ -15,6 +15,7 @@ macro_rules! api {
 
 const USER_AGENT: &str = concat!("DiscordBot (https://github.com/mbenoukaiss/automatea, ", env!("CARGO_PKG_VERSION"), ")");
 
+#[derive(Clone)]
 pub struct HttpAPI {
     client: Client<HttpsConnector<HttpConnector>>,
     token: String,

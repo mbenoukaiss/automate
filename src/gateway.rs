@@ -1,5 +1,5 @@
 use ws::CloseCode;
-use crate::{json, Error};
+use crate::{json, Error, Listener};
 use crate::map;
 use crate::models::*;
 use crate::json::Nullable;
@@ -13,6 +13,7 @@ use std::rc::Rc;
 use std::sync::mpsc;
 use std::sync::mpsc::RecvTimeoutError;
 use futures::executor;
+use std::ops::Deref;
 
 macro_rules! handle_payload {
     ($data:ident as $payload:ty => $self:ident.$method:ident) => {{
@@ -29,16 +30,22 @@ macro_rules! handle_payload {
 pub struct GatewayAPI;
 
 impl GatewayAPI {
-    pub fn connect(gateway: GatewayBot) -> ! {
+    pub async fn connect(http: HttpAPI, listeners: Arc<Mutex<Vec<Box<dyn Listener + Send>>>>) -> ! {
         let mut delayer = Delayer::new();
         let session_id = Rc::new(RefCell::new(None));
         let sequence_number = Arc::new(Mutex::new(None));
 
         loop {
             let execution: Result<(), Error> = try {
-                ws::connect(gateway.url.as_ref(), |client| {
+                let gateway_bot = http.gateway_bot().await?;
+
+                ws::connect(gateway_bot.url.as_ref(), |client| {
                     GatewayHandler {
-                        ws: client,
+                        session: Session {
+                            sender: client,
+                            http: http.clone(),
+                            listeners: listeners.clone()
+                        },
                         session_id: Rc::clone(&session_id),
                         sequence_number: Arc::clone(&sequence_number),
                         heartbeat_confirmed: Arc::new(AtomicBool::new(true)),
@@ -92,8 +99,29 @@ impl Delayer {
     }
 }
 
+pub struct Session {
+    sender: ws::Sender,
+    http: HttpAPI,
+    listeners: Arc<Mutex<Vec<Box<dyn Listener + Send>>>>
+}
+
+impl Session {
+    #[inline]
+    pub fn send<M: Into<ws::Message>>(&self, msg: M) -> Result<(), Error> {
+        Ok(self.sender.send(msg)?)
+    }
+}
+
+impl Deref for Session {
+    type Target = HttpAPI;
+
+    fn deref(&self) -> &Self::Target {
+        &self.http
+    }
+}
+
 struct GatewayHandler {
-    ws: ws::Sender,
+    session: Session,
     session_id: Rc<RefCell<Option<String>>>,
     sequence_number: Arc<Mutex<Option<i32>>>,
     heartbeat_confirmed: Arc<AtomicBool>,
@@ -113,6 +141,12 @@ impl GatewayHandler {
         Ok(())
     }
 
+    /// Takes a full payload, deserializes it and sends
+    /// it to the right method.
+    /// Returns an error when receiving an unknown event.
+    #[allow(clippy::cognitive_complexity)]
+    // Currently disabling cognitive complexity since clippy
+    // expands the macros (bug) before calculating CoC.
     async fn dispatch_event(&mut self, data: &str) -> Result<(), Error> {
         match json::json_root_search::<String>("t", data)?.as_str() {
             ReadyDispatch::EVENT_NAME => handle_payload!(data as Payload<ReadyDispatch> => self.on_ready),
@@ -128,7 +162,7 @@ impl GatewayHandler {
             MessageReactionRemoveDispatch::EVENT_NAME => handle_payload!(data as Payload<MessageReactionRemoveDispatch> => self.on_message_reaction_remove),
             MessageReactionRemoveAllDispatch::EVENT_NAME => handle_payload!(data as Payload<MessageReactionRemoveAllDispatch> => self.on_message_reaction_remove_all),
             TypingStartDispatch::EVENT_NAME => handle_payload!(data as Payload<TypingStartDispatch> => self.on_typing_start),
-            unknown_event => warn!("Received unknown event: '{}': \n{}", unknown_event, data)
+            unknown_event => return Error::err(format!("Unknown event {}", unknown_event))
         }
 
         Ok(())
@@ -151,27 +185,8 @@ impl GatewayHandler {
     async fn on_message_create(&self, payload: MessageCreateDispatch) -> Result<(), Error> {
         println!("{:?}", payload);
 
-        if payload.0.author.username != "Rust" { //dirty "if it's not the bot"
-            let http = HttpAPI::new("NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY");
-
-            http.create_message(payload.0.channel_id, CreateMessage {
-                embed: Some(Embed {
-                    title: Some(String::from("Hello!")),
-                    _type: None,
-                    description: None,
-                    url: None,
-                    timestamp: None,
-                    color: None,
-                    footer: None,
-                    image: None,
-                    thumbnail: None,
-                    video: None,
-                    provider: None,
-                    author: None,
-                    fields: None
-                }),
-                ..Default::default()
-            }).await?;
+        for listener in &mut *self.session.listeners.lock().unwrap() {
+            listener.as_mut().on_message_create(&self.session, &payload.0).await?;
         }
 
         Ok(())
@@ -222,7 +237,7 @@ impl GatewayHandler {
                 seq: self.sequence_number.lock().unwrap().unwrap(),
             };
 
-            self.ws.send(resume)?;
+            self.session.send(resume)?;
             info!("Requested to resume session");
         } else {
             let identify = Identify {
@@ -239,13 +254,13 @@ impl GatewayHandler {
                 guild_subscriptions: Some(true),
             };
 
-            self.ws.send(identify)?;
+            self.session.send(identify)?;
         }
 
         self.heartbeat = {
             let sequence_number = self.sequence_number.clone();
             let heartbeat_confirmed = self.heartbeat_confirmed.clone();
-            let sender = self.ws.clone();
+            let sender = self.session.sender.clone();
 
             let (tx, rx) = mpsc::channel();
 
@@ -298,7 +313,7 @@ impl GatewayHandler {
             *self.session_id.borrow_mut() = None;
 
             warn!("Invalid session, shutting down connection");
-            self.ws.shutdown()?;
+            self.session.sender.shutdown()?;
         }
 
         Ok(())
@@ -316,7 +331,7 @@ impl ws::Handler for GatewayHandler {
     fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {
         if let ws::Message::Text(data) = msg {
             if let Err(err) = executor::block_on(self.dispatch_payload(&data)) {
-                error!("An error occurred while reading message: {}\n{}", err.msg, data);
+                error!("An error occurred while reading message: {}\nDATA: {}", err.msg, data);
             }
         } else {
             error!("Unknown message type received");
