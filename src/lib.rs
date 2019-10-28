@@ -34,9 +34,9 @@ pub struct Discord {
 }
 
 impl Discord {
-    pub fn new() -> Discord {
+    pub fn new<S: Into<String>>(token: S) -> Discord {
         Discord {
-            http: HttpAPI::new("NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY"),
+            http: HttpAPI::new(token),
             listeners: Arc::new(Mutex::new(Vec::new())),
         }
     }

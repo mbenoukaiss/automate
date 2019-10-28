@@ -24,7 +24,7 @@ impl Listener for MessageListener {
 async fn main() -> Result<(), Error> {
     automatea::setup_logging();
 
-    Discord::new()
+    Discord::new("NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY")
         .register_listener(Box::new(MessageListener))
         .connect().await?
 }
