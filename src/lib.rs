@@ -1,7 +1,8 @@
 #![feature(test)]
 #![feature(try_blocks)]
 #![feature(never_type)]
-#![allow(clippy::identity_op)]
+#![allow(where_clauses_object_safety)] //should be fixed when async traits are allowed
+#![allow(clippy::identity_op)] //because clippy forbides 1 << 0 in c-like enums
 
 extern crate self as automatea;
 extern crate test;
@@ -34,7 +35,7 @@ pub struct Discord {
 }
 
 impl Discord {
-    pub fn new<S: Into<String>>(token: S) -> Discord {
+    pub fn new(token: &str) -> Discord {
         Discord {
             http: HttpAPI::new(token),
             listeners: Arc::new(Mutex::new(Vec::new())),

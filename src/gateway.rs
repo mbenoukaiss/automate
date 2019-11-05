@@ -15,7 +15,7 @@ use std::sync::mpsc::RecvTimeoutError;
 use futures::executor;
 use std::ops::Deref;
 
-macro_rules! handle_payload {
+macro_rules! call_dispatcher {
     ($data:ident as $payload:ty => $self:ident.$method:ident) => {{
         let payload: $payload = <$payload as ::automatea::json::FromJson>::from_json(&$data)?;
 
@@ -25,6 +25,18 @@ macro_rules! handle_payload {
 
         $self.$method(payload.d).await?
     }};
+}
+
+macro_rules! dispatcher {
+    ($name:ident: $type:ty) => {
+        async fn $name(&self, payload: $type) -> Result<(), Error> {
+            for listener in &mut *self.session.listeners.lock().unwrap() {
+                listener.$name(&self.session, &payload).await?
+            }
+
+            Ok(())
+        }
+    }
 }
 
 pub struct GatewayAPI;
@@ -132,8 +144,8 @@ impl GatewayHandler {
     async fn dispatch_payload(&mut self, data: &str) -> Result<(), Error> {
         match json::json_root_search::<u8>("op", data)? {
             0 => self.dispatch_event(data).await?,
-            9 => handle_payload!(data as Payload<InvalidSession> => self.on_invalid_session),
-            10 => handle_payload!(data as Payload<Hello> => self.on_hello),
+            9 => call_dispatcher!(data as Payload<InvalidSession> => self.on_invalid_session),
+            10 => call_dispatcher!(data as Payload<Hello> => self.on_hello),
             11 => self.on_heartbeat_ack().await?,
             unknown_op => warn!("Received unknown opcode '{}': \n{}", unknown_op, data)
         }
@@ -149,19 +161,19 @@ impl GatewayHandler {
     // expands the macros (bug) before calculating CoC.
     async fn dispatch_event(&mut self, data: &str) -> Result<(), Error> {
         match json::json_root_search::<String>("t", data)?.as_str() {
-            ReadyDispatch::EVENT_NAME => handle_payload!(data as Payload<ReadyDispatch> => self.on_ready),
-            ResumedDispatch::EVENT_NAME => handle_payload!(data as Payload<ResumedDispatch> => self.on_resumed),
-            GuildCreateDispatch::EVENT_NAME => handle_payload!(data as Payload<GuildCreateDispatch> => self.on_guild_create),
+            ReadyDispatch::EVENT_NAME => call_dispatcher!(data as Payload<ReadyDispatch> => self.on_ready),
+            ResumedDispatch::EVENT_NAME => call_dispatcher!(data as Payload<ResumedDispatch> => self.on_resumed),
+            GuildCreateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<GuildCreateDispatch> => self.on_guild_create),
             PresencesReplaceDispatch::EVENT_NAME => info!("Ignoring presence replace event"),
-            PresenceUpdateDispatch::EVENT_NAME => handle_payload!(data as Payload<PresenceUpdateDispatch> => self.on_presence_update),
-            MessageCreateDispatch::EVENT_NAME => handle_payload!(data as Payload<MessageCreateDispatch> => self.on_message_create),
-            MessageUpdateDispatch::EVENT_NAME => handle_payload!(data as Payload<MessageUpdateDispatch> => self.on_message_update),
-            MessageDeleteDispatch::EVENT_NAME => handle_payload!(data as Payload<MessageDeleteDispatch> => self.on_message_delete),
-            MessageDeleteBulkDispatch::EVENT_NAME => handle_payload!(data as Payload<MessageDeleteBulkDispatch> => self.on_message_delete_bulk),
-            MessageReactionAddDispatch::EVENT_NAME => handle_payload!(data as Payload<MessageReactionAddDispatch> => self.on_message_reaction_add),
-            MessageReactionRemoveDispatch::EVENT_NAME => handle_payload!(data as Payload<MessageReactionRemoveDispatch> => self.on_message_reaction_remove),
-            MessageReactionRemoveAllDispatch::EVENT_NAME => handle_payload!(data as Payload<MessageReactionRemoveAllDispatch> => self.on_message_reaction_remove_all),
-            TypingStartDispatch::EVENT_NAME => handle_payload!(data as Payload<TypingStartDispatch> => self.on_typing_start),
+            PresenceUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<PresenceUpdateDispatch> => self.on_presence_update),
+            TypingStartDispatch::EVENT_NAME => call_dispatcher!(data as Payload<TypingStartDispatch> => self.on_typing_start),
+            MessageCreateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageCreateDispatch> => self.on_message_create),
+            MessageUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageUpdateDispatch> => self.on_message_update),
+            MessageDeleteDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageDeleteDispatch> => self.on_message_delete),
+            MessageDeleteBulkDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageDeleteBulkDispatch> => self.on_message_delete_bulk),
+            MessageReactionAddDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageReactionAddDispatch> => self.on_reaction_add),
+            MessageReactionRemoveDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageReactionRemoveDispatch> => self.on_reaction_remove),
+            MessageReactionRemoveAllDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageReactionRemoveAllDispatch> => self.on_reaction_remove_all),
             unknown_event => return Error::err(format!("Unknown event {}", unknown_event))
         }
 
@@ -182,50 +194,14 @@ impl GatewayHandler {
         Ok(())
     }
 
-    async fn on_message_create(&self, payload: MessageCreateDispatch) -> Result<(), Error> {
-        println!("{:?}", payload);
-
-        for listener in &mut *self.session.listeners.lock().unwrap() {
-            listener.as_mut().on_message_create(&self.session, &payload.0).await?;
-        }
-
-        Ok(())
-    }
-
-    async fn on_message_update(&self, payload: MessageUpdateDispatch) -> Result<(), Error> {
-        println!("{:?}", payload);
-        Ok(())
-    }
-
-    async fn on_message_delete(&self, payload: MessageDeleteDispatch) -> Result<(), Error> {
-        println!("{:?}", payload);
-        Ok(())
-    }
-
-    async fn on_message_delete_bulk(&self, payload: MessageDeleteBulkDispatch) -> Result<(), Error> {
-        println!("{:?}", payload);
-        Ok(())
-    }
-
-    async fn on_message_reaction_add(&self, payload: MessageReactionAddDispatch) -> Result<(), Error> {
-        println!("{:?}", payload);
-        Ok(())
-    }
-
-    async fn on_message_reaction_remove(&self, payload: MessageReactionRemoveDispatch) -> Result<(), Error> {
-        println!("{:?}", payload);
-        Ok(())
-    }
-
-    async fn on_message_reaction_remove_all(&self, payload: MessageReactionRemoveAllDispatch) -> Result<(), Error> {
-        println!("{:?}", payload);
-        Ok(())
-    }
-
-    async fn on_typing_start(&self, payload: TypingStartDispatch) -> Result<(), Error> {
-        println!("{:?}", payload);
-        Ok(())
-    }
+    dispatcher!(on_typing_start: TypingStartDispatch);
+    dispatcher!(on_message_create: MessageCreateDispatch);
+    dispatcher!(on_message_update: MessageUpdateDispatch);
+    dispatcher!(on_message_delete: MessageDeleteDispatch);
+    dispatcher!(on_message_delete_bulk: MessageDeleteBulkDispatch);
+    dispatcher!(on_reaction_add: MessageReactionAddDispatch);
+    dispatcher!(on_reaction_remove: MessageReactionRemoveDispatch);
+    dispatcher!(on_reaction_remove_all: MessageReactionRemoveAllDispatch);
 
     async fn on_hello(&mut self, payload: Hello) -> Result<(), Error> {
         println!("{:?}", payload);
@@ -331,7 +307,7 @@ impl ws::Handler for GatewayHandler {
     fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {
         if let ws::Message::Text(data) = msg {
             if let Err(err) = executor::block_on(self.dispatch_payload(&data)) {
-                error!("An error occurred while reading message: {}\nDATA: {}", err.msg, data);
+                error!("An error occurred while reading message: {}\n{}", err.msg, data);
             }
         } else {
             error!("Unknown message type received");
