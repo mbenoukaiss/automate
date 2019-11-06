@@ -31,7 +31,7 @@ macro_rules! dispatcher {
     ($name:ident: $type:ty) => {
         async fn $name(&self, payload: $type) -> Result<(), Error> {
             for listener in &mut *self.session.listeners.lock().unwrap() {
-                listener.$name(&self.session, &payload).await?
+                (*listener).$name(&self.session, &payload).await?
             }
 
             Ok(())
@@ -164,9 +164,8 @@ impl GatewayHandler {
             ReadyDispatch::EVENT_NAME => call_dispatcher!(data as Payload<ReadyDispatch> => self.on_ready),
             ResumedDispatch::EVENT_NAME => call_dispatcher!(data as Payload<ResumedDispatch> => self.on_resumed),
             GuildCreateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<GuildCreateDispatch> => self.on_guild_create),
+            GuildUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<GuildUpdateDispatch> => self.on_guild_update),
             PresencesReplaceDispatch::EVENT_NAME => info!("Ignoring presence replace event"),
-            PresenceUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<PresenceUpdateDispatch> => self.on_presence_update),
-            TypingStartDispatch::EVENT_NAME => call_dispatcher!(data as Payload<TypingStartDispatch> => self.on_typing_start),
             MessageCreateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageCreateDispatch> => self.on_message_create),
             MessageUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageUpdateDispatch> => self.on_message_update),
             MessageDeleteDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageDeleteDispatch> => self.on_message_delete),
@@ -174,27 +173,16 @@ impl GatewayHandler {
             MessageReactionAddDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageReactionAddDispatch> => self.on_reaction_add),
             MessageReactionRemoveDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageReactionRemoveDispatch> => self.on_reaction_remove),
             MessageReactionRemoveAllDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageReactionRemoveAllDispatch> => self.on_reaction_remove_all),
+            PresenceUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<PresenceUpdateDispatch> => self.on_presence_update),
+            TypingStartDispatch::EVENT_NAME => call_dispatcher!(data as Payload<TypingStartDispatch> => self.on_typing_start),
             unknown_event => return Error::err(format!("Unknown event {}", unknown_event))
         }
 
         Ok(())
     }
 
-    async fn on_guild_create(&self, payload: GuildCreateDispatch) -> Result<(), Error> {
-        //TODO: keep a list of guilds and users
-
-        println!("{:?}", payload);
-        Ok(())
-    }
-
-    async fn on_presence_update(&self, payload: PresenceUpdateDispatch) -> Result<(), Error> {
-        //TODO: keep track of user presences
-
-        println!("{:?}", payload);
-        Ok(())
-    }
-
-    dispatcher!(on_typing_start: TypingStartDispatch);
+    dispatcher!(on_guild_create: GuildCreateDispatch);
+    dispatcher!(on_guild_update: GuildUpdateDispatch);
     dispatcher!(on_message_create: MessageCreateDispatch);
     dispatcher!(on_message_update: MessageUpdateDispatch);
     dispatcher!(on_message_delete: MessageDeleteDispatch);
@@ -202,6 +190,8 @@ impl GatewayHandler {
     dispatcher!(on_reaction_add: MessageReactionAddDispatch);
     dispatcher!(on_reaction_remove: MessageReactionRemoveDispatch);
     dispatcher!(on_reaction_remove_all: MessageReactionRemoveAllDispatch);
+    dispatcher!(on_presence_update: PresenceUpdateDispatch);
+    dispatcher!(on_typing_start: TypingStartDispatch);
 
     async fn on_hello(&mut self, payload: Hello) -> Result<(), Error> {
         println!("{:?}", payload);

@@ -24,6 +24,7 @@ macro_rules! extract_token {
 
 mod json;
 mod discord;
+mod utils;
 
 #[proc_macro_derive(AsJson)]
 pub fn as_json(item: TokenStream) -> TokenStream {
@@ -177,7 +178,10 @@ pub fn object(metadata: TokenStream, item: TokenStream) -> TokenStream {
     let arguments = discord::parse_arguments_list(metadata);
 
     let mut quote = StructSide::from_args(&arguments).appropriate_derive(&arguments);
-    quote.extend(item);
+    quote.extend(item.clone());
+
+    let input: DeriveInput = parse_macro_input!(item as DeriveInput);
+    utils::extend_with_deref(&input, &mut quote);
 
     quote
 }
@@ -242,6 +246,7 @@ pub fn payload(metadata: TokenStream, item: TokenStream) -> TokenStream {
         quote.extend(TokenStream::from(constant_impl));
     }
 
+    utils::extend_with_deref(&input, &mut quote);
 
     if let StructSide::Client = side {
         discord::append_client_quote(&input, opcode, &mut quote);
