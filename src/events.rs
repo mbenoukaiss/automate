@@ -3,37 +3,29 @@ use std::boxed::Box;
 use crate::models::*;
 use crate::{Session, Error};
 
-#[async_trait]
-pub trait Listener {
-    async fn on_typing_start(&mut self, _session: &Session, _data: &TypingStartDispatch) -> Result<(), Error> {
-        Ok(())
+macro_rules! listener {
+{$($name:ident: $type:ty),*} => {
+        #[async_trait]
+        pub trait Listener {
+            $(
+            async fn $name(self: &mut Self, _session: &Session, _data: &$type) -> Result<(), Error> {
+                Ok(())
+            }
+            )*
+        }
     }
+}
 
-    async fn on_message_create(&mut self, _session: &Session, _data: &MessageCreateDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_message_update(&mut self, _session: &Session, _data: &MessageUpdateDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_message_delete(&mut self, _session: &Session, _data: &MessageDeleteDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_message_delete_bulk(&mut self, _session: &Session, _data: &MessageDeleteBulkDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_reaction_add(&mut self, _session: &Session, _data: &MessageReactionAddDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_reaction_remove(&mut self, _session: &Session, _data: &MessageReactionRemoveDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_reaction_remove_all(&mut self, _session: &Session, _data: &MessageReactionRemoveAllDispatch) -> Result<(), Error> {
-        Ok(())
-    }
+listener! {
+    on_guild_create: GuildCreateDispatch,
+    on_guild_update: GuildUpdateDispatch,
+    on_message_create: MessageCreateDispatch,
+    on_message_update: MessageUpdateDispatch,
+    on_message_delete: MessageDeleteDispatch,
+    on_message_delete_bulk: MessageDeleteBulkDispatch,
+    on_reaction_add: MessageReactionAddDispatch,
+    on_reaction_remove: MessageReactionRemoveDispatch,
+    on_reaction_remove_all: MessageReactionRemoveAllDispatch,
+    on_presence_update: PresenceUpdateDispatch,
+    on_typing_start: TypingStartDispatch
 }

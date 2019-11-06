@@ -2,15 +2,15 @@
 
 use async_trait::async_trait;
 use automatea::{Error, Discord, Listener, Session};
-use automatea::models::{Message, CreateMessage, MessageReactionAddDispatch, MessageCreateDispatch};
+use automatea::models::{CreateMessage, MessageReactionAddDispatch, MessageCreateDispatch};
 
 struct MessageListener;
 
 #[async_trait]
 impl Listener for MessageListener {
     async fn on_message_create(&mut self, session: &Session, message: &MessageCreateDispatch) -> Result<(), Error> {
-        if !message.0.author.bot.unwrap_or(false) {
-            session.create_message(message.0.channel_id, CreateMessage {
+        if !message.author.bot.unwrap_or(false) {
+            session.create_message(message.channel_id, CreateMessage {
                 content: Some(String::from("Hello sir!")),
                 ..Default::default()
             }).await?;
