@@ -23,8 +23,8 @@ use std::collections::hash_map::RandomState;
 ///
 /// # Example
 /// ```
-/// #[macro_use] extern crate automatea_proc;
-/// use automatea::AsJson;
+/// #[macro_use] extern crate automate_derive;
+/// use automate::AsJson;
 ///
 /// #[derive(AsJson)]
 /// struct File {
@@ -54,7 +54,7 @@ pub trait AsJson {
 ///
 /// # Example
 /// ```
-/// use automatea::FromJson;
+/// use automate::FromJson;
 ///
 /// assert_eq!(String::from_json("\"Hello\"").unwrap(), "Hello");
 /// assert_eq!(u32::from_json("643789").unwrap(), 643789);
@@ -108,8 +108,8 @@ pub enum Nullable<T> {
     Null,
 }
 
-/// Implements [AsJson](automatea::AsJson) and
-/// [FromJson](automatea::FromJson) for simple numeric and
+/// Implements [AsJson](automate::AsJson) and
+/// [FromJson](automate::FromJson) for simple numeric and
 /// other types that should be represented as is in the
 /// JSON string.
 macro_rules! impl_for_num {
@@ -124,10 +124,6 @@ macro_rules! impl_for_num {
                 #[allow(unused_must_use)]
                 #[inline]
                 fn concat_json(&self, dest: &mut String) {
-                    #[cfg(feature = "squeeze_performance")]
-                    dest.write_fmt(format_args!("{}", self));
-
-                    #[cfg(not(feature = "squeeze_performance"))]
                     dest.write_fmt(format_args!("{}", self)).expect("A Display implementation returned an error unexpectedly");
                 }
             }
@@ -143,8 +139,8 @@ macro_rules! impl_for_num {
     )
 }
 
-/// Implements [AsJson](automatea::AsJson) and
-/// [FromJson](automatea::FromJson) for larger numeric
+/// Implements [AsJson](automate::AsJson) and
+/// [FromJson](automate::FromJson) for larger numeric
 /// that should be represented as strings in the
 /// JSON string.
 macro_rules! impl_for_large_num {
@@ -155,23 +151,13 @@ macro_rules! impl_for_large_num {
                 #[inline]
                 fn as_json(&self) -> String {
                     let mut string = String::new();
-
-                    #[cfg(feature = "squeeze_performance")]
-                    string.write_fmt(format_args!("\"{}\"", self));
-
-                    #[cfg(not(feature = "squeeze_performance"))]
                     string.write_fmt(format_args!("\"{}\"", self)).expect("A Display implementation returned an error unexpectedly");
-
                     string
                 }
 
                 #[allow(unused_must_use)]
                 #[inline]
                 fn concat_json(&self, dest: &mut String) {
-                    #[cfg(feature = "squeeze_performance")]
-                    dest.write_fmt(format_args!("\"{}\"", self));
-
-                    #[cfg(not(feature = "squeeze_performance"))]
                     dest.write_fmt(format_args!("\"{}\"", self)).expect("A Display implementation returned an error unexpectedly");
                 }
             }
@@ -191,8 +177,8 @@ macro_rules! impl_for_large_num {
     )
 }
 
-/// Implements [AsJson](automatea::AsJson) and
-/// [FromJson](automatea::FromJson) for collections.
+/// Implements [AsJson](automate::AsJson) and
+/// [FromJson](automate::FromJson) for collections.
 macro_rules! impl_for_single_collection {
     ($($ty:ident:$insert_method:ident <$($rq_trait:ident),*> ),*) => {
         $(
@@ -202,12 +188,15 @@ macro_rules! impl_for_single_collection {
                     let mut json = String::with_capacity(self.len() * 5 + 2);
                     json.push('[');
 
-                    for val in self {
-                        val.concat_json(&mut json);
-                        json.push(',');
+                    if !self.is_empty() {
+                        for val in self {
+                            val.concat_json(&mut json);
+                            json.push(',');
+                        }
+
+                        json.pop(); //remove last comma
                     }
 
-                    json.pop(); //remove last comma
                     json.push(']');
 
                     json
@@ -218,12 +207,15 @@ macro_rules! impl_for_single_collection {
                     dest.reserve(self.len() * 5 + 2);
                     dest.push('[');
 
-                    for val in self {
-                        val.concat_json(dest);
-                        dest.push(',');
+                    if !self.is_empty() {
+                        for val in self {
+                            val.concat_json(dest);
+                            dest.push(',');
+                        }
+
+                        dest.pop(); //remove last comma
                     }
 
-                    dest.pop(); //remove last comma
                     dest.push(']');
                 }
             }
@@ -282,9 +274,9 @@ macro_rules! impl_for_single_collection {
     };
 }
 
-/// Implements [AsJson](automatea::AsJson) and
-/// [FromJson](automatea::FromJson) for collections.
-macro_rules! impl_for_double_collection {
+/// Implements [AsJson](automate::AsJson) and
+/// [FromJson](automate::FromJson) for collections.
+macro_rules! impl_for_associative_collection {
     ($($ty:ident <$($rq_first_trait:ident),*> ),*) => {
         $(
             impl<J> AsJson for $ty<String, J> where J: AsJson {
@@ -293,14 +285,17 @@ macro_rules! impl_for_double_collection {
                     let mut json = String::with_capacity(self.len() * 10 + 2);
                     json.push('{');
 
-                    for (key, val) in self {
-                        key.concat_json(&mut json);
-                        json.push(':');
-                        val.concat_json(&mut json);
-                        json.push(',');
+                    if !self.is_empty() {
+                        for (key, val) in self {
+                            key.concat_json(&mut json);
+                            json.push(':');
+                            val.concat_json(&mut json);
+                            json.push(',');
+                        }
+
+                        json.pop(); //remove last comma
                     }
 
-                    json.pop(); //remove last comma
                     json.push('}');
 
                     json
@@ -311,14 +306,17 @@ macro_rules! impl_for_double_collection {
                     dest.reserve(self.len() * 10 + 2);
                     dest.push('{');
 
-                    for (key, val) in self {
-                        key.concat_json(dest);
-                        dest.push(':');
-                        val.concat_json(dest);
-                        dest.push(',');
+                    if !self.is_empty() {
+                        for (key, val) in self {
+                            key.concat_json(dest);
+                            dest.push(':');
+                            val.concat_json(dest);
+                            dest.push(',');
+                        }
+
+                        dest.pop(); //remove last comma
                     }
 
-                    dest.pop(); //remove last comma
                     dest.push('}');
                 }
             }
@@ -354,12 +352,15 @@ macro_rules! impl_for_arrays {
                     let mut json = String::with_capacity($size * 2 + 2);
                     json.push('[');
 
-                    for val in self {
-                        val.concat_json(&mut json);
-                        json.push(',');
+                    if !self.is_empty() {
+                        for val in self {
+                            val.concat_json(&mut json);
+                            json.push(',');
+                        }
+
+                        json.pop();
                     }
 
-                    json.pop();
                     json.push(']');
 
                     json
@@ -371,12 +372,15 @@ macro_rules! impl_for_arrays {
                     dest.reserve($size * 2 + 2);
                     dest.push('[');
 
-                    for val in self {
-                        val.concat_json(dest);
-                        dest.push(',');
+                    if !self.is_empty() {
+                        for val in self {
+                            val.concat_json(dest);
+                            dest.push(',');
+                        }
+
+                        dest.pop();
                     }
 
-                    dest.pop();
                     dest.push(']');
                 }
             }
@@ -433,7 +437,7 @@ impl_for_single_collection! {
     LinkedList:push_back <>, BTreeSet:insert <Ord>
 }
 
-impl_for_double_collection! {
+impl_for_associative_collection! {
     BTreeMap<>
 }
 
@@ -553,12 +557,15 @@ impl<J, S: BuildHasher> AsJson for HashSet<J, S> where J: AsJson {
         let mut json = String::with_capacity(self.len() * 5 + 2);
         json.push('[');
 
-        for val in self {
-            val.concat_json(&mut json);
-            json.push(',');
+        if !self.is_empty() {
+            for val in self {
+                val.concat_json(&mut json);
+                json.push(',');
+            }
+
+            json.pop(); //remove last comma
         }
 
-        json.pop(); //remove last comma
         json.push(']');
 
         json
@@ -569,12 +576,15 @@ impl<J, S: BuildHasher> AsJson for HashSet<J, S> where J: AsJson {
         dest.reserve(self.len() * 5 + 2);
         dest.push('[');
 
-        for val in self {
-            val.concat_json(dest);
-            dest.push(',');
+        if !self.is_empty() {
+            for val in self {
+                val.concat_json(dest);
+                dest.push(',');
+            }
+
+            dest.pop(); //remove last comma
         }
 
-        dest.pop(); //remove last comma
         dest.push(']');
     }
 }
@@ -592,7 +602,7 @@ impl<J> FromJson for HashSet<J, RandomState> where J: FromJson + Hash + Eq {
             let mut val_begin: usize = 0;
 
             for (i, c) in json.char_indices() {
-                if c == '{' || c == '[' {
+                if c == '[' {
                     nesting_level += 1;
 
                     //we enter the root object
@@ -601,7 +611,7 @@ impl<J> FromJson for HashSet<J, RandomState> where J: FromJson + Hash + Eq {
                     }
 
                     continue;
-                } else if c == '}' || c == ']' {
+                } else if c == ']' {
                     nesting_level -= 1;
 
                     //we hit end of json, but because there isn't a final comma, there is still 1 value
@@ -634,14 +644,17 @@ impl<J, S: BuildHasher> AsJson for HashMap<String, J, S> where J: AsJson {
         let mut json = String::with_capacity(self.len() * 10 + 2);
         json.push('{');
 
-        for (key, val) in self {
-            key.concat_json(&mut json);
-            json.push(':');
-            val.concat_json(&mut json);
-            json.push(',');
+        if !self.is_empty() {
+            for (key, val) in self {
+                key.concat_json(&mut json);
+                json.push(':');
+                val.concat_json(&mut json);
+                json.push(',');
+            }
+
+            json.pop(); //remove last comma
         }
 
-        json.pop(); //remove last comma
         json.push('}');
 
         json
@@ -652,14 +665,17 @@ impl<J, S: BuildHasher> AsJson for HashMap<String, J, S> where J: AsJson {
         dest.reserve(self.len() * 10 + 2);
         dest.push('{');
 
-        for (key, val) in self {
-            key.concat_json(dest);
-            dest.push(':');
-            val.concat_json(dest);
-            dest.push(',');
+        if !self.is_empty() {
+            for (key, val) in self {
+                key.concat_json(dest);
+                dest.push(':');
+                val.concat_json(dest);
+                dest.push(',');
+            }
+
+            dest.pop(); //remove last comma
         }
 
-        dest.pop(); //remove last comma
         dest.push('}');
     }
 }
@@ -683,6 +699,58 @@ impl<J> FromJson for HashMap<String, J, RandomState> where J: FromJson {
     }
 }
 
+//fn tmp(json: &str) {
+//    let mut nesting_level = 0;
+//    let mut key_idxs: [usize; 2] = [0; 2];
+//    let mut val_idxs: [usize; 2] = [0; 2];
+//
+//    for (i, c) in input.char_indices() {
+//        if c == '{' || c == '[' {
+//            nesting_level += 1;
+//        } else if c == '}' || c == ']' {
+//            nesting_level -= 1;
+//
+//            //we hit end of json, but because there isn't a final comma, there is still 1 key/value
+//            //pair waiting to be added to the map
+//            if nesting_level == 0 && val_idxs[0] != 0 {
+//                val_idxs[1] = i;
+//
+//                map.insert(
+//                    &input[key_idxs[0]..key_idxs[1]],
+//                    (&input[val_idxs[0]..val_idxs[1]]).trim(),
+//                );
+//
+//                return Ok(map);
+//            }
+//        } else if nesting_level == 1 {
+//            if c == '"' {
+//                if key_idxs[0] == 0 {
+//                    key_idxs[0] = i + 1;
+//                } else if key_idxs[1] == 0 {
+//                    key_idxs[1] = i;
+//                }
+//            } else if val_idxs[0] == 0 && c == ':' {
+//                val_idxs[0] = i + 1;
+//            } else if val_idxs[1] == 0 && c == ',' {
+//                match &input[key_idxs[0]..key_idxs[1]] {
+//                    #(
+//                     #fns => #fn.replace(::automate::FromJson::from_json((&input[val_idxs[0]..val_idxs[1]]).trim())?)
+//                    ),*
+//                }
+//                val_idxs[1] = i;
+//
+//                map.insert(
+//                    &input[key_idxs[0]..key_idxs[1]],
+//                    (&input[val_idxs[0]..val_idxs[1]]).trim(),
+//                );
+//
+//                key_idxs = [0; 2];
+//                val_idxs = [0; 2];
+//            }
+//        }
+//    }
+//}
+
 pub fn json_object_to_map(input: &str) -> Result<HashMap<&str, &str>, JsonError> {
     let mut map = HashMap::new();
     let mut nesting_level = 0;
@@ -692,7 +760,6 @@ pub fn json_object_to_map(input: &str) -> Result<HashMap<&str, &str>, JsonError>
     for (i, c) in input.char_indices() {
         if c == '{' || c == '[' {
             nesting_level += 1;
-            continue;
         } else if c == '}' || c == ']' {
             nesting_level -= 1;
 
@@ -708,11 +775,7 @@ pub fn json_object_to_map(input: &str) -> Result<HashMap<&str, &str>, JsonError>
 
                 return Ok(map);
             }
-
-            continue;
-        }
-
-        if nesting_level == 1 {
+        } else if nesting_level == 1 {
             if c == '"' {
                 if key_idxs[0] == 0 {
                     key_idxs[0] = i + 1;
@@ -947,15 +1010,15 @@ mod tests {
 #[cfg(test)]
 mod benchmarks {
     use super::*;
-    use serde::Serialize;
+    use serde::{Serialize, Deserialize};
     use test::Bencher;
 
-    #[derive(Serialize, AsJson)]
+    #[derive(Serialize, Deserialize, AsJson, FromJson)]
     struct Something {
         somewhere: String,
         somehow: i32,
         someway: Vec<String>,
-        somewhat: u64,
+        somewhat: String,
         someday: HashMap<String, String>,
     }
 
@@ -975,13 +1038,13 @@ mod benchmarks {
                 somewhere: String::from("Not here"),
                 somehow: -37218,
                 someway: vec,
-                somewhat: 1936198231983251985,
+                somewhat: String::from("1936198231983251985"),
                 someday: map,
             }
         }
     }
 
-    #[derive(Serialize, AsJson)]
+    #[derive(Serialize, Deserialize, AsJson, FromJson)]
     struct Short {
         a: u8,
         b: u16,
@@ -998,7 +1061,7 @@ mod benchmarks {
         }
     }
 
-    #[derive(Serialize, AsJson)]
+    #[derive(Serialize, Deserialize, AsJson, FromJson, Clone)]
     struct LongStr {
         first: String,
         second: String,
@@ -1021,7 +1084,7 @@ mod benchmarks {
         }
     }
 
-    #[derive(Serialize, AsJson)]
+    #[derive(Serialize, Deserialize, AsJson, FromJson)]
     struct Options {
         first: Option<String>,
         second: Option<u32>,
@@ -1059,14 +1122,43 @@ mod benchmarks {
     }
 
     #[bench]
-    fn bench_json_root_search(b: &mut Bencher) {
+    fn bench_json_object_to_map_average(b: &mut Bencher) {
+        let something = Something::create().as_json();
+
         b.iter(|| {
-            json_root_search::<String>("second", r#"{"first":123,"second":"Hello","third":-78}"#).unwrap();
+            json_object_to_map(&something).unwrap();
         });
     }
 
     #[bench]
-    fn bench_serializer_average_automatea(b: &mut Bencher) {
+    fn bench_json_object_to_map_long_str(b: &mut Bencher) {
+        let long_str = LongStr::create().as_json();
+
+        b.iter(|| {
+            json_object_to_map(&long_str).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_json_root_search_average(b: &mut Bencher) {
+        let something = Something::create().as_json();
+
+        b.iter(|| {
+            json_root_search::<String>("somewhere", &something).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_json_root_search_long_str(b: &mut Bencher) {
+        let long_str = LongStr::create().as_json();
+
+        b.iter(|| {
+            json_root_search::<String>("second", &long_str).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_serializer_average_automate(b: &mut Bencher) {
         let something = Something::create();
 
         b.iter(|| {
@@ -1084,7 +1176,7 @@ mod benchmarks {
     }
 
     #[bench]
-    fn bench_serializer_short_automatea(b: &mut Bencher) {
+    fn bench_serializer_short_automate(b: &mut Bencher) {
         let short = Short::create();
 
         b.iter(|| {
@@ -1102,7 +1194,7 @@ mod benchmarks {
     }
 
     #[bench]
-    fn bench_serializer_long_string_automatea(b: &mut Bencher) {
+    fn bench_serializer_long_string_automate(b: &mut Bencher) {
         let long_str = LongStr::create();
 
         b.iter(|| {
@@ -1120,7 +1212,7 @@ mod benchmarks {
     }
 
     #[bench]
-    fn bench_serializer_empty_hashmap_automatea(b: &mut Bencher) {
+    fn bench_serializer_empty_hashmap_automate(b: &mut Bencher) {
         let map: HashMap<String, String> = HashMap::new();
 
         b.iter(|| {
@@ -1138,7 +1230,7 @@ mod benchmarks {
     }
 
     #[bench]
-    fn bench_serializer_full_hashmap_automatea(b: &mut Bencher) {
+    fn bench_serializer_full_hashmap_automate(b: &mut Bencher) {
         let mut map: HashMap<String, String> = HashMap::new();
         for _ in 0..500 {
             map.insert(String::from("hello"), String::from("world"));
@@ -1162,7 +1254,7 @@ mod benchmarks {
     }
 
     #[bench]
-    fn bench_serializer_empty_vec_automatea(b: &mut Bencher) {
+    fn bench_serializer_empty_vec_automate(b: &mut Bencher) {
         let vec: Vec<String> = Vec::new();
 
         b.iter(|| {
@@ -1180,7 +1272,7 @@ mod benchmarks {
     }
 
     #[bench]
-    fn bench_serializer_full_vec_automatea(b: &mut Bencher) {
+    fn bench_serializer_full_vec_automate(b: &mut Bencher) {
         let mut vec: Vec<String> = Vec::new();
         for _ in 0..500 {
             vec.push(String::from("hello world"));
@@ -1204,7 +1296,7 @@ mod benchmarks {
     }
 
     #[bench]
-    fn bench_serializer_options_all_some_automatea(b: &mut Bencher) {
+    fn bench_serializer_options_all_some_automate(b: &mut Bencher) {
         let options = Options::all_some();
 
         b.iter(|| {
@@ -1222,7 +1314,7 @@ mod benchmarks {
     }
 
     #[bench]
-    fn bench_serializer_options_half_some_automatea(b: &mut Bencher) {
+    fn bench_serializer_options_half_some_automate(b: &mut Bencher) {
         let options = Options::half_some();
 
         b.iter(|| {
@@ -1240,7 +1332,7 @@ mod benchmarks {
     }
 
     #[bench]
-    fn bench_serializer_options_no_some_automatea(b: &mut Bencher) {
+    fn bench_serializer_options_no_some_automate(b: &mut Bencher) {
         let options = Options::no_some();
 
         b.iter(|| {
@@ -1254,6 +1346,208 @@ mod benchmarks {
 
         b.iter(|| {
             serde_json::to_string(&options).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_deserializer_average_automate(b: &mut Bencher) {
+        let something_json = Something::create().as_json();
+
+        b.iter(|| {
+            Something::from_json(&something_json).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_deserializer_average_serde(b: &mut Bencher) {
+        let something_json = Something::create().as_json();
+
+        b.iter(|| {
+            serde_json::from_str::<Something>(&something_json).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_deserializer_short_automate(b: &mut Bencher) {
+        let short_json = Short::create().as_json();
+
+        b.iter(|| {
+            Short::from_json(&short_json).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_deserializer_short_serde(b: &mut Bencher) {
+        let short_json = Short::create().as_json();
+
+        b.iter(|| {
+            serde_json::from_str::<Short>(&short_json).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_deserializer_long_string_automate(b: &mut Bencher) {
+        let long_str_json = LongStr::create().as_json();
+
+        b.iter(|| {
+            LongStr::from_json(&long_str_json).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_deserializer_long_string_serde(b: &mut Bencher) {
+        let long_str_json = LongStr::create().as_json();
+
+        b.iter(|| {
+            serde_json::from_str::<LongStr>(&long_str_json).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_deserializer_empty_hashmap_automate(b: &mut Bencher) {
+        let map_json = HashMap::<String, String>::new().as_json();
+        println!("{}", map_json);
+
+        b.iter(|| {
+            HashMap::<String, String>::from_json(&map_json).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_deserializer_empty_hashmap_serde(b: &mut Bencher) {
+        let map_json = HashMap::<String, String>::new().as_json();
+
+        b.iter(|| {
+            serde_json::from_str::<HashMap<String, String>>(&map_json).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_deserializer_full_hashmap_automate(b: &mut Bencher) {
+        let mut map: HashMap<String, String> = HashMap::new();
+        for _ in 0..500 {
+            map.insert(String::from("hello"), String::from("world"));
+        }
+
+        let map_json = map.as_json();
+
+        b.iter(|| {
+            HashMap::<String, String>::from_json(&map_json).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_deserializer_full_hashmap_serde(b: &mut Bencher) {
+        let mut map: HashMap<String, String> = HashMap::new();
+        for _ in 0..500 {
+            map.insert(String::from("hello"), String::from("world"));
+        }
+
+        let map_json = map.as_json();
+
+        b.iter(|| {
+            serde_json::from_str::<HashMap<String, String>>(&map_json).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_deserializer_empty_vec_automate(b: &mut Bencher) {
+        let vec_json = Vec::<String>::new().as_json();
+        println!("{}", vec_json);
+
+        b.iter(|| {
+            Vec::<String>::from_json(&vec_json).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_deserializer_empty_vec_serde(b: &mut Bencher) {
+        let vec_json = Vec::<String>::new().as_json();
+
+        b.iter(|| {
+            serde_json::from_str::<Vec<String>>(&vec_json).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_deserializer_full_vec_automate(b: &mut Bencher) {
+        let mut vec: Vec<String> = Vec::new();
+        for _ in 0..500 {
+            vec.push(String::from("hello world"));
+        }
+
+        let vec_json = vec.as_json();
+
+        b.iter(|| {
+            Vec::<String>::from_json(&vec_json).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_deserializer_full_vec_serde(b: &mut Bencher) {
+        let mut vec: Vec<String> = Vec::new();
+        for _ in 0..500 {
+            vec.push(String::from("hello world"));
+        }
+
+        let vec_json = vec.as_json();
+
+        b.iter(|| {
+            serde_json::from_str::<Vec<String>>(&vec_json).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_deserializer_options_all_some_automate(b: &mut Bencher) {
+        let options_json = Options::all_some().as_json();
+
+        b.iter(|| {
+            Options::from_json(&options_json).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_deserializer_options_all_some_serde(b: &mut Bencher) {
+        let options_json = Options::all_some().as_json();
+
+        b.iter(|| {
+            serde_json::from_str::<Options>(&options_json).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_deserializer_options_half_some_automate(b: &mut Bencher) {
+        let options_json = Options::half_some().as_json();
+
+        b.iter(|| {
+            Options::from_json(&options_json).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_deserializer_options_half_some_serde(b: &mut Bencher) {
+        let options_json = Options::half_some().as_json();
+
+        b.iter(|| {
+            serde_json::from_str::<Options>(&options_json).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_deserializer_options_no_some_automate(b: &mut Bencher) {
+        let options_json = Options::no_some().as_json();
+
+        b.iter(|| {
+            Options::from_json(&options_json).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_deserializer_options_no_some_serde(b: &mut Bencher) {
+        let options_json = Options::no_some().as_json();
+println!("{}", options_json);
+        b.iter(|| {
+            serde_json::from_str::<Options>(&options_json).unwrap();
         });
     }
 }

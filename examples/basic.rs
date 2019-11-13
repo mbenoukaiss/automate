@@ -1,8 +1,8 @@
 #![feature(never_type)]
 
 use async_trait::async_trait;
-use automatea::{Error, Discord, Listener, Session};
-use automatea::models::{CreateMessage, MessageReactionAddDispatch, MessageCreateDispatch};
+use automate::{Error, Discord, Listener, Session};
+use automate::models::{CreateMessage, MessageReactionAddDispatch, MessageCreateDispatch};
 
 struct MessageListener;
 
@@ -31,7 +31,7 @@ impl Listener for MessageListener {
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    automatea::setup_logging();
+    automate::setup_logging();
 
     Discord::new("NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY")
         .register_listener(Box::new(MessageListener))

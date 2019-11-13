@@ -1,7 +1,7 @@
 /target
 /Cargo.lock
-/proc/target
-/proc/Cargo.lock
+/derive/target
+/derive/Cargo.lock
 **/*.rs.bk
 
 /.idea/

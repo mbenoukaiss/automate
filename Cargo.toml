@@ -1,11 +1,11 @@
 [package]
-name = "automatea"
+name = "automate"
 version = "0.1.0"
 authors = ["mbenoukaiss <marwane.benou-kaiss@etu.u-bordeaux.fr>"]
 edition = "2018"
 
 [dependencies]
-automatea-proc = { path = "proc" }
+automate-derive = { path = "derive" }
 futures-preview = { version = "0.3.0-alpha.19", features = ["compat"] }
 async-trait = "0.1.17"
 tokio = "0.2.0-alpha.6"
@@ -22,9 +22,6 @@ serde_json = "1.0.41"
 
 [features]
 default = []
-
-# Removes some checks that are not necessary
-squeeze_performance = []
 
 # Checks for unused fields when deserializing an object.
 # Should only be used in development to make sure no field

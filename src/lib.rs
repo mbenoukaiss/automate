@@ -4,10 +4,10 @@
 #![allow(where_clauses_object_safety)] //should be fixable when async traits are allowed
 #![allow(clippy::identity_op)] //because clippy forbides 1 << 0 in c-like enums
 
-extern crate self as automatea;
+extern crate self as automate;
 extern crate test;
 #[macro_use]
-extern crate automatea_proc;
+extern crate automate_derive;
 #[macro_use]
 extern crate log;
 
