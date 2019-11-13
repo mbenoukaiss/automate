@@ -1,11 +1,11 @@
 #[macro_export]
 macro_rules! deserialize {
     ($data:ident) => {
-        ::automatea::json::FromJson::from_json(&$data)
+        ::automate::json::FromJson::from_json(&$data)
     };
 
     ($data:ident as $type:ty) => {
-        <$type as ::automatea::json::FromJson>::from_json(&$data)
+        <$type as ::automate::json::FromJson>::from_json(&$data)
     }
 }
 

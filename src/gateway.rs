@@ -17,7 +17,7 @@ use std::ops::Deref;
 
 macro_rules! call_dispatcher {
     ($data:ident as $payload:ty => $self:ident.$method:ident) => {{
-        let payload: $payload = <$payload as ::automatea::json::FromJson>::from_json(&$data)?;
+        let payload: $payload = <$payload as ::automate::json::FromJson>::from_json(&$data)?;
 
         if let Nullable::Value(val) = payload.s {
             *$self.sequence_number.lock().unwrap() = Some(val);
@@ -210,8 +210,8 @@ impl GatewayHandler {
                 token: "NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY".to_owned(),
                 properties: map! {
                     "$os" => "linux",
-                    "$browser" => "automatea",
-                    "$device" => "automatea"
+                    "$browser" => "automate",
+                    "$device" => "automate"
                 },
                 compress: None,
                 large_threshold: None,

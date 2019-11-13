@@ -3,7 +3,7 @@ extern crate proc_macro;
 use proc_macro::{TokenStream, TokenTree};
 use proc_macro2::Ident;
 use syn::{parse_macro_input, DeriveInput, Data, Fields, Expr, Error};
-use quote::quote;
+use quote::{format_ident, quote};
 use crate::discord::StructSide;
 use syn::spanned::Spanned;
 
@@ -11,13 +11,13 @@ macro_rules! extract_token {
     ($type:ident in $token:ident) => {
         match $token {
             ::proc_macro::TokenTree::$type(ident) => ident.to_string(),
-            _ => panic!("Not enough arguments provided to proc macro")
+            _ => panic!("Not enough arguments provided to derive macro")
         }
     };
     ($type:ident in $token:expr) => {
         match $token {
             Some(::proc_macro::TokenTree::$type(ident)) => ident.to_string(),
-            _ => panic!("Not enough arguments provided to proc macro")
+            _ => panic!("Not enough arguments provided to derive macro")
         }
     };
 }
@@ -37,7 +37,7 @@ pub fn as_json(item: TokenStream) -> TokenStream {
         if let Fields::Unnamed(unnamed) = &data_struct.fields {
             if unnamed.unnamed.len() == 1 {
                 let quote = quote! {
-                    impl #impl_generics ::automatea::AsJson for #name #ty_generics #where_clause {
+                    impl #impl_generics ::automate::AsJson for #name #ty_generics #where_clause {
                         #[inline]
                         fn as_json(&self) -> String {
                             self.0.as_json()
@@ -56,10 +56,10 @@ pub fn as_json(item: TokenStream) -> TokenStream {
             }
         }
 
-        let (fs, fns, os, ons, recommended_size) = json::extract_fields(data_struct);
+        let ((fs, fns), (os, ons), recommended_size) = json::extract_fields(data_struct);
 
         let quote = quote! {
-            impl #impl_generics ::automatea::AsJson for #name #ty_generics #where_clause {
+            impl #impl_generics ::automate::AsJson for #name #ty_generics #where_clause {
                 #[inline]
                 fn as_json(&self) -> String {
                     let mut json = String::with_capacity(#recommended_size);
@@ -67,19 +67,22 @@ pub fn as_json(item: TokenStream) -> TokenStream {
 
                     #(
                      json.push_str(concat!("\"", #fns, "\":"));
-                     ::automatea::AsJson::concat_json(&self.#fs, &mut json);
+                     ::automate::AsJson::concat_json(&self.#fs, &mut json);
                      json.push(',');
                     )*
 
                     #(
                      if let Some(optional) = &self.#os {
                          json.push_str(concat!("\"", #ons, "\":"));
-                         ::automatea::AsJson::concat_json(optional, &mut json);
+                         ::automate::AsJson::concat_json(optional, &mut json);
                          json.push(',');
                      }
                     )*
 
-                    json.pop(); //remove last comma
+                    if json.len() > 1 {
+                        json.pop(); //remove last comma
+                    }
+
                     json.push('}');
 
                     json
@@ -87,23 +90,27 @@ pub fn as_json(item: TokenStream) -> TokenStream {
 
                 #[inline]
                 fn concat_json(&self, dest: &mut String) {
+                    let original_len = dest.len();
                     dest.push('{');
 
                     #(
                      dest.push_str(concat!("\"", #fns, "\":"));
-                     ::automatea::AsJson::concat_json(&self.#fs, dest);
+                     ::automate::AsJson::concat_json(&self.#fs, dest);
                      dest.push(',');
                     )*
 
                     #(
                      if let Some(optional) = &self.#os {
                          dest.push_str(concat!("\"", #ons, "\":"));
-                         ::automatea::AsJson::concat_json(optional, dest);
+                         ::automate::AsJson::concat_json(optional, dest);
                          dest.push(',');
                      }
                     )*
 
-                    dest.pop(); //remove last comma
+                    if dest.len() > original_len + 1 {
+                        dest.pop(); //remove last comma
+                    }
+
                     dest.push('}');
                 }
             }
@@ -126,10 +133,10 @@ pub fn from_json(item: TokenStream) -> TokenStream {
         if let Fields::Unnamed(unnamed) = &data_struct.fields {
             if unnamed.unnamed.len() == 1 {
                 let quote = quote! {
-                    impl #impl_generics ::automatea::FromJson for #name #ty_generics #where_clause {
+                    impl #impl_generics ::automate::FromJson for #name #ty_generics #where_clause {
                         #[inline]
-                        fn from_json(json: &str) -> Result<#name #ty_generics, ::automatea::json::JsonError> {
-                            Ok(#name #ty_generics(::automatea::FromJson::from_json(json)?))
+                        fn from_json(json: &str) -> Result<#name #ty_generics, ::automate::json::JsonError> {
+                            Ok(#name #ty_generics(::automate::FromJson::from_json(json)?))
                         }
                     }
                 };
@@ -140,36 +147,94 @@ pub fn from_json(item: TokenStream) -> TokenStream {
             }
         }
 
-        let (fs, fns, os, ons, _) = json::extract_fields(data_struct);
+        let ((fs, fns), (os, ons), _) = json::extract_fields(data_struct);
+
+        //The fs fields escaped with _ to not interact with
+        //other variables in from_json like nesting_level
+        let mut fs_escaped = Vec::new();
+        for ident in &fs {
+            fs_escaped.push(format_ident!("_{}", ident));
+        }
+
+        //The os fields escaped with _
+        let mut os_escaped = Vec::new();
+        for ident in &os {
+            os_escaped.push(format_ident!("_{}", ident));
+        }
 
         let quote = quote! {
-            impl #impl_generics ::automatea::FromJson for #name #ty_generics #where_clause {
+            impl #impl_generics ::automate::FromJson for #name #ty_generics #where_clause {
                 #[inline]
-                fn from_json(json: &str) -> Result<#name #ty_generics, ::automatea::json::JsonError> {
-                    let map = ::automatea::json::json_object_to_map(json)?;
+                fn from_json(json: &str) -> Result<#name #ty_generics, ::automate::json::JsonError> {
+                    //let map = ::automate::json::json_object_to_map(json)?;
+                    #(let mut #fs_escaped = None;)*
+                    #(let mut #os_escaped = None;)*
 
-                    Ok(
-                        #name {
-                            #(
-                             #fs : ::automatea::FromJson::from_json(map.get(#fns).ok_or_else(|| ::automatea::json::JsonError::new(concat!("Could not find ", #fns, " in JSON input")))?)?
-                             ,
-                            )*
+                    let mut nesting_level = 0;
+                    let mut key_idxs: [usize; 2] = [0; 2];
+                    let mut val_idxs: [usize; 2] = [0; 2];
 
-                            #(
-                             #os : match map.get(#ons) {
-                                Some(&val) => Some(::automatea::FromJson::from_json(val)?),
-                                None => None
-                             },
-                            )*
+                    for (i, c) in json.char_indices() {
+                        if c == '{' || c == '[' {
+                            nesting_level += 1;
+                        } else if c == '}' || c == ']' {
+                            nesting_level -= 1;
+
+                            //we hit end of json, but because there isn't a final comma, there is still 1 key/value
+                            //pair waiting to be added to the map
+                            if nesting_level == 0 && val_idxs[0] != 0 {
+                                val_idxs[1] = i;
+
+                                match &json[key_idxs[0]..key_idxs[1]] {
+                                    #(#fns => #fs_escaped = Some(::automate::FromJson::from_json((&json[val_idxs[0]..val_idxs[1]]).trim())?),)*
+                                    #(#ons => #os_escaped = Some(::automate::FromJson::from_json((&json[val_idxs[0]..val_idxs[1]]).trim())?),)*
+
+                                    #[cfg(feature = "strict_deserializer")]
+                                    _ => error!("Unknown field ({}) found in {} while deserializing {}", &json[key_idxs[0]..key_idxs[1]], stringify!(#name), &json[val_idxs[0]..val_idxs[1]]),
+                                    #[cfg(not(feature = "strict_deserializer"))]
+                                    _ => (),
+                                }
+
+                                break;
+                            }
+                        } else if nesting_level == 1 {
+                            if c == '"' {
+                                if key_idxs[0] == 0 {
+                                    key_idxs[0] = i + 1;
+                                } else if key_idxs[1] == 0 {
+                                    key_idxs[1] = i;
+                                }
+                            } else if val_idxs[0] == 0 && c == ':' {
+                                val_idxs[0] = i + 1;
+                            } else if val_idxs[1] == 0 && c == ',' {
+                                val_idxs[1] = i;
+                                match &json[key_idxs[0]..key_idxs[1]] {
+                                    #(#fns => #fs_escaped = Some(::automate::FromJson::from_json((&json[val_idxs[0]..val_idxs[1]]).trim())?),)*
+                                    #(#ons => #os_escaped = Some(::automate::FromJson::from_json((&json[val_idxs[0]..val_idxs[1]]).trim())?),)*
+
+                                    #[cfg(feature = "strict_deserializer")]
+                                    _ => error!("Unknown field ({}) found in {} while deserializing {}", &json[key_idxs[0]..key_idxs[1]], stringify!(#name), &json[val_idxs[0]..val_idxs[1]]),
+                                    #[cfg(not(feature = "strict_deserializer"))]
+                                    _ => (),
+                                }
+
+                                key_idxs = [0; 2];
+                                val_idxs = [0; 2];
+                            }
                         }
-                    )
+                    }
+
+                    Ok(#name {
+                        #(#fs: #fs_escaped.expect(concat!("Could not find ", #fns, " in JSON input")),)*
+                        #(#os: #os_escaped,)*
+                    })
                 }
             }
         };
 
        return quote.into();
     } else {
-        panic!("AsJson can only be applied to structs");
+        panic!("FromJson can only be applied to structs");
     }
 }
 
@@ -322,7 +387,7 @@ pub fn convert(metadata: TokenStream, item: TokenStream) -> TokenStream {
             }
         }
 
-        impl #impl_generics ::automatea::json::AsJson for #struct_name #ty_generics #where_clause {
+        impl #impl_generics ::automate::json::AsJson for #struct_name #ty_generics #where_clause {
             #[inline]
             fn as_json(&self) -> String {
                 self.#as_method_name().to_string()
@@ -330,23 +395,19 @@ pub fn convert(metadata: TokenStream, item: TokenStream) -> TokenStream {
 
             #[inline]
             fn concat_json(&self, dest: &mut String) {
-                #[cfg(feature = "squeeze_performance")]
-                 ::std::fmt::Write::write_fmt(dest, format_args!("{}", self.#as_method_name()));
-
-                #[cfg(not(feature = "squeeze_performance"))]
                 ::std::fmt::Write::write_fmt(dest, format_args!("{}", self.#as_method_name())).expect("A Display implementation returned an error unexpectedly");
             }
         }
 
-        impl #impl_generics ::automatea::json::FromJson for #struct_name #ty_generics #where_clause {
+        impl #impl_generics ::automate::json::FromJson for #struct_name #ty_generics #where_clause {
             #[inline]
-            fn from_json(json: &str) -> Result<#struct_name #ty_generics, ::automatea::json::JsonError> {
+            fn from_json(json: &str) -> Result<#struct_name #ty_generics, ::automate::json::JsonError> {
                 return match json.parse::<#convertion_type>() {
                     #(
                      Ok(v) if #fields_expr == v => Ok(#struct_name #ty_generics :: #fields_ident),
                     )*
-                    Ok(v) => ::automatea::json::JsonError::err(format!("{} is not a variant of {}", v, stringify!(#struct_name))),
-                    Err(err) => ::automatea::json::JsonError::err(format!("Failed to parse {} to {}", json, stringify!(#struct_name)))
+                    Ok(v) => ::automate::json::JsonError::err(format!("{} is not a variant of {}", v, stringify!(#struct_name))),
+                    Err(err) => ::automate::json::JsonError::err(format!("Failed to parse {} to {}", json, stringify!(#struct_name)))
                 }
             }
         }
@@ -456,7 +517,7 @@ pub fn stringify(metadata: TokenStream, item: TokenStream) -> TokenStream {
             }
         }
 
-        impl #impl_generics ::automatea::json::AsJson for #struct_name #ty_generics #where_clause {
+        impl #impl_generics ::automate::json::AsJson for #struct_name #ty_generics #where_clause {
             #[inline]
             fn as_json(&self) -> String {
                 self.as_string().to_owned()
@@ -468,19 +529,19 @@ pub fn stringify(metadata: TokenStream, item: TokenStream) -> TokenStream {
             }
         }
 
-        impl #impl_generics ::automatea::json::FromJson for #struct_name #ty_generics #where_clause {
+        impl #impl_generics ::automate::json::FromJson for #struct_name #ty_generics #where_clause {
             #[inline]
-            fn from_json(json: &str) -> Result<#struct_name #ty_generics, ::automatea::json::JsonError> {
+            fn from_json(json: &str) -> Result<#struct_name #ty_generics, ::automate::json::JsonError> {
                 if json.len() >= 2 && json.starts_with('"') && json.ends_with('"') {
                     return match &json[1..json.len()-1] {
                         #(
                             #fields_str => Ok(#struct_name #ty_generics :: #fields_ident),
                         )*
-                        unknown => ::automatea::json::JsonError::err(format!("{} is not a variant of {}", unknown, stringify!(#struct_name)))
+                        unknown => ::automate::json::JsonError::err(format!("{} is not a variant of {}", unknown, stringify!(#struct_name)))
                     }
                 }
 
-                ::automatea::json::JsonError::err("Given JSON is not a string")
+                ::automate::json::JsonError::err("Given JSON is not a string")
             }
         }
     };
