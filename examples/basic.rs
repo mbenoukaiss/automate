@@ -3,6 +3,7 @@
 use automate::{tokio, async_trait};
 use automate::{Error, Discord, Listener, Session};
 use automate::models::{CreateMessage, MessageReactionAddDispatch, MessageCreateDispatch};
+use std::env;
 
 struct MessageListener;
 
@@ -37,7 +38,7 @@ impl Listener for MessageListener {
 async fn main() -> Result<(), Error> {
     automate::setup_logging();
 
-    Discord::new(env!("DISCORD_API_TOKEN"))
+    Discord::new(&env::var("DISCORD_API_TOKEN").expect("API token not found"))
         .with_listener(Box::new(MessageListener))
         .connect().await?
 }
