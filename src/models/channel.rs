@@ -23,6 +23,27 @@ pub struct Channel {
     pub last_pin_timestamp: Option<String>,
 }
 
+#[object(client)]
+pub struct ModifyChannel {
+    pub name: Option<String>,
+    pub position: Option<i32>,
+    pub topic: Option<Nullable<String>>,
+    pub nsfw: Option<bool>,
+    pub rate_limit_per_user: Option<i32>,
+    pub bitrate: Option<i32>,
+    pub user_limit: Option<i32>,
+    pub permission_overwrites: Option<Vec<Overwrite>>,
+    pub parent_id: Option<Nullable<u64>>,
+}
+
+#[object(client)]
+pub struct GetChannelMessages {
+    pub around: Option<u64>,
+    pub before: Option<u64>,
+    pub after: Option<u64>,
+    pub limit: Option<i32>,
+}
+
 #[convert(u8)]
 pub enum ChannelType {
     GuildText = 0,

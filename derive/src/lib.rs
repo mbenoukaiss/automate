@@ -116,7 +116,7 @@ pub fn as_json(item: TokenStream) -> TokenStream {
             }
         };
 
-        return quote.into();
+        quote.into()
     } else {
         panic!("AsJson can only be applied to structs");
     }
@@ -232,7 +232,7 @@ pub fn from_json(item: TokenStream) -> TokenStream {
             }
         };
 
-       return quote.into();
+       quote.into()
     } else {
         panic!("FromJson can only be applied to structs");
     }
@@ -340,7 +340,7 @@ pub fn convert(metadata: TokenStream, item: TokenStream) -> TokenStream {
             let from_method = Ident::new(&format!("from_{}", ty.to_string()), ty.span().into());
             let ty = Ident::new(&ty.to_string(), ty.span().into());
 
-            (as_method.into(), from_method.into(), ty.into())
+            (as_method, from_method, ty)
         }
         _ => panic!("Expected arguments under the format (type)")
     };
@@ -439,7 +439,7 @@ fn pascal_to_upper_snake(val: String) -> String {
 }
 
 fn pascal_to_camel(val: String) -> String {
-    if val.len() > 0 {
+    if !val.is_empty() {
         let fc = val.chars().next().unwrap();
 
         if fc.to_ascii_lowercase() != fc {

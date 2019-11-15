@@ -1,5 +1,9 @@
 # Automate
-Automate is an **asynchronous** rust library for interacting with the Discord API
+Automate is an asynchronous rust library for interacting with the Discord API
+
+**DISCLAIMER: This crate is at its very early stage and does not have most functionnalities a discord bot would need (no
+voice, and only channel manipulation operations). Please don't use this crate except for experimenting.
+The crate also only works in rust nightly.**
 
 # Getting started
 Automate is currently unstable and only works with Rust nightly. In order to add it to your project, add the following
@@ -10,6 +14,8 @@ automate = "0.1.0"
 
 You can then write the following in your `main.rs`. This simple example will respond Hello <name of the user>! to any
 user posting a message in any channel while ignoring messages from bots.
+In order for this example to work, you need to define the `DISCORD_API_TOKEN` environment variable. You can create a
+bot and generate a token on [Discord's developers portal](https://discordapp.com/developers/applications/).
 
 ```
 use automate::{tokio, async_trait};
@@ -47,5 +53,5 @@ async fn main() -> Result<(), Error> {
 
 # License
 Licensed under either of Apache License, Version 2.0 or MIT license at your option.
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in Serde by you, as
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in Automate by you, as
 defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
