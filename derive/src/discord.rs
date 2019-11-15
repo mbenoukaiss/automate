@@ -21,7 +21,7 @@ impl StructSide {
     pub fn appropriate_derive(&self, args: &Arguments) -> TokenStream {
         let mut default_traits = vec![quote!(Debug)];
 
-        if let Some(_) = args.get("default") {
+        if args.contains_key("default") {
             default_traits.push(quote!(Default));
         }
 
@@ -34,11 +34,11 @@ impl StructSide {
 
 
     pub fn from_args(arguments: &Arguments) -> Self {
-        if let Some(_) = arguments.get("client") {
+        if arguments.contains_key("client") {
             StructSide::Client
-        } else if let Some(_) = arguments.get("server") {
+        } else if arguments.contains_key("server") {
             StructSide::Server
-        } else if let Some(_) = arguments.get("both") {
+        } else if arguments.contains_key("both") {
             StructSide::Both
         } else {
             panic!(OBJECT_ERROR);

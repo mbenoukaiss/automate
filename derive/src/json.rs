@@ -1,6 +1,8 @@
 use proc_macro2::Ident;
 use syn::{DataStruct, Type};
 
+pub type StructFields<'a> = ((Vec<&'a Ident>, Vec<String>), (Vec<&'a Ident>, Vec<String>), usize);
+
 pub fn rename_field(field: &Ident) -> String {
     let name = field.to_string();
 
@@ -17,7 +19,7 @@ pub fn rename_field(field: &Ident) -> String {
 /// json string, for both normal fields and options.
 /// The last item of the tuple is a recommended minimum
 /// size for the string buffer when serializing.
-pub fn extract_fields(data_struct: &DataStruct) -> ((Vec<&Ident>, Vec<String>), (Vec<&Ident>, Vec<String>), usize) {
+pub fn extract_fields(data_struct: &DataStruct) -> StructFields {
     let mut fields = Vec::new();
     let mut fields_names = Vec::new();
     let mut options = Vec::new();
@@ -42,5 +44,5 @@ pub fn extract_fields(data_struct: &DataStruct) -> ((Vec<&Ident>, Vec<String>), 
         fields_names.push(rename_field(ident));
     }
 
-    return ((fields, fields_names), (options, options_names), recommended_size);
+    ((fields, fields_names), (options, options_names), recommended_size)
 }

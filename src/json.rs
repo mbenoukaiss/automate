@@ -437,6 +437,26 @@ impl_for_arrays! {
     25, 26, 27, 28, 29, 30, 31, 32
 }
 
+impl AsJson for () {
+    fn as_json(&self) -> String {
+        String::from("{}")
+    }
+
+    fn concat_json(&self, dest: &mut String) {
+        dest.push_str("{}")
+    }
+}
+
+impl FromJson for () {
+    fn from_json(json: &str) -> Result<Self, JsonError> where Self: Sized {
+        if json == "{}" {
+            Ok(())
+        } else {
+            JsonError::err("Incorrect value for empty type")
+        }
+    }
+}
+
 impl AsJson for String {
     #[inline]
     fn as_json(&self) -> String {

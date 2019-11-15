@@ -39,6 +39,12 @@ pub struct CreateMessage {
     pub payload_json: Option<String>
 }
 
+#[object(client, default)]
+pub struct EditMessage {
+    pub content: Option<String>,
+    pub embed: Option<Embed>,
+}
+
 #[convert(u8)]
 pub enum MessageType {
     Default = 0,
