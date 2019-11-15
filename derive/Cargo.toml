@@ -2,6 +2,9 @@
 name = "automate-derive"
 version = "0.1.0"
 authors = ["mbenoukaiss <marwane.benou-kaiss@etu.u-bordeaux.fr>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/mbenoukaiss/automate"
+description = "Derive macros for the automate library"
 edition = "2018"
 
 [lib]
