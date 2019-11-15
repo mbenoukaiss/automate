@@ -15,6 +15,7 @@ user posting a message in any channel while ignoring messages from bots.
 use automate::{tokio, async_trait};
 use automate::{Error, Discord, Listener, Session};
 use automate::models::{CreateMessage, MessageCreateDispatch};
+use std::env;
 
 struct MessageListener;
 
@@ -38,7 +39,7 @@ impl Listener for MessageListener {
 async fn main() -> Result<(), Error> {
     automate::setup_logging();
 
-    Discord::new("discord api token goes here")
+    Discord::new(&env::var("DISCORD_API_TOKEN").expect("API token not found"))
         .with_listener(Box::new(MessageListener))
         .connect().await?
 }
