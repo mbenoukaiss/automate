@@ -9,14 +9,6 @@ use std::collections::hash_map::RandomState;
 /// A data structure that can be represented in a
 /// JSON string.
 ///
-/// Provides a faster way to serialize than serde,
-/// thus the `.as_json()` method should be used when
-/// performance is required.
-/// To better exploit the performance of this trait, it
-/// is recommended to use `.concat_json()` if the
-/// destination string for the serialized data structure
-/// already exists.
-///
 /// The code to derive this trait can be automatically
 /// produced using `#[derive(AsJson)]` as the procedural
 /// macro crate provides a derive macro for AsJson.
@@ -48,9 +40,6 @@ pub trait AsJson {
 
 /// A data structure that can be parsed from the value
 /// of a JSON string.
-///
-/// Currently only implemented for primitive types such as
-/// integers, floats and string.
 ///
 /// # Example
 /// ```

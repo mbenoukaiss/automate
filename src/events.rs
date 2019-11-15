@@ -4,7 +4,7 @@ use crate::models::*;
 use crate::{Session, Error};
 
 macro_rules! listener {
-{$($name:ident: $type:ty),*} => {
+    {$($name:ident: $type:ty),*} => {
         #[async_trait]
         pub trait Listener {
             $(

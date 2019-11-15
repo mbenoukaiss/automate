@@ -20,6 +20,9 @@ mod macros;
 mod errors;
 mod logger;
 
+pub use async_trait::async_trait;
+pub use tokio;
+
 pub use events::Listener;
 pub use http::HttpAPI;
 pub use gateway::{GatewayAPI, Session};
@@ -42,7 +45,7 @@ impl Discord {
         }
     }
 
-    pub fn register_listener(self, listener: Box<dyn Listener + Send>) -> Self {
+    pub fn with_listener(self, listener: Box<dyn Listener + Send>) -> Self {
         self.listeners.lock().unwrap().push(listener);
         self
     }

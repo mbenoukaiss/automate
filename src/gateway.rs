@@ -198,7 +198,7 @@ impl GatewayHandler {
 
         if let Some(sid) = &*self.session_id.borrow() {
             let resume = Resume {
-                token: "NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY".to_owned(),
+                token: self.session.http.token().clone(),
                 session_id: sid.to_owned(),
                 seq: self.sequence_number.lock().unwrap().unwrap(),
             };
@@ -207,7 +207,7 @@ impl GatewayHandler {
             info!("Requested to resume session");
         } else {
             let identify = Identify {
-                token: "NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY".to_owned(),
+                token: self.session.http.token().clone(),
                 properties: map! {
                     "$os" => "linux",
                     "$browser" => "automate",
