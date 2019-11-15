@@ -34,6 +34,10 @@ impl HttpAPI {
         }
     }
 
+    pub fn token(&self) -> &String {
+        &self.token
+    }
+
     async fn request(&self, uri: Uri, method: Method, body: Body) -> Result<Response<Body>, hyper::Error> {
         self.client.request(Request::builder()
             .uri(uri)

@@ -1,6 +1,6 @@
-#![feature(never_type)]
+#![allow(where_clauses_object_safety)] //should be fixable when async traits are allowed
 
-use async_trait::async_trait;
+use automate::{tokio, async_trait};
 use automate::{Error, Discord, Listener, Session};
 use automate::models::{CreateMessage, MessageReactionAddDispatch, MessageCreateDispatch};
 
@@ -10,8 +10,10 @@ struct MessageListener;
 impl Listener for MessageListener {
     async fn on_message_create(&mut self, session: &Session, message: &MessageCreateDispatch) -> Result<(), Error> {
         if !message.author.bot.unwrap_or(false) {
+            let content = Some(format!("Hello {}!", message.author.username));
+
             session.create_message(message.channel_id, CreateMessage {
-                content: Some(String::from("Hello sir!")),
+                content,
                 ..Default::default()
             }).await?;
         }   
@@ -20,8 +22,10 @@ impl Listener for MessageListener {
     }
 
     async fn on_reaction_add(&mut self, session: &Session, message: &MessageReactionAddDispatch) -> Result<(), Error> {
+        let content = Some(format!("{}?!", message.emoji.name));
+
         session.create_message(message.channel_id, CreateMessage {
-            content: Some(String::from("Nice reaction")),
+            content,
             ..Default::default()
         }).await?;
 
@@ -29,11 +33,11 @@ impl Listener for MessageListener {
     }
 }
 
-#[tokio::main]
+#[automate::tokio::main]
 async fn main() -> Result<(), Error> {
     automate::setup_logging();
 
-    Discord::new("NjEzMDUzOTEwMjc3NTU0MTg0.XVrU-Q.-Liuq8tU9HQtNN6pWD-Tjxu7IRY")
-        .register_listener(Box::new(MessageListener))
+    Discord::new(env!("DISCORD_API_TOKEN"))
+        .with_listener(Box::new(MessageListener))
         .connect().await?
 }
