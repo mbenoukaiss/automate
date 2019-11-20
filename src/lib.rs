@@ -29,8 +29,11 @@ pub use gateway::{GatewayAPI, Session};
 pub use json::{AsJson, FromJson};
 pub use logger::setup_logging;
 pub use errors::Error;
+use tokio::runtime::Runtime;
 use std::ops::Deref;
 use std::sync::{Mutex, Arc};
+use std::thread::JoinHandle;
+use std::thread;
 
 pub struct Discord {
     http: HttpAPI,
@@ -52,6 +55,16 @@ impl Discord {
 
     pub async fn connect(self) -> Result<!, Error> {
         GatewayAPI::connect(self.http.clone(), self.listeners.clone()).await
+    }
+
+    pub fn connect_blocking(self) -> Result<!, Error> {
+        Runtime::new().unwrap().block_on(self.connect())
+    }
+
+    pub fn connect_detached(self) -> JoinHandle<Result<!, Error>> {
+        thread::spawn(move || {
+            Runtime::new().unwrap().block_on(self.connect())
+        })
     }
 }
 
