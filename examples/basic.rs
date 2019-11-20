@@ -2,7 +2,7 @@
 
 use automate::{tokio, async_trait};
 use automate::{Error, Discord, Listener, Session};
-use automate::models::{CreateMessage, MessageReactionAddDispatch, MessageCreateDispatch};
+use automate::models::{CreateMessage, MessageReactionAddDispatch, MessageCreateDispatch, NewInvite};
 use std::env;
 
 struct MessageListener;
@@ -10,14 +10,32 @@ struct MessageListener;
 #[async_trait]
 impl Listener for MessageListener {
     async fn on_message_create(&mut self, session: &Session, message: &MessageCreateDispatch) -> Result<(), Error> {
-        if !message.author.bot.unwrap_or(false) {
-            let content = Some(format!("Hello {}!", message.author.username));
+        let message = &message.0;
 
-            session.create_message(message.channel_id, CreateMessage {
-                content,
-                ..Default::default()
-            }).await?;
-        }   
+        if !message.author.bot.unwrap_or(false) {
+            if message.content.to_lowercase().contains("invit") {
+                let invite = session.create_invite(message.channel_id, NewInvite {
+                    max_age: 3600 * 24,
+                    max_uses: 1,
+                    temporary: true,
+                    unique: false,
+                }).await?;
+
+                let content = Some(format!("Here's your invite {} : https://discord.gg/{}", message.author.username, invite.code));
+
+                session.create_message(message.channel_id, CreateMessage {
+                    content,
+                    ..Default::default()
+                }).await?;
+            } else {
+                let content = Some(format!("Hello {}!", message.author.username));
+
+                session.create_message(message.channel_id, CreateMessage {
+                    content,
+                    ..Default::default()
+                }).await?;
+            }
+        }
 
         Ok(())
     }

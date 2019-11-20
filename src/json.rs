@@ -449,7 +449,7 @@ impl AsJson for () {
 
 impl FromJson for () {
     fn from_json(json: &str) -> Result<Self, JsonError> where Self: Sized {
-        if json == "{}" {
+        if json.is_empty() || json == "{}" {
             Ok(())
         } else {
             JsonError::err("Incorrect value for empty type")
