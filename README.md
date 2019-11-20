@@ -9,7 +9,7 @@ The crate also only works in rust nightly.**
 Automate is currently unstable and only works with Rust nightly. In order to add it to your project, add the following
 line to your `Cargo.toml` under the `[dependencies]` section :
 ```
-automate = "0.1.0"
+automate = "0.1.2"
 ```
 
 You can then write the following in your `main.rs`. This simple example will respond Hello <name of the user>! to any
@@ -17,7 +17,7 @@ user posting a message in any channel while ignoring messages from bots.
 In order for this example to work, you need to define the `DISCORD_API_TOKEN` environment variable. You can create a
 bot and generate a token on [Discord's developers portal](https://discordapp.com/developers/applications/).
 
-```
+```rust
 use automate::{tokio, async_trait};
 use automate::{Error, Discord, Listener, Session};
 use automate::models::{CreateMessage, MessageCreateDispatch};

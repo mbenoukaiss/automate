@@ -56,7 +56,7 @@ impl GatewayAPI {
                         session: Session {
                             sender: client,
                             http: http.clone(),
-                            listeners: listeners.clone()
+                            listeners: listeners.clone(),
                         },
                         session_id: Rc::clone(&session_id),
                         sequence_number: Arc::clone(&sequence_number),
@@ -114,7 +114,7 @@ impl Delayer {
 pub struct Session {
     sender: ws::Sender,
     http: HttpAPI,
-    listeners: Arc<Mutex<Vec<Box<dyn Listener + Send>>>>
+    listeners: Arc<Mutex<Vec<Box<dyn Listener + Send>>>>,
 }
 
 impl Session {
@@ -144,6 +144,7 @@ impl GatewayHandler {
     async fn dispatch_payload(&mut self, data: &str) -> Result<(), Error> {
         match json::json_root_search::<u8>("op", data)? {
             0 => self.dispatch_event(data).await?,
+            7 => self.on_reconnect().await?,
             9 => call_dispatcher!(data as Payload<InvalidSession> => self.on_invalid_session),
             10 => call_dispatcher!(data as Payload<Hello> => self.on_hello),
             11 => self.on_heartbeat_ack().await?,
@@ -163,9 +164,24 @@ impl GatewayHandler {
         match json::json_root_search::<String>("t", data)?.as_str() {
             ReadyDispatch::EVENT_NAME => call_dispatcher!(data as Payload<ReadyDispatch> => self.on_ready),
             ResumedDispatch::EVENT_NAME => call_dispatcher!(data as Payload<ResumedDispatch> => self.on_resumed),
+            ChannelCreateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<ChannelCreateDispatch> => self.on_channel_create),
+            ChannelUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<ChannelUpdateDispatch> => self.on_channel_update),
+            ChannelDeleteDispatch::EVENT_NAME => call_dispatcher!(data as Payload<ChannelDeleteDispatch> => self.on_channel_delete),
+            ChannelPinsUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<ChannelPinsUpdateDispatch> => self.on_channel_pins_update),
             GuildCreateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<GuildCreateDispatch> => self.on_guild_create),
             GuildUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<GuildUpdateDispatch> => self.on_guild_update),
-            PresencesReplaceDispatch::EVENT_NAME => info!("Ignoring presence replace event"),
+            GuildDeleteDispatch::EVENT_NAME => call_dispatcher!(data as Payload<GuildDeleteDispatch> => self.on_guild_delete),
+            GuildBanAddDispatch::EVENT_NAME => call_dispatcher!(data as Payload<GuildBanAddDispatch> => self.on_guild_ban_add),
+            GuildBanRemoveDispatch::EVENT_NAME => call_dispatcher!(data as Payload<GuildBanRemoveDispatch> => self.on_guild_ban_remove),
+            GuildEmojisUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<GuildEmojisUpdateDispatch> => self.on_guild_emojis_update),
+            GuildIntegrationsUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<GuildIntegrationsUpdateDispatch> => self.on_guild_integrations_update),
+            GuildMemberAddDispatch::EVENT_NAME => call_dispatcher!(data as Payload<GuildMemberAddDispatch> => self.on_guild_member_add),
+            GuildMemberRemoveDispatch::EVENT_NAME => call_dispatcher!(data as Payload<GuildMemberRemoveDispatch> => self.on_guild_member_remove),
+            GuildMemberUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<GuildMemberUpdateDispatch> => self.on_guild_member_update),
+            GuildMembersChunkDispatch::EVENT_NAME => call_dispatcher!(data as Payload<GuildMembersChunkDispatch> => self.on_guild_members_chunk),
+            GuildRoleCreateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<GuildRoleCreateDispatch> => self.on_guild_role_create),
+            GuildRoleUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<GuildRoleUpdateDispatch> => self.on_guild_role_update),
+            GuildRoleDeleteDispatch::EVENT_NAME => call_dispatcher!(data as Payload<GuildRoleDeleteDispatch> => self.on_guild_role_delete),
             MessageCreateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageCreateDispatch> => self.on_message_create),
             MessageUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageUpdateDispatch> => self.on_message_update),
             MessageDeleteDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageDeleteDispatch> => self.on_message_delete),
@@ -173,16 +189,37 @@ impl GatewayHandler {
             MessageReactionAddDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageReactionAddDispatch> => self.on_reaction_add),
             MessageReactionRemoveDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageReactionRemoveDispatch> => self.on_reaction_remove),
             MessageReactionRemoveAllDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageReactionRemoveAllDispatch> => self.on_reaction_remove_all),
+            PresencesReplaceDispatch::EVENT_NAME => info!("Ignoring presence replace event"),
             PresenceUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<PresenceUpdateDispatch> => self.on_presence_update),
             TypingStartDispatch::EVENT_NAME => call_dispatcher!(data as Payload<TypingStartDispatch> => self.on_typing_start),
+            UserUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<UserUpdateDispatch> => self.on_user_update),
+            VoiceStateUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<VoiceStateUpdateDispatch> => self.on_voice_state_update),
+            VoiceServerUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<VoiceServerUpdateDispatch> => self.on_voice_server_update),
+            WebhooksUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<WebhooksUpdateDispatch> => self.on_webhooks_update),
             unknown_event => return Error::err(format!("Unknown event {}", unknown_event))
         }
 
         Ok(())
     }
 
+    dispatcher!(on_channel_create: ChannelCreateDispatch);
+    dispatcher!(on_channel_update: ChannelUpdateDispatch);
+    dispatcher!(on_channel_delete: ChannelDeleteDispatch);
+    dispatcher!(on_channel_pins_update: ChannelPinsUpdateDispatch);
     dispatcher!(on_guild_create: GuildCreateDispatch);
     dispatcher!(on_guild_update: GuildUpdateDispatch);
+    dispatcher!(on_guild_delete: GuildDeleteDispatch);
+    dispatcher!(on_guild_ban_add: GuildBanAddDispatch);
+    dispatcher!(on_guild_ban_remove: GuildBanRemoveDispatch);
+    dispatcher!(on_guild_emojis_update: GuildEmojisUpdateDispatch);
+    dispatcher!(on_guild_integrations_update: GuildIntegrationsUpdateDispatch);
+    dispatcher!(on_guild_member_add: GuildMemberAddDispatch);
+    dispatcher!(on_guild_member_remove: GuildMemberRemoveDispatch);
+    dispatcher!(on_guild_member_update: GuildMemberUpdateDispatch);
+    dispatcher!(on_guild_members_chunk: GuildMembersChunkDispatch);
+    dispatcher!(on_guild_role_create: GuildRoleCreateDispatch);
+    dispatcher!(on_guild_role_update: GuildRoleUpdateDispatch);
+    dispatcher!(on_guild_role_delete: GuildRoleDeleteDispatch);
     dispatcher!(on_message_create: MessageCreateDispatch);
     dispatcher!(on_message_update: MessageUpdateDispatch);
     dispatcher!(on_message_delete: MessageDeleteDispatch);
@@ -192,6 +229,10 @@ impl GatewayHandler {
     dispatcher!(on_reaction_remove_all: MessageReactionRemoveAllDispatch);
     dispatcher!(on_presence_update: PresenceUpdateDispatch);
     dispatcher!(on_typing_start: TypingStartDispatch);
+    dispatcher!(on_user_update: UserUpdateDispatch);
+    dispatcher!(on_voice_state_update: VoiceStateUpdateDispatch);
+    dispatcher!(on_voice_server_update: VoiceServerUpdateDispatch);
+    dispatcher!(on_webhooks_update: WebhooksUpdateDispatch);
 
     async fn on_hello(&mut self, payload: Hello) -> Result<(), Error> {
         println!("{:?}", payload);
@@ -271,6 +312,13 @@ impl GatewayHandler {
 
     async fn on_resumed(&mut self, _payload: ResumedDispatch) -> Result<(), Error> {
         info!("Successfully resumed session");
+        Ok(())
+    }
+
+    async fn on_reconnect(&mut self) -> Result<(), Error> {
+        warn!("Received reconnect payload, disconnecting");
+        self.session.sender.shutdown()?;
+
         Ok(())
     }
 

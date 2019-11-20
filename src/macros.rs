@@ -18,3 +18,17 @@ macro_rules! map {
         map
     }}
 }
+
+#[macro_export]
+macro_rules! json {
+    {} => {{
+        String::from("{}")
+    }};
+    {$($key:expr => $val:expr),*} => {{
+        let mut json = String::with_capacity(10);
+        json.push('{');
+        $(json.push('"');json.push_str($key); json.push_str("\":");$val.concat_json(&mut json);json.push(',');)*
+        json.push('}');
+        json
+    }}
+}

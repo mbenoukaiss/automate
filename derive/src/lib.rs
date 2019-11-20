@@ -213,7 +213,7 @@ pub fn from_json(item: TokenStream) -> TokenStream {
                                     #(#ons => #os_escaped = Some(::automate::FromJson::from_json((&json[val_idxs[0]..val_idxs[1]]).trim())?),)*
 
                                     #[cfg(feature = "strict_deserializer")]
-                                    _ => error!("Unknown field ({}) found in {} while deserializing {}", &json[key_idxs[0]..key_idxs[1]], stringify!(#name), &json[val_idxs[0]..val_idxs[1]]),
+                                    _ => error!("Unknown field ({}) found in {} while deserializing {}", &json[key_idxs[0]..key_idxs[1]], stringify!(#name), json),
                                     #[cfg(not(feature = "strict_deserializer"))]
                                     _ => (),
                                 }

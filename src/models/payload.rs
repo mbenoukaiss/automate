@@ -24,6 +24,22 @@ pub struct ReadyDispatch {
 #[payload(op = 0, event = "RESUMED", server)]
 pub struct ResumedDispatch;
 
+#[payload(op = 0, event = "CHANNEL_CREATE", server)]
+pub struct ChannelCreateDispatch(pub Channel);
+
+#[payload(op = 0, event = "CHANNEL_UPDATE", server)]
+pub struct ChannelUpdateDispatch(pub Channel);
+
+#[payload(op = 0, event = "CHANNEL_DELETE", server)]
+pub struct ChannelDeleteDispatch(pub Channel);
+
+#[payload(op = 0, event = "CHANNEL_PINS_UPDATE", server)]
+pub struct ChannelPinsUpdateDispatch {
+    pub guild_id: Option<u64>,
+    pub channel_id: u64,
+    pub last_pin_timestamp: Option<String>
+}
+
 #[payload(op = 0, event = "GUILD_CREATE", server)]
 pub struct GuildCreateDispatch(pub Guild);
 
@@ -46,6 +62,17 @@ pub struct GuildBanAddDispatch {
 pub struct GuildBanRemoveDispatch {
     pub guild_id: u64,
     pub user: User
+}
+
+#[payload(op = 0, event = "GUILD_EMOJIS_UPDATE", server)]
+pub struct GuildEmojisUpdateDispatch {
+    pub guild_id: u64,
+    pub emojis: Vec<Emoji>
+}
+
+#[payload(op = 0, event = "GUILD_INTEGRATIONS_UPDATE", server)]
+pub struct GuildIntegrationsUpdateDispatch {
+    pub guild_id: u64,
 }
 
 #[payload(op = 0, event = "GUILD_MEMBER_ADD", server)]
@@ -75,16 +102,32 @@ pub struct GuildMemberUpdateDispatch {
     pub nick: String
 }
 
-/// This payload should not be handled by bots
-/// as it will always be empty and does not mean
-/// anything.
-///
-/// More information in [this issue](https://github.com/discordapp/discord-api-docs/issues/683)
-#[payload(op = 0, event = "PRESENCES_REPLACE", server)]
-pub struct PresencesReplaceDispatch(pub Vec<PresenceUpdate>);
+/// Sent in response to [RequestGuildMembers](RequestGuildMembers)
+#[payload(op = 0, event = "GUILD_MEMBERS_CHUNK", server)]
+pub struct GuildMembersChunkDispatch {
+    pub guild_id: u64,
+    pub members: Vec<GuildMember>,
+    pub not_found: Option<Vec<u64>>,
+    pub presences: Option<Vec<PresenceUpdate>>
+}
 
-#[payload(op = 0, event = "PRESENCE_UPDATE", server)]
-pub struct PresenceUpdateDispatch(pub PresenceUpdate);
+#[payload(op = 0, event = "GUILD_ROLE_CREATE", server)]
+pub struct GuildRoleCreateDispatch {
+    pub guild_id: u64,
+    pub role: Role,
+}
+
+#[payload(op = 0, event = "GUILD_ROLE_UPDATE", server)]
+pub struct GuildRoleUpdateDispatch {
+    pub guild_id: u64,
+    pub role: Role,
+}
+
+#[payload(op = 0, event = "GUILD_ROLE_DELETE", server)]
+pub struct GuildRoleDeleteDispatch {
+    pub guild_id: u64,
+    pub role: u64,
+}
 
 #[payload(op = 0, event = "MESSAGE_CREATE", server)]
 pub struct MessageCreateDispatch(pub Message);
@@ -131,12 +174,42 @@ pub struct MessageReactionRemoveAllDispatch {
     pub message_id: u64
 }
 
+/// This payload should not be handled by bots
+/// as it will always be empty and does not mean
+/// anything.
+///
+/// More information in [this issue](https://github.com/discordapp/discord-api-docs/issues/683)
+#[payload(op = 0, event = "PRESENCES_REPLACE", server)]
+pub struct PresencesReplaceDispatch(pub Vec<PresenceUpdate>);
+
+#[payload(op = 0, event = "PRESENCE_UPDATE", server)]
+pub struct PresenceUpdateDispatch(pub PresenceUpdate);
+
 #[payload(op = 0, event = "TYPING_START", server)]
 pub struct TypingStartDispatch {
     pub guild_id: Option<u64>,
     pub channel_id: u64,
     pub user_id: u64,
     pub member: GuildMember
+}
+
+#[payload(op = 0, event = "USER_UPDATE", server)]
+pub struct UserUpdateDispatch(pub User);
+
+#[payload(op = 0, event = "VOICE_STATE_UPDATE", server)]
+pub struct VoiceStateUpdateDispatch(pub VoiceState);
+
+#[payload(op = 0, event = "VOICE_SERVER_UPDATE", server)]
+pub struct VoiceServerUpdateDispatch {
+    pub token: String,
+    pub guild_id: u64,
+    pub endpoint: String,
+}
+
+#[payload(op = 0, event = "WEBHOOKS_UPDATE", server)]
+pub struct WebhooksUpdateDispatch {
+    pub guild_id: u64,
+    pub channel_id: u64,
 }
 
 #[payload(op = 1, client)]
@@ -153,11 +226,39 @@ pub struct Identify {
     pub guild_subscriptions: Option<bool>
 }
 
+#[payload(op = 3, client)]
+pub struct UpdateStatus {
+    pub since: Nullable<i32>,
+    pub game: Nullable<Activity>,
+    pub status: StatusType,
+    pub afk: bool
+}
+
+#[payload(op = 4, client)]
+pub struct UpdateVoiceState {
+    pub guild_id: u64,
+    pub channel_id: u64,
+    pub self_mute: bool,
+    pub self_deaf: bool,
+}
+
 #[payload(op = 6, client)]
 pub struct Resume {
     pub token: String,
     pub session_id: String,
     pub seq: i32,
+}
+
+#[payload(op = 7, server)]
+pub struct Reconnect;
+
+#[payload(op = 8, client)]
+pub struct RequestGuildMembers {
+    pub guild_id: u64,
+    pub query: Option<String>,
+    pub limit: Option<i32>,
+    pub presences: Option<bool>,
+    pub user_ids: Vec<u64>
 }
 
 #[payload(op = 9, server)]
@@ -166,14 +267,6 @@ pub struct InvalidSession(pub bool);
 #[payload(op = 10, server)]
 pub struct Hello {
     pub heartbeat_interval: u32
-}
-
-#[object(client)]
-pub struct UpdateStatus {
-    pub since: Nullable<i32>,
-    pub game: Nullable<Activity>,
-    pub status: StatusType,
-    pub afk: bool
 }
 
 #[stringify(snake_case)]

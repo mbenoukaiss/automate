@@ -3,7 +3,8 @@ use hyper::{Client, Request, Body, Chunk, Response, Uri, Method};
 use hyper::client::HttpConnector;
 use hyper_tls::HttpsConnector;
 use futures::TryStreamExt;
-use crate::models::{Gateway, GatewayBot, CreateMessage, Message, Channel, ModifyChannel};
+use crate::models::{Gateway, GatewayBot, CreateMessage, Message, Channel, ModifyChannel, MessagesPosition, ReactionsPosition, User, EditMessage, NewOverwrite, NewInvite, Invite};
+use crate::json;
 
 macro_rules! api {
     ($($dest:expr),*) => {{
@@ -121,10 +122,17 @@ impl HttpAPI {
 
     //TODO: delete channels recursively?
 
-    //TODO: handle query string params
-    //pub async fn get_channel_messages(&self, channel_id: u64, messages: GetChannelMessages) -> Result<Vec<Message>, Error> {
-    //    self.get(api!("/channels/", channel_id, "/messages")).await
-    //}
+    pub async fn get_channel_messages(&self, channel_id: u64, messages: MessagesPosition) -> Result<Vec<Message>, Error> {
+        let query = match messages {
+            MessagesPosition::Default => String::new(),
+            MessagesPosition::Limit(limit) => format!("?limit={}", limit),
+            MessagesPosition::Before(s, limit) => format!("?before={}&limit={}", s, limit),
+            MessagesPosition::Around(s, limit) => format!("?around={}&limit={}", s, limit),
+            MessagesPosition::After(s, limit) => format!("?after={}&limit={}", s, limit),
+        };
+
+        self.get(api!("/channels/", channel_id, "/messages?", query)).await
+    }
 
     pub async fn get_channel_message(&self, channel_id: u64, message_id: u64) -> Result<Message, Error> {
         self.get(api!("/channels/", channel_id, "/messages/", message_id)).await
@@ -146,16 +154,22 @@ impl HttpAPI {
         self.delete(api!("/channels/", channel_id, "/messages/", message_id, "/reactions/", emoji, "/", user_id)).await
     }
 
-    //TODO: handle query string params
-    //pub async fn get_reactions(&self, channel_id: u64, message_id: u64, emoji: &str) -> Result<Vec<User>, Error> {
-    //    self.get(api!("/channels/", channel_id, "/messages/", message_id, "/reactions/", emoji)).await
-    //}
+    pub async fn get_reactions(&self, channel_id: u64, message_id: u64, emoji: &str, reactions: ReactionsPosition) -> Result<Vec<User>, Error> {
+        let query = match reactions {
+            ReactionsPosition::Default => String::new(),
+            ReactionsPosition::Limit(limit) => format!("?limit={}", limit),
+            ReactionsPosition::Before(s, limit) => format!("?before={}&limit={}", s, limit),
+            ReactionsPosition::After(s, limit) => format!("?after={}&limit={}", s, limit),
+        };
+
+        self.get(api!("/channels/", channel_id, "/messages/", message_id, "/reactions/", emoji, query)).await
+    }
 
     pub async fn delete_all_reaction(&self, channel_id: u64, message_id: u64) -> Result<(), Error> {
         self.delete(api!("/channels/", channel_id, "/messages/", message_id, "/reactions")).await
     }
 
-    pub async fn edit_message(&self, channel_id: u64, message_id: u64, message: CreateMessage) -> Result<Message, Error> {
+    pub async fn edit_message(&self, channel_id: u64, message_id: u64, message: EditMessage) -> Result<Message, Error> {
         self.patch(api!("/channels/", channel_id, "/messages", message_id), message).await
     }
 
@@ -167,4 +181,64 @@ impl HttpAPI {
         self.post(api!("/channels/", channel_id, "/messages/bulk-delete"), messages).await
     }
 
+    pub async fn edit_channel_permissions(&self, channel_id: u64, overwrite_id: u64, permissions: NewOverwrite) -> Result<(), Error> {
+        self.post(api!("/channels/", channel_id, "/permissions/", overwrite_id), permissions).await
+    }
+
+    /// Retrieves an invite by its code.
+    pub async fn get_invite(&self, code: &str) -> Result<Invite, Error> {
+        self.get(api!("/invites/", code)).await
+    }
+
+    /// Retrieves an invite by its code with the
+    /// approximate member counts of the server.
+    pub async fn get_invite_with_counts(&self, code: &str) -> Result<Invite, Error> {
+        self.get(api!("/invites/", code, "?with_counts=true")).await
+    }
+
+    /// Retrieves all the invites in a channel.
+    pub async fn get_invites(&self, channel_id: u64) -> Result<Vec<Invite>, Error> {
+        self.get(api!("/channels/", channel_id, "/invites")).await
+    }
+
+    /// Create an invite for the specified channel.
+    pub async fn create_invite(&self, channel_id: u64, invite: NewInvite) -> Result<Invite, Error> {
+        self.post(api!("/channels/", channel_id, "/invites"), invite).await
+    }
+
+    /// Create an invite for the specified channel.
+    pub async fn delete_invite(&self, code: &str) -> Result<Invite, Error> {
+        self.delete(api!("/invites/", code)).await
+    }
+
+    pub async fn delete_channel_permission(&self, channel_id: u64, overwrite_id: u64) -> Result<(), Error> {
+        self.delete(api!("/channels/", channel_id, "/permissions/", overwrite_id)).await
+    }
+
+    pub async fn trigger_typing_indicator(&self, channel_id: u64) -> Result<(), Error> {
+        self.post(api!("/channels/", channel_id, "/typing"), ()).await
+    }
+
+    pub async fn get_pinned_messages(&self, channel_id: u64) -> Result<Vec<Message>, Error> {
+        self.get(api!("/channels/", channel_id, "/pins")).await
+    }
+
+    pub async fn add_pinned_message(&self, channel_id: u64, message_id: u64) -> Result<(), Error> {
+        self.put(api!("/channels/", channel_id, "/pins/", message_id), ()).await
+    }
+
+    pub async fn delete_pinned_message(&self, channel_id: u64, message_id: u64) -> Result<(), Error> {
+        self.delete(api!("/channels/", channel_id, "/pins/", message_id)).await
+    }
+
+    pub async fn group_dm_add_recipient(&self, channel_id: u64, user_id: u64, access_token: String, nick: String) -> Result<(), Error> {
+        self.put(api!("/channels/", channel_id, "/recipients/", user_id), json! {
+            "access_token" => access_token,
+            "nick" => nick
+        }).await
+    }
+
+    pub async fn group_dm_remove_recipient(&self, channel_id: u64, user_id: u64) -> Result<(), Error> {
+        self.delete(api!("/channels/", channel_id, "/recipients/", user_id)).await
+    }
 }

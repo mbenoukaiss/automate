@@ -45,6 +45,14 @@ pub struct Guild {
 }
 
 #[object(server)]
+pub struct PartialGuild {
+    pub id: u64,
+    pub name: String,
+    pub icon: Nullable<String>,
+    pub splash: Nullable<String>
+}
+
+#[object(server)]
 pub struct UnavailableGuild {
     pub id: u64,
     pub unavailable: bool

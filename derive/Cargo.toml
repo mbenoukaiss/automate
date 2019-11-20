@@ -1,6 +1,6 @@
 [package]
 name = "automate-derive"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["mbenoukaiss <marwane.benou-kaiss@etu.u-bordeaux.fr>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/mbenoukaiss/automate"
