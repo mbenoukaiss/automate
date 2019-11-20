@@ -1,6 +1,7 @@
+#![feature(never_type)]
 #![allow(where_clauses_object_safety)] //should be fixable when async traits are allowed
 
-use automate::{tokio, async_trait};
+use automate::async_trait;
 use automate::{Error, Discord, Listener, Session};
 use automate::models::{CreateMessage, MessageReactionAddDispatch, MessageCreateDispatch, NewInvite};
 use std::env;
@@ -52,11 +53,10 @@ impl Listener for MessageListener {
     }
 }
 
-#[automate::tokio::main]
-async fn main() -> Result<(), Error> {
+fn main() -> Result<!, Error> {
     automate::setup_logging();
 
     Discord::new(&env::var("DISCORD_API_TOKEN").expect("API token not found"))
         .with_listener(Box::new(MessageListener))
-        .connect().await?
+        .connect_blocking()
 }
