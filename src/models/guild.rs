@@ -178,6 +178,20 @@ pub struct PartialEmoji {
     pub animated: Option<bool>
 }
 
+#[object(client)]
+pub struct NewEmoji {
+    pub name: String,
+    pub image: String,
+    pub roles: Vec<u64>
+}
+
+#[object(client)]
+pub struct UpdateEmoji {
+    pub id: u64,
+    pub image: String,
+    pub roles: Vec<u64>
+}
+
 #[object(server)]
 pub struct GuildMember {
     pub user: User,

@@ -3,7 +3,7 @@ use hyper::{Client, Request, Body, Chunk, Response, Uri, Method};
 use hyper::client::HttpConnector;
 use hyper_tls::HttpsConnector;
 use futures::TryStreamExt;
-use crate::models::{Gateway, GatewayBot, CreateMessage, Message, Channel, ModifyChannel, MessagesPosition, ReactionsPosition, User, EditMessage, NewOverwrite, NewInvite, Invite};
+use crate::models::{Gateway, GatewayBot, CreateMessage, Message, Channel, ModifyChannel, MessagesPosition, ReactionsPosition, User, EditMessage, NewOverwrite, NewInvite, Invite, Emoji, NewEmoji, UpdateEmoji};
 use crate::json;
 
 macro_rules! api {
@@ -241,4 +241,25 @@ impl HttpAPI {
     pub async fn group_dm_remove_recipient(&self, channel_id: u64, user_id: u64) -> Result<(), Error> {
         self.delete(api!("/channels/", channel_id, "/recipients/", user_id)).await
     }
+
+    pub async fn list_guild_emojis(&self, guild_id: u64) -> Result<Vec<Emoji>, Error> {
+        self.get(api!("/guilds/", guild_id, "/emojis")).await
+    }
+
+    pub async fn get_guild_emoji(&self, guild_id: u64, emoji_id: u64) -> Result<Emoji, Error> {
+        self.get(api!("/guilds/", guild_id, "/emojis/", emoji_id)).await
+    }
+
+    pub async fn create_guild_emoji(&self, guild_id: u64, emoji: NewEmoji) -> Result<Emoji, Error> {
+        self.post(api!("/guilds/", guild_id, "/emojis"), emoji).await
+    }
+
+    pub async fn modify_guild_emoji(&self, guild_id: u64, emoji: UpdateEmoji) -> Result<Emoji, Error> {
+        self.patch(api!("/guilds/", guild_id, "/emojis/", emoji.id), emoji).await
+    }
+
+    pub async fn delete_guild_emoji(&self, guild_id: u64, emoji_id: u64) -> Result<(), Error> {
+        self.delete(api!("/guilds/", guild_id, "/emojis/", emoji_id)).await
+    }
+
 }
