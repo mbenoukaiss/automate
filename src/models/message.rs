@@ -40,7 +40,7 @@ pub struct CreateMessage {
 }
 
 #[object(client, default)]
-pub struct EditMessage {
+pub struct UpdateMessage {
     pub content: Option<String>,
     pub embed: Option<Embed>,
 }
