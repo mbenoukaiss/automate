@@ -708,58 +708,6 @@ impl<J> FromJson for HashMap<String, J, RandomState> where J: FromJson {
     }
 }
 
-//fn tmp(json: &str) {
-//    let mut nesting_level = 0;
-//    let mut key_idxs: [usize; 2] = [0; 2];
-//    let mut val_idxs: [usize; 2] = [0; 2];
-//
-//    for (i, c) in input.char_indices() {
-//        if c == '{' || c == '[' {
-//            nesting_level += 1;
-//        } else if c == '}' || c == ']' {
-//            nesting_level -= 1;
-//
-//            //we hit end of json, but because there isn't a final comma, there is still 1 key/value
-//            //pair waiting to be added to the map
-//            if nesting_level == 0 && val_idxs[0] != 0 {
-//                val_idxs[1] = i;
-//
-//                map.insert(
-//                    &input[key_idxs[0]..key_idxs[1]],
-//                    (&input[val_idxs[0]..val_idxs[1]]).trim(),
-//                );
-//
-//                return Ok(map);
-//            }
-//        } else if nesting_level == 1 {
-//            if c == '"' {
-//                if key_idxs[0] == 0 {
-//                    key_idxs[0] = i + 1;
-//                } else if key_idxs[1] == 0 {
-//                    key_idxs[1] = i;
-//                }
-//            } else if val_idxs[0] == 0 && c == ':' {
-//                val_idxs[0] = i + 1;
-//            } else if val_idxs[1] == 0 && c == ',' {
-//                match &input[key_idxs[0]..key_idxs[1]] {
-//                    #(
-//                     #fns => #fn.replace(::automate::FromJson::from_json((&input[val_idxs[0]..val_idxs[1]]).trim())?)
-//                    ),*
-//                }
-//                val_idxs[1] = i;
-//
-//                map.insert(
-//                    &input[key_idxs[0]..key_idxs[1]],
-//                    (&input[val_idxs[0]..val_idxs[1]]).trim(),
-//                );
-//
-//                key_idxs = [0; 2];
-//                val_idxs = [0; 2];
-//            }
-//        }
-//    }
-//}
-
 pub fn json_object_to_map(input: &str) -> Result<HashMap<&str, &str>, JsonError> {
     let mut map = HashMap::new();
     let mut nesting_level = 0;

@@ -12,7 +12,7 @@ extern crate automate_derive;
 extern crate log;
 
 pub mod models;
-mod json;
+pub mod json;
 mod events;
 mod http;
 mod gateway;
@@ -26,21 +26,39 @@ pub use tokio;
 pub use events::Listener;
 pub use http::HttpAPI;
 pub use gateway::{GatewayAPI, Session};
-pub use json::{AsJson, FromJson};
+pub use json::Nullable;
 pub use logger::setup_logging;
 pub use errors::Error;
+
 use tokio::runtime::Runtime;
-use std::ops::Deref;
 use std::sync::{Mutex, Arc};
 use std::thread::JoinHandle;
 use std::thread;
 
+/// The struct used to register listeners, setup
+/// configuration and establish connection with
+/// Discord.
+///
+/// # Example
+/// ```
+/// use automate::Discord;
+///
+/// fn main() {
+///     Discord::new(&std::env::var("DISCORD_API_TOKEN").expect("API token not found"))
+///         .connect_blocking()
+///         .expect("Bot crashed")
+/// }
+/// ```
 pub struct Discord {
     http: HttpAPI,
     listeners: Arc<Mutex<Vec<Box<dyn Listener + Send>>>>,
 }
 
 impl Discord {
+    /// Creates an instance of this struct
+    /// with the provided token.
+    /// The token can be generated on
+    /// [Discord's developers portal](https://discordapp.com/developers/applications/)
     pub fn new(token: &str) -> Discord {
         Discord {
             http: HttpAPI::new(token),
@@ -48,30 +66,36 @@ impl Discord {
         }
     }
 
+    /// Registers an event listener
     pub fn with_listener(self, listener: Box<dyn Listener + Send>) -> Self {
         self.listeners.lock().unwrap().push(listener);
         self
     }
 
+    /// Asynchronous function setup the connection
+    /// with Discord.
+    /// Will block forever unless the bot crashes.
     pub async fn connect(self) -> Result<!, Error> {
         GatewayAPI::connect(self.http.clone(), self.listeners.clone()).await
     }
 
+    /// Non asynchronous equivalent for the connect
+    /// function to setup the connection with discord.
+    /// Creates a tokio runtime.
+    ///
+    /// Will block forever unless the bot crashes.
     pub fn connect_blocking(self) -> Result<!, Error> {
         Runtime::new().unwrap().block_on(self.connect())
     }
 
+    /// Non asynchronous equivalent for the connect
+    /// function to setup the connection with discord.
+    /// This function establishes the connection and runs
+    /// the event loop in a separate thread whose
+    /// [JoinHandle](std::thread::JoinHandle) is returned.
     pub fn connect_detached(self) -> JoinHandle<Result<!, Error>> {
         thread::spawn(move || {
             Runtime::new().unwrap().block_on(self.connect())
         })
-    }
-}
-
-impl Deref for Discord {
-    type Target = HttpAPI;
-
-    fn deref(&self) -> &Self::Target {
-        &self.http
     }
 }

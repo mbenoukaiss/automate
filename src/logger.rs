@@ -31,6 +31,8 @@ impl Log for QuickLogger {
 
 static QUICK_LOGGER: QuickLogger = QuickLogger;
 
+/// Sets up a very basic logger that prints
+/// logs to stdout.
 pub fn setup_logging() {
     log::set_logger(&QUICK_LOGGER).unwrap();
     log::set_max_level(LevelFilter::Info);

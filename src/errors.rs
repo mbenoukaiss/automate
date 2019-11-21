@@ -3,7 +3,7 @@ use std::error::Error as StdError;
 use crate::json::JsonError;
 
 /// Represents an error that occurred while using
-/// Automatea library.
+/// Automate library.
 pub struct Error {
     pub msg: String,
 }

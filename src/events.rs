@@ -16,6 +16,8 @@ macro_rules! listener {
     }
 }
 
+/// Trait with all the events a gateway
+/// may receive and transmit to the listeners.
 listener! {
     on_channel_create: ChannelCreateDispatch,
     on_channel_update: ChannelUpdateDispatch,

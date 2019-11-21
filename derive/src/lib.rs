@@ -37,7 +37,7 @@ pub fn as_json(item: TokenStream) -> TokenStream {
         if let Fields::Unnamed(unnamed) = &data_struct.fields {
             if unnamed.unnamed.len() == 1 {
                 let quote = quote! {
-                    impl #impl_generics ::automate::AsJson for #name #ty_generics #where_clause {
+                    impl #impl_generics ::automate::json::AsJson for #name #ty_generics #where_clause {
                         #[inline]
                         fn as_json(&self) -> String {
                             self.0.as_json()
@@ -59,7 +59,7 @@ pub fn as_json(item: TokenStream) -> TokenStream {
         let ((fs, fns), (os, ons), recommended_size) = json::extract_fields(data_struct);
 
         let quote = quote! {
-            impl #impl_generics ::automate::AsJson for #name #ty_generics #where_clause {
+            impl #impl_generics ::automate::json::AsJson for #name #ty_generics #where_clause {
                 #[inline]
                 fn as_json(&self) -> String {
                     let mut json = String::with_capacity(#recommended_size);
@@ -67,14 +67,14 @@ pub fn as_json(item: TokenStream) -> TokenStream {
 
                     #(
                      json.push_str(concat!("\"", #fns, "\":"));
-                     ::automate::AsJson::concat_json(&self.#fs, &mut json);
+                     ::automate::json::AsJson::concat_json(&self.#fs, &mut json);
                      json.push(',');
                     )*
 
                     #(
                      if let Some(optional) = &self.#os {
                          json.push_str(concat!("\"", #ons, "\":"));
-                         ::automate::AsJson::concat_json(optional, &mut json);
+                         ::automate::json::AsJson::concat_json(optional, &mut json);
                          json.push(',');
                      }
                     )*
@@ -95,14 +95,14 @@ pub fn as_json(item: TokenStream) -> TokenStream {
 
                     #(
                      dest.push_str(concat!("\"", #fns, "\":"));
-                     ::automate::AsJson::concat_json(&self.#fs, dest);
+                     ::automate::json::AsJson::concat_json(&self.#fs, dest);
                      dest.push(',');
                     )*
 
                     #(
                      if let Some(optional) = &self.#os {
                          dest.push_str(concat!("\"", #ons, "\":"));
-                         ::automate::AsJson::concat_json(optional, dest);
+                         ::automate::json::AsJson::concat_json(optional, dest);
                          dest.push(',');
                      }
                     )*
@@ -133,10 +133,10 @@ pub fn from_json(item: TokenStream) -> TokenStream {
         if let Fields::Unnamed(unnamed) = &data_struct.fields {
             if unnamed.unnamed.len() == 1 {
                 let quote = quote! {
-                    impl #impl_generics ::automate::FromJson for #name #ty_generics #where_clause {
+                    impl #impl_generics ::automate::json::FromJson for #name #ty_generics #where_clause {
                         #[inline]
                         fn from_json(json: &str) -> Result<#name #ty_generics, ::automate::json::JsonError> {
-                            Ok(#name #ty_generics(::automate::FromJson::from_json(json)?))
+                            Ok(#name #ty_generics(::automate::json::FromJson::from_json(json)?))
                         }
                     }
                 };
@@ -163,7 +163,7 @@ pub fn from_json(item: TokenStream) -> TokenStream {
         }
 
         let quote = quote! {
-            impl #impl_generics ::automate::FromJson for #name #ty_generics #where_clause {
+            impl #impl_generics ::automate::json::FromJson for #name #ty_generics #where_clause {
                 #[inline]
                 fn from_json(json: &str) -> Result<#name #ty_generics, ::automate::json::JsonError> {
                     //let map = ::automate::json::json_object_to_map(json)?;
@@ -186,8 +186,8 @@ pub fn from_json(item: TokenStream) -> TokenStream {
                                 val_idxs[1] = i;
 
                                 match &json[key_idxs[0]..key_idxs[1]] {
-                                    #(#fns => #fs_escaped = Some(::automate::FromJson::from_json((&json[val_idxs[0]..val_idxs[1]]).trim())?),)*
-                                    #(#ons => #os_escaped = Some(::automate::FromJson::from_json((&json[val_idxs[0]..val_idxs[1]]).trim())?),)*
+                                    #(#fns => #fs_escaped = Some(::automate::json::FromJson::from_json((&json[val_idxs[0]..val_idxs[1]]).trim())?),)*
+                                    #(#ons => #os_escaped = Some(::automate::json::FromJson::from_json((&json[val_idxs[0]..val_idxs[1]]).trim())?),)*
 
                                     #[cfg(feature = "strict_deserializer")]
                                     _ => error!("Unknown field ({}) found in {} while deserializing {}", &json[key_idxs[0]..key_idxs[1]], stringify!(#name), json),
@@ -209,8 +209,8 @@ pub fn from_json(item: TokenStream) -> TokenStream {
                             } else if val_idxs[1] == 0 && c == ',' {
                                 val_idxs[1] = i;
                                 match &json[key_idxs[0]..key_idxs[1]] {
-                                    #(#fns => #fs_escaped = Some(::automate::FromJson::from_json((&json[val_idxs[0]..val_idxs[1]]).trim())?),)*
-                                    #(#ons => #os_escaped = Some(::automate::FromJson::from_json((&json[val_idxs[0]..val_idxs[1]]).trim())?),)*
+                                    #(#fns => #fs_escaped = Some(::automate::json::FromJson::from_json((&json[val_idxs[0]..val_idxs[1]]).trim())?),)*
+                                    #(#ons => #os_escaped = Some(::automate::json::FromJson::from_json((&json[val_idxs[0]..val_idxs[1]]).trim())?),)*
 
                                     #[cfg(feature = "strict_deserializer")]
                                     _ => error!("Unknown field ({}) found in {} while deserializing {}", &json[key_idxs[0]..key_idxs[1]], stringify!(#name), json),

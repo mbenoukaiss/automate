@@ -1,14 +1,5 @@
-#[macro_export]
-macro_rules! deserialize {
-    ($data:ident) => {
-        ::automate::json::FromJson::from_json(&$data)
-    };
-
-    ($data:ident as $type:ty) => {
-        <$type as ::automate::json::FromJson>::from_json(&$data)
-    }
-}
-
+/// Creates a hashmap associating the
+/// given keys to the given values.
 #[macro_export]
 macro_rules! map {
     {$($key:expr => $val:expr),*} => {{
@@ -19,6 +10,8 @@ macro_rules! map {
     }}
 }
 
+/// Creates a JSON string associating
+/// the given keys with the given values.
 #[macro_export]
 macro_rules! json {
     {} => {{
