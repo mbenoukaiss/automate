@@ -18,7 +18,7 @@ In order for this example to work, you need to define the `DISCORD_API_TOKEN` en
 bot and generate a token on [Discord's developers portal](https://discordapp.com/developers/applications/).
 
 ```rust
-use automate::{tokio, async_trait};
+use automate::async_trait;
 use automate::{Error, Discord, Listener, Session};
 use automate::models::{CreateMessage, MessageCreateDispatch};
 use std::env;
@@ -28,7 +28,9 @@ struct MessageListener;
 #[async_trait]
 impl Listener for MessageListener {
     async fn on_message_create(&mut self, session: &Session, message: &MessageCreateDispatch) -> Result<(), Error> {
-        if !message.author.bot.unwrap_or(false) {
+        let message = &message.0;
+
+        if message.author.id != session.bot().id {
             let content = Some(format!("Hello {}!", message.author.username));
 
             session.create_message(message.channel_id, CreateMessage {

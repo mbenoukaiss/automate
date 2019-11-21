@@ -56,6 +56,7 @@ impl GatewayAPI {
                         session: Session {
                             sender: client,
                             http: http.clone(),
+                            bot: None,
                             listeners: listeners.clone(),
                         },
                         session_id: Rc::clone(&session_id),
@@ -114,6 +115,7 @@ impl Delayer {
 pub struct Session {
     sender: ws::Sender,
     http: HttpAPI,
+    bot: Option<User>,
     listeners: Arc<Mutex<Vec<Box<dyn Listener + Send>>>>,
 }
 
@@ -121,6 +123,16 @@ impl Session {
     #[inline]
     pub fn send<M: Into<ws::Message>>(&self, msg: M) -> Result<(), Error> {
         Ok(self.sender.send(msg)?)
+    }
+
+    #[inline]
+    pub fn bot(&self) -> &User {
+        self.bot.as_ref().unwrap()
+    }
+
+    #[inline]
+    pub fn invite_bot(&self, permission: u32) -> String {
+        format!("https://discordapp.com/oauth2/authorize?client_id={}&scope=bot&permissions={}", self.bot().id, permission)
     }
 }
 
@@ -235,8 +247,6 @@ impl GatewayHandler {
     dispatcher!(on_webhooks_update: WebhooksUpdateDispatch);
 
     async fn on_hello(&mut self, payload: Hello) -> Result<(), Error> {
-        println!("{:?}", payload);
-
         if let Some(sid) = &*self.session_id.borrow() {
             let resume = Resume {
                 token: self.session.http.token().clone(),
@@ -304,9 +314,11 @@ impl GatewayHandler {
     }
 
     async fn on_ready(&mut self, payload: ReadyDispatch) -> Result<(), Error> {
-        println!("{:?}", payload);
-
+        self.session.bot = Some(payload.user);
         *self.session_id.borrow_mut() = Some(payload.session_id);
+
+        info!("Successfully established connection with Discord. Invite the bot in your guild using this link {}", self.session.invite_bot(8));
+
         Ok(())
     }
 
