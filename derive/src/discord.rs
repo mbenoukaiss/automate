@@ -86,7 +86,7 @@ pub fn append_client_quote(input: &DeriveInput, opcode: u8, quote: &mut TokenStr
                 fn from(origin: #struct_name #ty_generics) -> Self {
                     let mut msg = String::with_capacity(14);
                     msg.push_str(concat!("{\"op\":", #opcode, ",\"d\":"));
-                    msg.push_str(&::automate::AsJson::as_json(&origin));
+                    msg.push_str(&::automate::json::AsJson::as_json(&origin));
                     msg.push('}');
 
                     ::ws::Message::Text(msg)

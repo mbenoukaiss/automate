@@ -39,9 +39,13 @@ macro_rules! dispatcher {
     }
 }
 
+/// Communicates with Discord's gateway
 pub struct GatewayAPI;
 
 impl GatewayAPI {
+    /// Establishes a connection to Discord's
+    /// gateway and calls the provided listeners
+    /// when receiving an event.
     pub async fn connect(http: HttpAPI, listeners: Arc<Mutex<Vec<Box<dyn Listener + Send>>>>) -> ! {
         let mut delayer = Delayer::new();
         let session_id = Rc::new(RefCell::new(None));

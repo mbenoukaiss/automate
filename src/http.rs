@@ -1,11 +1,13 @@
-use crate::{FromJson, Error, AsJson};
 use hyper::{Client, Request, Body, Chunk, Response, Uri, Method};
 use hyper::client::HttpConnector;
 use hyper_tls::HttpsConnector;
 use futures::TryStreamExt;
 use crate::models::{Gateway, GatewayBot, CreateMessage, Message, Channel, ModifyChannel, MessagesPosition, ReactionsPosition, User, UpdateMessage, NewOverwrite, NewInvite, Invite, Emoji, NewEmoji, UpdateEmoji};
-use crate::json;
+use crate::json::{FromJson, AsJson};
+use crate::{json, Error};
 
+/// Creates the URL to an API endpoint
+/// by concatenating the given expressions.
 macro_rules! api {
     ($($dest:expr),*) => {{
         let mut s = String::from("https://discordapp.com/api/v6");
@@ -14,8 +16,10 @@ macro_rules! api {
     }}
 }
 
+/// Default user agent for automate bots
 const USER_AGENT: &str = concat!("DiscordBot (https://github.com/mbenoukaiss/automate, ", env!("CARGO_PKG_VERSION"), ")");
 
+/// Struct to interact with the discord HTTP API.
 #[derive(Clone)]
 pub struct HttpAPI {
     client: Client<HttpsConnector<HttpConnector>>,
@@ -26,7 +30,8 @@ impl HttpAPI {
     pub fn new(token: &str) -> HttpAPI {
         let https = HttpsConnector::new().unwrap();
 
-        let mut bot_token = String::from("Bot ");
+        let mut bot_token = String::with_capacity(token.len() + 4);
+        bot_token.push_str("Bot ");
         bot_token.push_str(token);
 
         HttpAPI {
@@ -39,6 +44,7 @@ impl HttpAPI {
         &self.token
     }
 
+    #[inline]
     async fn request(&self, uri: Uri, method: Method, body: Body) -> Result<Response<Body>, hyper::Error> {
         self.client.request(Request::builder()
             .uri(uri)
@@ -50,7 +56,8 @@ impl HttpAPI {
             .unwrap()).await
     }
 
-    pub async fn get<T>(&self, uri: Uri) -> Result<T, Error> where T: FromJson {
+    #[inline]
+    async fn get<T>(&self, uri: Uri) -> Result<T, Error> where T: FromJson {
         let body: Chunk = self.request(uri, Method::GET, Body::empty()).await?.into_body().try_concat().await?;
 
         if let Ok(json) = std::str::from_utf8(body.as_ref()) {
@@ -60,7 +67,8 @@ impl HttpAPI {
         }
     }
 
-    pub async fn post<T, U>(&self, uri: Uri, content: T) -> Result<U, Error> where T: AsJson, U: FromJson {
+    #[inline]
+    async fn post<T, U>(&self, uri: Uri, content: T) -> Result<U, Error> where T: AsJson, U: FromJson {
         let body: Chunk = self.request(uri, Method::POST, Body::from(content.as_json())).await?.into_body().try_concat().await?;
 
         if let Ok(json) = std::str::from_utf8(body.as_ref()) {
@@ -70,7 +78,8 @@ impl HttpAPI {
         }
     }
 
-    pub async fn put<T, U>(&self, uri: Uri, content: T) -> Result<U, Error> where T: AsJson, U: FromJson {
+    #[inline]
+    async fn put<T, U>(&self, uri: Uri, content: T) -> Result<U, Error> where T: AsJson, U: FromJson {
         let body: Chunk = self.request(uri, Method::PUT, Body::from(content.as_json())).await?.into_body().try_concat().await?;
 
         if let Ok(json) = std::str::from_utf8(body.as_ref()) {
@@ -80,7 +89,8 @@ impl HttpAPI {
         }
     }
 
-    pub async fn delete<T>(&self, uri: Uri) -> Result<T, Error> where T: FromJson {
+    #[inline]
+    async fn delete<T>(&self, uri: Uri) -> Result<T, Error> where T: FromJson {
         let body: Chunk = self.request(uri, Method::DELETE, Body::empty()).await?.into_body().try_concat().await?;
 
         if let Ok(json) = std::str::from_utf8(body.as_ref()) {
@@ -90,7 +100,8 @@ impl HttpAPI {
         }
     }
 
-    pub async fn patch<T, U>(&self, uri: Uri, content: T) -> Result<U, Error> where T: AsJson, U: FromJson {
+    #[inline]
+    async fn patch<T, U>(&self, uri: Uri, content: T) -> Result<U, Error> where T: AsJson, U: FromJson {
         let body: Chunk = self.request(uri, Method::PATCH, Body::from(content.as_json())).await?.into_body().try_concat().await?;
 
         if let Ok(json) = std::str::from_utf8(body.as_ref()) {

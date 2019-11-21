@@ -1,7 +1,6 @@
 use crate::models::*;
 use std::collections::HashMap;
-use crate::json::Nullable;
-use crate::FromJson;
+use crate::json::{FromJson, Nullable};
 
 #[object(server)]
 pub struct Payload<D> where D: FromJson {
