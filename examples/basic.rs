@@ -13,7 +13,7 @@ impl Listener for MessageListener {
     async fn on_message_create(&mut self, session: &Session, message: &MessageCreateDispatch) -> Result<(), Error> {
         let message = &message.0;
 
-        if !message.author.bot.unwrap_or(false) {
+        if message.author.id != session.bot().id {
             if message.content.to_lowercase().contains("invit") {
                 let invite = session.create_invite(message.channel_id, NewInvite {
                     max_age: 3600 * 24,

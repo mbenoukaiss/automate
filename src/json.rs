@@ -1415,7 +1415,6 @@ mod benchmarks {
     #[bench]
     fn bench_deserializer_empty_hashmap_automate(b: &mut Bencher) {
         let map_json = HashMap::<String, String>::new().as_json();
-        println!("{}", map_json);
 
         b.iter(|| {
             HashMap::<String, String>::from_json(&map_json).unwrap();
@@ -1462,7 +1461,6 @@ mod benchmarks {
     #[bench]
     fn bench_deserializer_empty_vec_automate(b: &mut Bencher) {
         let vec_json = Vec::<String>::new().as_json();
-        println!("{}", vec_json);
 
         b.iter(|| {
             Vec::<String>::from_json(&vec_json).unwrap();
@@ -1554,7 +1552,7 @@ mod benchmarks {
     #[bench]
     fn bench_deserializer_options_no_some_serde(b: &mut Bencher) {
         let options_json = Options::no_some().as_json();
-println!("{}", options_json);
+
         b.iter(|| {
             serde_json::from_str::<Options>(&options_json).unwrap();
         });
