@@ -1,5 +1,5 @@
 use crate::json::Nullable;
-use crate::models::{User, PartialUser, PartialVoiceState, Channel};
+use crate::gateway::{User, PartialUser, PartialVoiceState, Channel};
 
 #[object(server)]
 pub struct Guild {

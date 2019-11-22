@@ -1,5 +1,5 @@
 use crate::json::Nullable;
-use crate::models::PartialGuildMember;
+use crate::gateway::PartialGuildMember;
 
 /// Users in Discord are generally considered the
 /// base entity. Users can spawn across the entire

@@ -1,8 +1,12 @@
+mod models;
+
+pub use models::*;
+
 use hyper::{Client, Request, Body, Chunk, Response, Uri, Method};
 use hyper::client::HttpConnector;
 use hyper_tls::HttpsConnector;
 use futures::TryStreamExt;
-use crate::models::{Gateway, GatewayBot, CreateMessage, Message, Channel, ModifyChannel, MessagesPosition, ReactionsPosition, User, UpdateMessage, NewOverwrite, NewInvite, Invite, Emoji, NewEmoji, UpdateEmoji};
+use crate::gateway::*;
 use crate::json::{FromJson, AsJson};
 use crate::{json, Error};
 
@@ -153,7 +157,7 @@ impl HttpAPI {
         self.post(api!("/channels/", channel_id, "/messages"), message).await
     }
 
-    pub async fn modify_message(&self, channel_id: u64, message_id: u64, message: UpdateMessage) -> Result<Message, Error> {
+    pub async fn modify_message(&self, channel_id: u64, message_id: u64, message: ModifyMessage) -> Result<Message, Error> {
         self.patch(api!("/channels/", channel_id, "/messages", message_id), message).await
     }
 

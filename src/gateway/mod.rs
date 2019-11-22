@@ -1,7 +1,10 @@
+mod models;
+
+pub use models::*;
+
 use ws::CloseCode;
 use crate::{json, Error, Listener};
 use crate::map;
-use crate::models::*;
 use crate::json::Nullable;
 use crate::http::HttpAPI;
 use std::thread;

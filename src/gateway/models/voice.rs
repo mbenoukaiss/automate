@@ -1,4 +1,4 @@
-use crate::models::GuildMember;
+use crate::gateway::GuildMember;
 
 #[object(server)]
 pub struct VoiceState {

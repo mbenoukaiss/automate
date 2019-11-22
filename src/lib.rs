@@ -11,11 +11,10 @@ extern crate automate_derive;
 #[macro_use]
 extern crate log;
 
-pub mod models;
 pub mod json;
+pub mod http;
+pub mod gateway;
 mod events;
-mod http;
-mod gateway;
 mod macros;
 mod errors;
 mod logger;
@@ -40,14 +39,12 @@ use std::thread;
 /// Discord.
 ///
 /// # Example
-/// ```
+/// ```no_run
 /// use automate::Discord;
 ///
-/// fn main() {
-///     Discord::new(&std::env::var("DISCORD_API_TOKEN").expect("API token not found"))
-///         .connect_blocking()
-///         .expect("Bot crashed")
-/// }
+/// Discord::new(&std::env::var("DISCORD_API_TOKEN").expect("API token not found"))
+///     .connect_blocking()
+///     .expect("Bot crashed")
 /// ```
 pub struct Discord {
     http: HttpAPI,
