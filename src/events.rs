@@ -1,10 +1,12 @@
 use async_trait::async_trait;
 use std::boxed::Box;
-use crate::models::*;
+use crate::gateway::*;
 use crate::{Session, Error};
 
 macro_rules! listener {
     {$($name:ident: $type:ty),*} => {
+        #[doc="Trait with all the events a gateway"]
+        #[doc="may receive and transmit to the listeners."]
         #[async_trait]
         pub trait Listener {
             $(
@@ -16,8 +18,6 @@ macro_rules! listener {
     }
 }
 
-/// Trait with all the events a gateway
-/// may receive and transmit to the listeners.
 listener! {
     on_channel_create: ChannelCreateDispatch,
     on_channel_update: ChannelUpdateDispatch,

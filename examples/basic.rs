@@ -3,7 +3,8 @@
 
 use automate::async_trait;
 use automate::{Error, Discord, Listener, Session};
-use automate::models::{CreateMessage, MessageReactionAddDispatch, MessageCreateDispatch, NewInvite};
+use automate::gateway::{MessageReactionAddDispatch, MessageCreateDispatch};
+use automate::http::{CreateMessage, NewInvite};
 use std::env;
 
 struct MessageListener;

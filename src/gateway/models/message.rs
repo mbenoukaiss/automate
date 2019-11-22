@@ -1,4 +1,4 @@
-use crate::models::{User, MentionnedUser, PartialGuildMember, ChannelMention, PartialEmoji};
+use crate::gateway::{User, MentionnedUser, PartialGuildMember, ChannelMention, PartialEmoji};
 use crate::json::Nullable;
 
 #[object(server)]
@@ -27,22 +27,6 @@ pub struct Message {
     pub application: Option<MessageApplication>,
     pub message_reference: Option<MessageReference>,
     pub flags: Option<u32>
-}
-
-#[object(client, default)]
-pub struct CreateMessage {
-    pub content: Option<String>,
-    pub nonce: Option<u64>,
-    pub tts: Option<bool>,
-    pub file: Option<String>,
-    pub embed: Option<Embed>,
-    pub payload_json: Option<String>
-}
-
-#[object(client, default)]
-pub struct UpdateMessage {
-    pub content: Option<String>,
-    pub embed: Option<Embed>,
 }
 
 #[convert(u8)]

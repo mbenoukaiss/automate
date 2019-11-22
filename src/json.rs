@@ -16,7 +16,7 @@ use std::collections::hash_map::RandomState;
 /// # Example
 /// ```
 /// #[macro_use] extern crate automate_derive;
-/// use automate::AsJson;
+/// use automate::json::AsJson;
 ///
 /// #[derive(AsJson)]
 /// struct File {
@@ -43,7 +43,7 @@ pub trait AsJson {
 ///
 /// # Example
 /// ```
-/// use automate::FromJson;
+/// use automate::json::FromJson;
 ///
 /// assert_eq!(String::from_json("\"Hello\"").unwrap(), "Hello");
 /// assert_eq!(u32::from_json("643789").unwrap(), 643789);
