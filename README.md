@@ -1,7 +1,7 @@
 # Automate &nbsp; [![Actions Status](https://github.com/mbenoukaiss/automate/workflows/Checks/badge.svg)](https://github.com/mbenoukaiss/automate/actions) ![GitHub issues](https://img.shields.io/github/issues/mbenoukaiss/automate) ![Crates.io](https://img.shields.io/crates/v/automate) ![Crates.io](https://img.shields.io/crates/l/automate)
 Automate is an asynchronous rust library for interacting with the Discord API
 
-**DISCLAIMER: This crate is at its very early stage and does not have most functionnalities a discord bot would need (no
+**DISCLAIMER: This crate is at its very early stage and does not have most functionalities a discord bot would need (no
 voice, and only channel manipulation operations). Please don't use this crate except for experimenting.
 The crate also only works in rust nightly.**
 

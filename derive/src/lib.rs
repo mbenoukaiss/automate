@@ -225,7 +225,7 @@ pub fn from_json(item: TokenStream) -> TokenStream {
                     }
 
                     Ok(#name {
-                        #(#fs: #fs_escaped.expect(concat!("Could not find ", #fns, " in JSON input")),)*
+                        #(#fs: #fs_escaped.expect(concat!("Could not find ", #fns, " in JSON object")),)*
                         #(#os: #os_escaped,)*
                     })
                 }

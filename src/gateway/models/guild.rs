@@ -157,6 +157,12 @@ pub struct Role {
 }
 
 #[object(server)]
+pub struct PartialRole {
+    pub id: u64,
+    pub name: String,
+}
+
+#[object(server)]
 pub struct Emoji {
     pub id: Nullable<u64>,
     pub name: String,
