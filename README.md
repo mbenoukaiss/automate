@@ -6,8 +6,11 @@ voice, and only channel manipulation operations). Please don't use this crate ex
 The crate also only works in rust nightly.**
 
 # Getting started
-Automate is currently unstable and only works with Rust nightly. In order to add it to your project, add the following
-line to your `Cargo.toml` under the `[dependencies]` section :
+Automate is currently unstable and only works with Rust nightly. The minimum tested version and the one used in CI is
+`nightly-2019-11-24`. Refer to [rust edition guide](https://doc.rust-lang.org/edition-guide/rust-2018/rustup-for-managing-rust-versions.html)
+to learn how to switch to rust nightly.
+
+In order to use Automate in your project, add the following line to your `Cargo.toml` under the `[dependencies]` section :
 ```
 automate = "0.1.2"
 ```
