@@ -1,13 +1,15 @@
 mod payload;
-mod guild;
+mod audit_log;
 mod channel;
+mod guild;
 mod message;
 mod user;
 mod voice;
 
 pub use payload::*;
-pub use guild::*;
+pub use audit_log::*;
 pub use channel::*;
+pub use guild::*;
 pub use message::*;
 pub use user::*;
 pub use voice::*;

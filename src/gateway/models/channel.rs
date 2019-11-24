@@ -73,3 +73,21 @@ pub struct ChannelMention {
     pub _type: ChannelType,
     pub name: String
 }
+
+#[object(server)]
+pub struct Webhook {
+    pub id: u64,
+    pub _type: WebhookType,
+    pub guild_id: Option<u64>,
+    pub channel_id: u64,
+    pub user: Option<User>,
+    pub name: Nullable<String>,
+    pub avatar: Nullable<String>,
+    pub token: Option<String>,
+}
+
+#[convert(u8)]
+pub enum WebhookType {
+    Incoming = 1,
+    ChannelFollower = 2
+}

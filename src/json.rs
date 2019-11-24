@@ -325,7 +325,7 @@ macro_rules! impl_for_associative_collection {
                             .collect::<Result<$ty<String, J>, JsonError>>()
                     }
 
-                    JsonError::err("Invalid object format given")
+                    JsonError::err(format!("Invalid object given in {}", json))
                 }
             }
         )*
@@ -704,7 +704,7 @@ impl<J> FromJson for HashMap<String, J, RandomState> where J: FromJson {
                 .collect();
         }
 
-        JsonError::err("Invalid object format given")
+        JsonError::err(format!("Invalid object given in {}", json))
     }
 }
 

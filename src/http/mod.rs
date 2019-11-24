@@ -123,6 +123,10 @@ impl HttpAPI {
         self.get(api!("/gateway/bot")).await
     }
 
+    pub async fn audit_logs(&self, guild_id: u64) -> Result<AuditLog, Error> {
+        self.get(api!("/guilds/", guild_id, "/audit-logs")).await
+    }
+
     pub async fn channel(&self, channel_id: u64) -> Result<Channel, Error> {
         self.get(api!("/channels/", channel_id)).await
     }
