@@ -1,4 +1,3 @@
-#![feature(never_type)]
 #![allow(where_clauses_object_safety)] //should be fixable when async traits are allowed
 
 use automate::async_trait;

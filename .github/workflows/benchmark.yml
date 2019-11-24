@@ -19,7 +19,7 @@ jobs:
       - name: Install toolchain
         uses: actions-rs/toolchain@master
         with:
-          toolchain: nightly
+          toolchain: 1.40.0-nightly
           override: true
       - name: Run benchmark
         uses: actions-rs/cargo@master

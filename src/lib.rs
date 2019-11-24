@@ -1,6 +1,5 @@
 #![feature(test)]
 #![feature(try_blocks)]
-#![feature(never_type)]
 #![allow(where_clauses_object_safety)] //should be fixable when async traits are allowed
 #![allow(clippy::identity_op)] //because clippy forbides 1 << 0 in c-like enums
 

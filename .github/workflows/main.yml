@@ -14,19 +14,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
-      - id: component
-        name: Retrieve nightly components toolchain
-        uses: actions-rs/components-nightly@master
-        with:
-          target: x86_64-unknown-linux-gnu
-          component: clippy
-      - name: Install toolchain
+      - name: Install toolchain with clippy
         uses: actions-rs/toolchain@master
         with:
-          toolchain: ${{ steps.component.outputs.toolchain }}
+          profile: minimal
+          toolchain: nightly-2019-11-24
+          components: clippy
           override: true
-      - name: Install clippy
-        run: rustup component add clippy
       - name: Run clippy
         uses: actions-rs/cargo@master
         with:
@@ -41,7 +35,8 @@ jobs:
       - name: Install toolchain
         uses: actions-rs/toolchain@master
         with:
-          toolchain: nightly
+          profile: minimal
+          toolchain: nightly-2019-11-24
           override: true
       - name: Run tests
         uses: actions-rs/cargo@master
