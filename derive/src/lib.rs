@@ -171,10 +171,30 @@ pub fn from_json(item: TokenStream) -> TokenStream {
                     #(let mut #os_escaped = None;)*
 
                     let mut nesting_level = 0;
+                    let mut in_string = false;
+                    let mut escape_next_char = false;
                     let mut key_idxs: [usize; 2] = [0; 2];
                     let mut val_idxs: [usize; 2] = [0; 2];
 
                     for (i, c) in json.char_indices() {
+                        if escape_next_char {
+                            escape_next_char = false;
+                            continue;
+                        } else if c == '\\' {
+                            escape_next_char = true;
+                            continue;
+                        }
+
+                        if in_string {
+                            if c == '"' {
+                                in_string = false;
+                            } else {
+                                continue;
+                            }
+                        } else if c == '"' {
+                            in_string = true;
+                        }
+
                         if c == '{' || c == '[' {
                             nesting_level += 1;
                         } else if c == '}' || c == ']' {
@@ -190,7 +210,7 @@ pub fn from_json(item: TokenStream) -> TokenStream {
                                     #(#ons => #os_escaped = Some(::automate::json::FromJson::from_json((&json[val_idxs[0]..val_idxs[1]]).trim())?),)*
 
                                     #[cfg(feature = "strict_deserializer")]
-                                    _ => error!("Unknown field ({}) found in {} while deserializing {}", &json[key_idxs[0]..key_idxs[1]], stringify!(#name), json),
+                                    _ => warn!("Unknown field ({}) found in {} while deserializing {}", &json[key_idxs[0]..key_idxs[1]], stringify!(#name), json),
                                     #[cfg(not(feature = "strict_deserializer"))]
                                     _ => (),
                                 }
@@ -213,7 +233,7 @@ pub fn from_json(item: TokenStream) -> TokenStream {
                                     #(#ons => #os_escaped = Some(::automate::json::FromJson::from_json((&json[val_idxs[0]..val_idxs[1]]).trim())?),)*
 
                                     #[cfg(feature = "strict_deserializer")]
-                                    _ => error!("Unknown field ({}) found in {} while deserializing {}", &json[key_idxs[0]..key_idxs[1]], stringify!(#name), json),
+                                    _ => warn!("Unknown field ({}) found in {} while deserializing {}", &json[key_idxs[0]..key_idxs[1]], stringify!(#name), json),
                                     #[cfg(not(feature = "strict_deserializer"))]
                                     _ => (),
                                 }
@@ -232,7 +252,7 @@ pub fn from_json(item: TokenStream) -> TokenStream {
             }
         };
 
-       quote.into()
+        quote.into()
     } else {
         panic!("FromJson can only be applied to structs");
     }

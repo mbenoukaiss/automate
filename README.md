@@ -21,9 +21,12 @@ In order for this example to work, you need to define the `DISCORD_API_TOKEN` en
 bot and generate a token on [Discord's developers portal](https://discordapp.com/developers/applications/).
 
 ```rust
+#![allow(where_clauses_object_safety)]
+
 use automate::async_trait;
 use automate::{Error, Discord, Listener, Session};
-use automate::models::{CreateMessage, MessageCreateDispatch};
+use automate::gateway::MessageCreateDispatch;
+use automate::http::CreateMessage;
 use std::env;
 
 struct MessageListener;

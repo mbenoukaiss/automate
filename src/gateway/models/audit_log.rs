@@ -1,5 +1,5 @@
 use crate::gateway::{User, Webhook, Overwrite, ChannelType, PartialRole};
-use crate::Nullable;
+use crate::{Snowflake, Nullable};
 use crate::json::{self, FromJson, JsonError};
 
 #[object(server)]
@@ -11,10 +11,10 @@ pub struct AuditLog {
 
 #[object(server)]
 pub struct AuditLogEntry {
-    pub id: u64,
+    pub id: Snowflake,
     pub target_id: Nullable<String>,
     pub changes: Option<Vec<AuditLogChange>>,
-    pub user_id: u64,
+    pub user_id: Snowflake,
     pub action_type: AuditLogEvent,
     pub options: Option<AuditEntryInfo>,
     pub reason: Option<String>,
@@ -63,9 +63,9 @@ pub enum AuditLogEvent {
 pub struct AuditEntryInfo {
     pub delete_member_days: Option<String>,
     pub members_removed: Option<String>,
-    pub channel_id: Option<u64>,
+    pub channel_id: Option<Snowflake>,
     pub count: Option<i32>,
-    pub id: Option<u64>,
+    pub id: Option<Snowflake>,
     pub _type: Option<String>,
     pub role_name: Option<String>
 }
@@ -80,7 +80,7 @@ pub struct AuditLogChange {
 #[derive(Debug)]
 pub enum AuditLogChangeValue {
     String(String),
-    Snowflake(u64),
+    Snowflake(Snowflake),
     Integer(i32),
     Boolean(bool),
     Roles(Vec<PartialRole>),
@@ -91,7 +91,7 @@ pub enum AuditLogChangeValue {
 impl AuditLogChange {
     fn deserialize_value(key: &str, value: &str) -> Result<AuditLogChangeValue, JsonError> {
         match key {
-            "id" => Ok(AuditLogChangeValue::Snowflake(u64::from_json(value)?)),
+            "id" => Ok(AuditLogChangeValue::Snowflake(Snowflake::from_json(value)?)),
             "type" => if value.starts_with('"') && value.ends_with('"') {
                 Ok(AuditLogChangeValue::String(String::from_json(value)?))
             } else {
@@ -101,9 +101,9 @@ impl AuditLogChange {
             "name" => Ok(AuditLogChangeValue::String(String::from_json(value)?)),
             "icon_hash" => Ok(AuditLogChangeValue::String(String::from_json(value)?)),
             "splash_hash" => Ok(AuditLogChangeValue::String(String::from_json(value)?)),
-            "owner_id" => Ok(AuditLogChangeValue::Snowflake(u64::from_json(value)?)),
+            "owner_id" => Ok(AuditLogChangeValue::Snowflake(Snowflake::from_json(value)?)),
             "region" => Ok(AuditLogChangeValue::String(String::from_json(value)?)),
-            "afk_channel_id" => Ok(AuditLogChangeValue::Snowflake(u64::from_json(value)?)),
+            "afk_channel_id" => Ok(AuditLogChangeValue::Snowflake(Snowflake::from_json(value)?)),
             "afk_timeout" => Ok(AuditLogChangeValue::Integer(i32::from_json(value)?)),
             "mfa_level" => Ok(AuditLogChangeValue::Integer(i32::from_json(value)?)),
             "verification_level" => Ok(AuditLogChangeValue::Integer(i32::from_json(value)?)),
@@ -114,8 +114,8 @@ impl AuditLogChange {
             "$remove" => Ok(AuditLogChangeValue::Roles(FromJson::from_json(value)?)),
             "prune_delete_days" => Ok(AuditLogChangeValue::Integer(i32::from_json(value)?)),
             "widget_enabled" => Ok(AuditLogChangeValue::Boolean(bool::from_json(value)?)),
-            "widget_channel_id" => Ok(AuditLogChangeValue::Snowflake(u64::from_json(value)?)),
-            "system_channel_id" => Ok(AuditLogChangeValue::Snowflake(u64::from_json(value)?)),
+            "widget_channel_id" => Ok(AuditLogChangeValue::Snowflake(Snowflake::from_json(value)?)),
+            "system_channel_id" => Ok(AuditLogChangeValue::Snowflake(Snowflake::from_json(value)?)),
 
             "position" => Ok(AuditLogChangeValue::Integer(i32::from_json(value)?)),
             "topic" => Ok(AuditLogChangeValue::String(String::from_json(value)?)),
@@ -123,7 +123,7 @@ impl AuditLogChange {
             "permission_overwrites" => Ok(AuditLogChangeValue::Overwrites(Vec::<Overwrite>::from_json(value)?)),
             "rate_limit_per_user" => Ok(AuditLogChangeValue::Integer(i32::from_json(value)?)),
             "nsfw" => Ok(AuditLogChangeValue::Boolean(bool::from_json(value)?)),
-            "application_id" => Ok(AuditLogChangeValue::Snowflake(u64::from_json(value)?)),
+            "application_id" => Ok(AuditLogChangeValue::Snowflake(Snowflake::from_json(value)?)),
 
             "permissions" => Ok(AuditLogChangeValue::Integer(i32::from_json(value)?)),
             "color" => Ok(AuditLogChangeValue::Integer(i32::from_json(value)?)),
@@ -133,12 +133,11 @@ impl AuditLogChange {
             "deny" => Ok(AuditLogChangeValue::Integer(i32::from_json(value)?)),
 
             "code" => Ok(AuditLogChangeValue::String(String::from_json(value)?)),
-            "channel_id" => Ok(AuditLogChangeValue::Snowflake(u64::from_json(value)?)),
-            "inviter_id" => Ok(AuditLogChangeValue::Snowflake(u64::from_json(value)?)),
+            "channel_id" => Ok(AuditLogChangeValue::Snowflake(Snowflake::from_json(value)?)),
+            "inviter_id" => Ok(AuditLogChangeValue::Snowflake(Snowflake::from_json(value)?)),
             "max_uses" => Ok(AuditLogChangeValue::Integer(i32::from_json(value)?)),
             "uses" => Ok(AuditLogChangeValue::Integer(i32::from_json(value)?)),
             "max_age" => Ok(AuditLogChangeValue::Integer(i32::from_json(value)?)),
-            "age" => Ok(AuditLogChangeValue::Integer(i32::from_json(value)?)),
             "temporary" => Ok(AuditLogChangeValue::Boolean(bool::from_json(value)?)),
 
             "deaf" => Ok(AuditLogChangeValue::Boolean(bool::from_json(value)?)),

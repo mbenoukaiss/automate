@@ -1,6 +1,6 @@
+use crate::json::JsonError;
 use std::{fmt, result};
 use std::error::Error as StdError;
-use crate::json::JsonError;
 
 /// Represents an error that occurred while using
 /// Automate library.

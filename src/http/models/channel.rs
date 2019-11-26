@@ -1,4 +1,4 @@
-use crate::Nullable;
+use crate::{Nullable, Snowflake};
 use crate::gateway::{Overwrite, OverwriteType};
 
 #[object(client)]
@@ -11,22 +11,22 @@ pub struct ModifyChannel {
     pub bitrate: Option<i32>,
     pub user_limit: Option<i32>,
     pub permission_overwrites: Option<Vec<Overwrite>>,
-    pub parent_id: Option<Nullable<u64>>,
+    pub parent_id: Option<Nullable<Snowflake>>,
 }
 
 pub enum MessagesPosition {
     Default,
     Limit(i32),
-    Before(u64, i32),
-    Around(u64, i32),
-    After(u64, i32)
+    Before(Snowflake, i32),
+    Around(Snowflake, i32),
+    After(Snowflake, i32)
 }
 
 pub enum ReactionsPosition {
     Default,
     Limit(i32),
-    Before(u64, i32),
-    After(u64, i32)
+    Before(Snowflake, i32),
+    After(Snowflake, i32)
 }
 
 #[object(client)]
