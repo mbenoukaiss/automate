@@ -1,20 +1,21 @@
 use crate::json::Nullable;
 use crate::gateway::{User, PartialUser, PartialVoiceState, Channel};
+use crate::Snowflake;
 
 #[object(server)]
 pub struct Guild {
-    pub id: u64,
+    pub id: Snowflake,
     pub name: String,
     pub icon: Nullable<String>,
     pub splash: Nullable<String>,
     pub owner: Option<bool>,
-    pub owner_id: u64,
+    pub owner_id: Snowflake,
     pub permissions: Option<u32>,
     pub region: String,
-    pub afk_channel_id: Nullable<u64>,
+    pub afk_channel_id: Nullable<Snowflake>,
     pub afk_timeout: i32,
     pub embed_enabled: Option<bool>,
-    pub embed_channel_id: Option<u64>,
+    pub embed_channel_id: Option<Snowflake>,
     pub verification_level: VerificationLevel,
     pub default_message_notifications: DefaultMessageNotificationLevel,
     pub explicit_content_filter: ExplicitContentFilterLevel,
@@ -22,10 +23,10 @@ pub struct Guild {
     pub emojis: Vec<Emoji>,
     pub features: Vec<GuildFeature>,
     pub mfa_level: MFALevel,
-    pub application_id: Nullable<u64>,
+    pub application_id: Nullable<Snowflake>,
     pub widget_enabled: Option<bool>,
-    pub widget_channel_id: Option<u64>,
-    pub system_channel_id: Nullable<u64>,
+    pub widget_channel_id: Option<Snowflake>,
+    pub system_channel_id: Nullable<Snowflake>,
     pub joined_at: Option<String>,
     pub large: Option<bool>,
     pub unavailable: Option<bool>,
@@ -46,7 +47,7 @@ pub struct Guild {
 
 #[object(server)]
 pub struct PartialGuild {
-    pub id: u64,
+    pub id: Snowflake,
     pub name: String,
     pub icon: Nullable<String>,
     pub splash: Nullable<String>
@@ -54,7 +55,7 @@ pub struct PartialGuild {
 
 #[object(server)]
 pub struct UnavailableGuild {
-    pub id: u64,
+    pub id: Snowflake,
     pub unavailable: bool
 }
 
@@ -146,7 +147,7 @@ pub enum PremiumTier {
 
 #[object(server)]
 pub struct Role {
-    pub id: u64,
+    pub id: Snowflake,
     pub name: String,
     pub color: i32,
     pub hoist: bool,
@@ -158,13 +159,13 @@ pub struct Role {
 
 #[object(server)]
 pub struct PartialRole {
-    pub id: u64,
+    pub id: Snowflake,
     pub name: String,
 }
 
 #[object(server)]
 pub struct Emoji {
-    pub id: Nullable<u64>,
+    pub id: Nullable<Snowflake>,
     pub name: String,
     pub roles: Option<Vec<Role>>,
     pub user: Option<User>,
@@ -175,7 +176,7 @@ pub struct Emoji {
 
 #[object(server)]
 pub struct PartialEmoji {
-    pub id: Nullable<u64>,
+    pub id: Nullable<Snowflake>,
     pub name: String,
     pub roles: Option<Vec<Role>>,
     pub user: Option<User>,
@@ -188,24 +189,24 @@ pub struct PartialEmoji {
 pub struct NewEmoji {
     pub name: String,
     pub image: String,
-    pub roles: Vec<u64>
+    pub roles: Vec<Snowflake>
 }
 
 #[object(client)]
 pub struct UpdateEmoji {
-    pub id: u64,
+    pub id: Snowflake,
     pub image: String,
-    pub roles: Vec<u64>
+    pub roles: Vec<Snowflake>
 }
 
 #[object(server)]
 pub struct GuildMember {
     pub user: User,
     pub nick: Option<Nullable<String>>,
-    pub roles: Vec<u64>,
+    pub roles: Vec<Snowflake>,
     pub joined_at: String,
     pub premium_since: Option<Nullable<String>>,
-    pub hoisted_role: Nullable<bool>, //TODO: get the right type
+    pub hoisted_role: Nullable<Snowflake>,
     pub deaf: bool,
     pub mute: bool
 }
@@ -214,10 +215,10 @@ pub struct GuildMember {
 pub struct PartialGuildMember {
     pub user: Option<User>,
     pub nick: Option<Nullable<String>>,
-    pub roles: Vec<u64>,
+    pub roles: Vec<Snowflake>,
     pub joined_at: String,
     pub premium_since: Option<Nullable<String>>,
-    pub hoisted_role: Nullable<bool>, //TODO: get the right type
+    pub hoisted_role: Nullable<Snowflake>,
     pub deaf: bool,
     pub mute: bool
 }
@@ -238,9 +239,9 @@ pub struct PartialGuildMember {
 #[object(server)]
 pub struct PresenceUpdate {
     pub user: PartialUser,
-    pub roles: Vec<u64>,
+    pub roles: Vec<Snowflake>,
     pub game: Nullable<Activity>,
-    pub guild_id: u64,
+    pub guild_id: Snowflake,
     pub status: String,
     pub activities: Vec<Activity>,
     pub client_status: ClientStatus
@@ -262,9 +263,9 @@ pub struct PresenceUpdate {
 #[object(server)]
 pub struct PartialPresenceUpdate {
     pub user: Option<PartialUser>,
-    pub roles: Option<Vec<u64>>,
+    pub roles: Option<Vec<Snowflake>>,
     pub game: Option<Nullable<Activity>>,
-    pub guild_id: Option<u64>,
+    pub guild_id: Option<Snowflake>,
     pub status: Option<String>,
     pub activities: Option<Vec<Activity>>,
     pub client_status: Option<ClientStatus>
@@ -291,8 +292,8 @@ pub struct Activity {
     pub name: String,
     pub _type: ActivityType,
     pub url: Option<Nullable<String>>,
-    pub timestamps: ActivityTimestamps,
-    pub application_id: Option<u64>,
+    pub timestamps: Option<ActivityTimestamps>,
+    pub application_id: Option<Snowflake>,
     pub details: Option<Nullable<String>>,
     pub state: Option<Nullable<String>>,
     pub party: Option<ActivityParty>,
@@ -306,7 +307,8 @@ pub struct Activity {
 pub enum ActivityType {
     Game = 0,
     Streaming = 1,
-    Listening = 2
+    Listening = 2,
+    Custom = 4
 }
 
 #[convert(u32)]
@@ -325,8 +327,8 @@ pub enum ActivityFlags {
 /// More information on [Discord's documentation](https://discordapp.com/developers/docs/topics/gateway#activity-object-activity-timestamps)
 #[object(both)]
 pub struct ActivityTimestamps {
-    pub start: Option<i32>,
-    pub end: Option<i32>
+    pub start: Option<u64>,
+    pub end: Option<u64>
 }
 
 /// More information on [Discord's documentation](https://discordapp.com/developers/docs/topics/gateway#activity-object-activity-party)

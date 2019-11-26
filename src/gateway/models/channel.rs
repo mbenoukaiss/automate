@@ -1,25 +1,26 @@
 use crate::json::Nullable;
 use crate::gateway::{User, PartialUser, PartialGuild};
+use crate::Snowflake;
 
 #[object(server)]
 pub struct Channel {
-    pub id: u64,
+    pub id: Snowflake,
     pub _type: ChannelType,
-    pub guild_id: Option<u64>,
+    pub guild_id: Option<Snowflake>,
     pub position: Option<i32>,
     pub permission_overwrites: Option<Vec<Overwrite>>,
     pub name: Option<String>,
     pub topic: Option<Nullable<String>>,
     pub nsfw: Option<bool>,
-    pub last_message_id: Option<Nullable<u64>>,
+    pub last_message_id: Option<Nullable<Snowflake>>,
     pub bitrate: Option<i32>,
     pub user_limit: Option<i32>,
     pub rate_limit_per_user: Option<i32>,
     pub recipients: Option<Vec<User>>,
     pub icon: Option<Nullable<String>>,
-    pub owner_id: Option<u64>,
-    pub application_id: Option<u64>,
-    pub parent_id: Option<Nullable<u64>>,
+    pub owner_id: Option<Snowflake>,
+    pub application_id: Option<Snowflake>,
+    pub parent_id: Option<Nullable<Snowflake>>,
     pub last_pin_timestamp: Option<String>,
 }
 
@@ -54,7 +55,7 @@ pub enum ChannelType {
 
 #[object(both)]
 pub struct Overwrite {
-    pub id: u64,
+    pub id: Snowflake,
     pub _type: OverwriteType,
     pub allow: u32,
     pub deny: u32
@@ -68,18 +69,18 @@ pub enum OverwriteType {
 
 #[object(both)]
 pub struct ChannelMention {
-    pub id: u64,
-    pub guild_id: u64,
+    pub id: Snowflake,
+    pub guild_id: Snowflake,
     pub _type: ChannelType,
     pub name: String
 }
 
 #[object(server)]
 pub struct Webhook {
-    pub id: u64,
+    pub id: Snowflake,
     pub _type: WebhookType,
-    pub guild_id: Option<u64>,
-    pub channel_id: u64,
+    pub guild_id: Option<Snowflake>,
+    pub channel_id: Snowflake,
     pub user: Option<User>,
     pub name: Nullable<String>,
     pub avatar: Nullable<String>,

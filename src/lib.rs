@@ -13,6 +13,7 @@ extern crate log;
 pub mod json;
 pub mod http;
 pub mod gateway;
+mod snowflake;
 mod events;
 mod macros;
 mod errors;
@@ -26,6 +27,7 @@ pub use http::HttpAPI;
 pub use gateway::{GatewayAPI, Session};
 pub use json::Nullable;
 pub use logger::setup_logging;
+pub use snowflake::Snowflake;
 pub use errors::Error;
 
 use tokio::runtime::Runtime;

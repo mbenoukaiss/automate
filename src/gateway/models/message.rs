@@ -1,11 +1,11 @@
 use crate::gateway::{User, MentionnedUser, PartialGuildMember, ChannelMention, PartialEmoji};
-use crate::json::Nullable;
+use crate::{Snowflake, Nullable};
 
 #[object(server)]
 pub struct Message {
-    pub id: u64,
-    pub channel_id: u64,
-    pub guild_id: Option<u64>,
+    pub id: Snowflake,
+    pub channel_id: Snowflake,
+    pub guild_id: Option<Snowflake>,
     pub author: User,
     pub member: Option<PartialGuildMember>,
     pub content: String,
@@ -14,14 +14,14 @@ pub struct Message {
     pub tts: bool,
     pub mention_everyone: bool,
     pub mentions: Vec<MentionnedUser>,
-    pub mention_roles: Vec<u64>,
+    pub mention_roles: Vec<Snowflake>,
     pub mention_channels: Option<Vec<ChannelMention>>,
     pub attachments: Vec<Attachment>,
     pub embeds: Vec<Embed>,
     pub reactions: Option<Vec<Reaction>>,
-    pub nonce: Nullable<u64>,
+    pub nonce: Nullable<Snowflake>,
     pub pinned: bool,
-    pub webhook_id: Option<u64>,
+    pub webhook_id: Option<Snowflake>,
     pub _type: MessageType,
     pub activity: Option<MessageActivity>,
     pub application: Option<MessageApplication>,
@@ -55,7 +55,7 @@ pub enum MessageFlags {
 
 #[object(server)]
 pub struct Attachment {
-    pub id: u64,
+    pub id: Snowflake,
     pub filename: String,
     pub size: usize,
     pub url: String,
@@ -155,7 +155,7 @@ pub enum MessageActivityType {
 
 #[object(server)]
 pub struct MessageApplication {
-    pub id: u64,
+    pub id: Snowflake,
     pub cover_image: Option<String>,
     pub description: String,
     pub icon: Nullable<String>,
@@ -164,7 +164,7 @@ pub struct MessageApplication {
 
 #[object(server)]
 pub struct MessageReference {
-    pub message_id: u64,
-    pub channel_id: u64,
-    pub guild_id: u64
+    pub message_id: Snowflake,
+    pub channel_id: Snowflake,
+    pub guild_id: Snowflake
 }

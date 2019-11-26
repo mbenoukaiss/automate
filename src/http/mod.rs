@@ -8,7 +8,7 @@ use hyper_tls::HttpsConnector;
 use futures::TryStreamExt;
 use crate::gateway::*;
 use crate::json::{FromJson, AsJson};
-use crate::{json, Error};
+use crate::{json, Error, Snowflake};
 
 /// Creates the URL to an API endpoint
 /// by concatenating the given expressions.
@@ -123,29 +123,29 @@ impl HttpAPI {
         self.get(api!("/gateway/bot")).await
     }
 
-    pub async fn audit_logs(&self, guild_id: u64) -> Result<AuditLog, Error> {
+    pub async fn audit_logs(&self, guild_id: Snowflake) -> Result<AuditLog, Error> {
         self.get(api!("/guilds/", guild_id, "/audit-logs")).await
     }
 
-    pub async fn channel(&self, channel_id: u64) -> Result<Channel, Error> {
+    pub async fn channel(&self, channel_id: Snowflake) -> Result<Channel, Error> {
         self.get(api!("/channels/", channel_id)).await
     }
 
-    pub async fn modify_channel(&self, channel_id: u64, channel: ModifyChannel) -> Result<Channel, Error> {
+    pub async fn modify_channel(&self, channel_id: Snowflake, channel: ModifyChannel) -> Result<Channel, Error> {
         self.patch(api!("/channels/", channel_id), channel).await
     }
 
-    pub async fn delete_channel(&self, channel_id: u64) -> Result<Channel, Error> {
+    pub async fn delete_channel(&self, channel_id: Snowflake) -> Result<Channel, Error> {
         self.delete(api!("/channels/", channel_id)).await
     }
 
     //TODO: delete channels recursively?
 
-    pub async fn message(&self, channel_id: u64, message_id: u64) -> Result<Message, Error> {
+    pub async fn message(&self, channel_id: Snowflake, message_id: Snowflake) -> Result<Message, Error> {
         self.get(api!("/channels/", channel_id, "/messages/", message_id)).await
     }
 
-    pub async fn messages(&self, channel_id: u64, messages: MessagesPosition) -> Result<Vec<Message>, Error> {
+    pub async fn messages(&self, channel_id: Snowflake, messages: MessagesPosition) -> Result<Vec<Message>, Error> {
         let query = match messages {
             MessagesPosition::Default => String::new(),
             MessagesPosition::Limit(limit) => format!("?limit={}", limit),
@@ -157,23 +157,23 @@ impl HttpAPI {
         self.get(api!("/channels/", channel_id, "/messages?", query)).await
     }
 
-    pub async fn create_message(&self, channel_id: u64, message: CreateMessage) -> Result<Message, Error> {
+    pub async fn create_message(&self, channel_id: Snowflake, message: CreateMessage) -> Result<Message, Error> {
         self.post(api!("/channels/", channel_id, "/messages"), message).await
     }
 
-    pub async fn modify_message(&self, channel_id: u64, message_id: u64, message: ModifyMessage) -> Result<Message, Error> {
+    pub async fn modify_message(&self, channel_id: Snowflake, message_id: Snowflake, message: ModifyMessage) -> Result<Message, Error> {
         self.patch(api!("/channels/", channel_id, "/messages", message_id), message).await
     }
 
-    pub async fn delete_message(&self, channel_id: u64, message_id: u64) -> Result<(), Error> {
+    pub async fn delete_message(&self, channel_id: Snowflake, message_id: Snowflake) -> Result<(), Error> {
         self.delete(api!("/channels/", channel_id, "/messages/", message_id)).await
     }
 
-    pub async fn delete_message_bulk(&self, channel_id: u64, messages: Vec<u64>) -> Result<(), Error> {
+    pub async fn delete_message_bulk(&self, channel_id: Snowflake, messages: Vec<Snowflake>) -> Result<(), Error> {
         self.post(api!("/channels/", channel_id, "/messages/bulk-delete"), messages).await
     }
 
-    pub async fn reactions(&self, channel_id: u64, message_id: u64, emoji: &str, reactions: ReactionsPosition) -> Result<Vec<User>, Error> {
+    pub async fn reactions(&self, channel_id: Snowflake, message_id: Snowflake, emoji: &str, reactions: ReactionsPosition) -> Result<Vec<User>, Error> {
         let query = match reactions {
             ReactionsPosition::Default => String::new(),
             ReactionsPosition::Limit(limit) => format!("?limit={}", limit),
@@ -184,39 +184,39 @@ impl HttpAPI {
         self.get(api!("/channels/", channel_id, "/messages/", message_id, "/reactions/", emoji, query)).await
     }
 
-    pub async fn create_reaction(&self, channel_id: u64, message_id: u64, emoji: &str) -> Result<(), Error> {
+    pub async fn create_reaction(&self, channel_id: Snowflake, message_id: Snowflake, emoji: &str) -> Result<(), Error> {
         self.put(api!("/channels/", channel_id, "/messages/", message_id, "/reactions/", emoji, "/@me"), ()).await
     }
 
-    pub async fn delete_reaction(&self, channel_id: u64, message_id: u64, emoji: &str, user_id: u64) -> Result<(), Error> {
+    pub async fn delete_reaction(&self, channel_id: Snowflake, message_id: Snowflake, emoji: &str, user_id: Snowflake) -> Result<(), Error> {
         self.delete(api!("/channels/", channel_id, "/messages/", message_id, "/reactions/", emoji, "/", user_id)).await
     }
 
-    pub async fn delete_own_reaction(&self, channel_id: u64, message_id: u64, emoji: &str) -> Result<(), Error> {
+    pub async fn delete_own_reaction(&self, channel_id: Snowflake, message_id: Snowflake, emoji: &str) -> Result<(), Error> {
         self.delete(api!("/channels/", channel_id, "/messages/", message_id, "/reactions/", emoji, "/@me")).await
     }
 
-    pub async fn delete_all_reaction(&self, channel_id: u64, message_id: u64) -> Result<(), Error> {
+    pub async fn delete_all_reaction(&self, channel_id: Snowflake, message_id: Snowflake) -> Result<(), Error> {
         self.delete(api!("/channels/", channel_id, "/messages/", message_id, "/reactions")).await
     }
 
-    pub async fn emojis(&self, guild_id: u64) -> Result<Vec<Emoji>, Error> {
+    pub async fn emojis(&self, guild_id: Snowflake) -> Result<Vec<Emoji>, Error> {
         self.get(api!("/guilds/", guild_id, "/emojis")).await
     }
 
-    pub async fn emoji(&self, guild_id: u64, emoji_id: u64) -> Result<Emoji, Error> {
+    pub async fn emoji(&self, guild_id: Snowflake, emoji_id: Snowflake) -> Result<Emoji, Error> {
         self.get(api!("/guilds/", guild_id, "/emojis/", emoji_id)).await
     }
 
-    pub async fn create_emoji(&self, guild_id: u64, emoji: NewEmoji) -> Result<Emoji, Error> {
+    pub async fn create_emoji(&self, guild_id: Snowflake, emoji: NewEmoji) -> Result<Emoji, Error> {
         self.post(api!("/guilds/", guild_id, "/emojis"), emoji).await
     }
 
-    pub async fn modify_emoji(&self, guild_id: u64, emoji: UpdateEmoji) -> Result<Emoji, Error> {
+    pub async fn modify_emoji(&self, guild_id: Snowflake, emoji: UpdateEmoji) -> Result<Emoji, Error> {
         self.patch(api!("/guilds/", guild_id, "/emojis/", emoji.id), emoji).await
     }
 
-    pub async fn delete_emoji(&self, guild_id: u64, emoji_id: u64) -> Result<(), Error> {
+    pub async fn delete_emoji(&self, guild_id: Snowflake, emoji_id: Snowflake) -> Result<(), Error> {
         self.delete(api!("/guilds/", guild_id, "/emojis/", emoji_id)).await
     }
 
@@ -232,12 +232,12 @@ impl HttpAPI {
     }
 
     /// Retrieves all the invites in a channel.
-    pub async fn invites(&self, channel_id: u64) -> Result<Vec<Invite>, Error> {
+    pub async fn invites(&self, channel_id: Snowflake) -> Result<Vec<Invite>, Error> {
         self.get(api!("/channels/", channel_id, "/invites")).await
     }
 
     /// Create an invite for the specified channel.
-    pub async fn create_invite(&self, channel_id: u64, invite: NewInvite) -> Result<Invite, Error> {
+    pub async fn create_invite(&self, channel_id: Snowflake, invite: NewInvite) -> Result<Invite, Error> {
         self.post(api!("/channels/", channel_id, "/invites"), invite).await
     }
 
@@ -246,39 +246,39 @@ impl HttpAPI {
         self.delete(api!("/invites/", code)).await
     }
 
-    pub async fn modify_channel_permissions(&self, channel_id: u64, overwrite_id: u64, permissions: NewOverwrite) -> Result<(), Error> {
+    pub async fn modify_channel_permissions(&self, channel_id: Snowflake, overwrite_id: Snowflake, permissions: NewOverwrite) -> Result<(), Error> {
         self.post(api!("/channels/", channel_id, "/permissions/", overwrite_id), permissions).await
     }
 
-    pub async fn delete_channel_permission(&self, channel_id: u64, overwrite_id: u64) -> Result<(), Error> {
+    pub async fn delete_channel_permission(&self, channel_id: Snowflake, overwrite_id: Snowflake) -> Result<(), Error> {
         self.delete(api!("/channels/", channel_id, "/permissions/", overwrite_id)).await
     }
 
-    pub async fn trigger_typing(&self, channel_id: u64) -> Result<(), Error> {
+    pub async fn trigger_typing(&self, channel_id: Snowflake) -> Result<(), Error> {
         self.post(api!("/channels/", channel_id, "/typing"), ()).await
     }
 
-    pub async fn pinned_messages(&self, channel_id: u64) -> Result<Vec<Message>, Error> {
+    pub async fn pinned_messages(&self, channel_id: Snowflake) -> Result<Vec<Message>, Error> {
         self.get(api!("/channels/", channel_id, "/pins")).await
     }
 
-    pub async fn pin_message(&self, channel_id: u64, message_id: u64) -> Result<(), Error> {
+    pub async fn pin_message(&self, channel_id: Snowflake, message_id: Snowflake) -> Result<(), Error> {
         self.put(api!("/channels/", channel_id, "/pins/", message_id), ()).await
     }
 
     //TODO: deletes the message or the pin?
-    pub async fn delete_pinned_message(&self, channel_id: u64, message_id: u64) -> Result<(), Error> {
+    pub async fn delete_pinned_message(&self, channel_id: Snowflake, message_id: Snowflake) -> Result<(), Error> {
         self.delete(api!("/channels/", channel_id, "/pins/", message_id)).await
     }
 
-    pub async fn group_dm_add_recipient(&self, channel_id: u64, user_id: u64, access_token: String, nick: String) -> Result<(), Error> {
+    pub async fn group_dm_add_recipient(&self, channel_id: Snowflake, user_id: Snowflake, access_token: String, nick: String) -> Result<(), Error> {
         self.put(api!("/channels/", channel_id, "/recipients/", user_id), json! {
             "access_token" => access_token,
             "nick" => nick
         }).await
     }
 
-    pub async fn group_dm_remove_recipient(&self, channel_id: u64, user_id: u64) -> Result<(), Error> {
+    pub async fn group_dm_remove_recipient(&self, channel_id: Snowflake, user_id: Snowflake) -> Result<(), Error> {
         self.delete(api!("/channels/", channel_id, "/recipients/", user_id)).await
     }
 

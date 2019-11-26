@@ -3,9 +3,7 @@ mod models;
 pub use models::*;
 
 use ws::CloseCode;
-use crate::{json, Error, Listener};
-use crate::map;
-use crate::json::Nullable;
+use crate::{json, map, Error, Listener, Nullable};
 use crate::http::HttpAPI;
 use std::thread;
 use std::time::Duration;

@@ -39,15 +39,17 @@ pub trait AsJson {
 }
 
 /// A data structure that can be parsed from the value
-/// of a JSON string.
+/// of a JSON string, quotes/braces/brackets included.
 ///
 /// # Example
 /// ```
 /// use automate::json::FromJson;
+/// use automate::Snowflake;
 ///
 /// assert_eq!(String::from_json("\"Hello\"").unwrap(), "Hello");
 /// assert_eq!(u32::from_json("643789").unwrap(), 643789);
-/// assert_eq!(i128::from_json("\"434233249862398463649324\"").unwrap(), 434233249862398463649324);
+/// assert_eq!(i128::from_json("434233249862398463649324").unwrap(), 434233249862398463649324);
+/// assert_eq!(Snowflake::from_json("\"349327072309\"").unwrap(), Snowflake(349327072309));
 /// ```
 pub trait FromJson {
     fn from_json(json: &str) -> Result<Self, JsonError> where Self: Sized;
@@ -110,7 +112,6 @@ macro_rules! impl_for_num {
                     self.to_string()
                 }
 
-                #[allow(unused_must_use)]
                 #[inline]
                 fn concat_json(&self, dest: &mut String) {
                     dest.write_fmt(format_args!("{}", self)).expect("A Display implementation returned an error unexpectedly");
@@ -122,44 +123,6 @@ macro_rules! impl_for_num {
                 fn from_json(json: &str) -> Result<$ty, JsonError> {
                     <$ty>::from_str(json)
                         .map_err(|_| JsonError::new(format!("Failed to parse {} into {}", json, stringify!($ty))))
-                }
-            }
-        )*
-    )
-}
-
-/// Implements [AsJson](automate::AsJson) and
-/// [FromJson](automate::FromJson) for larger numeric
-/// that should be represented as strings in the
-/// JSON string.
-macro_rules! impl_for_large_num {
-    ($($ty:ty),*) => (
-        $(
-            impl AsJson for $ty {
-                #[allow(unused_must_use)]
-                #[inline]
-                fn as_json(&self) -> String {
-                    let mut string = String::new();
-                    string.write_fmt(format_args!("\"{}\"", self)).expect("A Display implementation returned an error unexpectedly");
-                    string
-                }
-
-                #[allow(unused_must_use)]
-                #[inline]
-                fn concat_json(&self, dest: &mut String) {
-                    dest.write_fmt(format_args!("\"{}\"", self)).expect("A Display implementation returned an error unexpectedly");
-                }
-            }
-
-            impl FromJson for $ty {
-                #[inline]
-                fn from_json(json: &str) -> Result<$ty, JsonError> {
-                    if json.len() >= 2 && json.starts_with('"') && json.ends_with('"') {
-                        <$ty>::from_str(&json[1..json.len()-1])
-                            .map_err(|_| JsonError::new(format!("Failed to parse {} into {}", json, stringify!($ty))))
-                    } else {
-                        JsonError::err("Incorrect JSON large number received")
-                    }
                 }
             }
         )*
@@ -355,7 +318,6 @@ macro_rules! impl_for_arrays {
                     json
                 }
 
-                #[allow(unused_must_use)]
                 #[inline]
                 fn concat_json(&self, dest: &mut String) {
                     dest.reserve($size * 2 + 2);
@@ -409,16 +371,10 @@ macro_rules! impl_for_arrays {
 }
 
 impl_for_num! {
-    i8, i16, i32, isize,
-    u8, u16, u32, usize,
-    f32,
+    i8, i16, i32, i64, i128, isize,
+    u8, u16, u32, u64, u128, usize,
+    f32, f64,
     bool
-}
-
-impl_for_large_num! {
-    i64, i128,
-    u64, u128,
-    f64
 }
 
 impl_for_single_collection! {
@@ -483,7 +439,7 @@ impl FromJson for String {
         if json.len() >= 2 && json.starts_with('"') && json.ends_with('"') {
             Ok(String::from(&json[1..json.len() - 1]))
         } else {
-            JsonError::err("Incorrect JSON string value received")
+            JsonError::err(format!("Incorrect JSON string value received: {}", json))
         }
     }
 }
@@ -711,10 +667,30 @@ impl<J> FromJson for HashMap<String, J, RandomState> where J: FromJson {
 pub fn json_object_to_map(input: &str) -> Result<HashMap<&str, &str>, JsonError> {
     let mut map = HashMap::new();
     let mut nesting_level = 0;
+    let mut in_string = false;
+    let mut escape_next_char = false;
     let mut key_idxs: [usize; 2] = [0; 2];
     let mut val_idxs: [usize; 2] = [0; 2];
 
     for (i, c) in input.char_indices() {
+        if escape_next_char {
+            escape_next_char = false;
+            continue;
+        } else if c == '\\' {
+            escape_next_char = true;
+            continue;
+        }
+
+        if in_string {
+            if c == '"' {
+                in_string = false;
+            } else {
+                continue;
+            }
+        } else if c == '"' {
+            in_string = true;
+        }
+
         if c == '{' || c == '[' {
             nesting_level += 1;
         } else if c == '}' || c == ']' {
@@ -927,12 +903,12 @@ mod tests {
                    "Incorrectly formatted JSON string");
         assert_eq!(json_root_search::<String>("key", no_final_brace).err().unwrap().msg,
                    "Unexpected end of string");
-        assert_eq!(json_root_search::<String>("key", no_comma).err().unwrap().msg,
-                   "Failed to parse JSON: Incorrect JSON string value received");
+        assert!(json_root_search::<String>("key", no_comma).err().unwrap().msg
+            .starts_with("Failed to parse JSON: Incorrect JSON string value received: "));
         assert_eq!(json_root_search::<String>("key", no_key_quote).err().unwrap().msg,
                    "Could not find key in candidate"); //the function can hardly know that the string is not correctly formatted
-        assert_eq!(json_root_search::<String>("key", no_val_quote).err().unwrap().msg,
-                   "Failed to parse JSON: Incorrect JSON string value received");
+        assert!(json_root_search::<String>("key", no_val_quote).err().unwrap().msg
+            .starts_with("Failed to parse JSON: Incorrect JSON string value received: "));
         assert_eq!(json_root_search::<u32>("int", wrong_type).err().unwrap().msg,
                    "Failed to parse JSON: Failed to parse \"value\" into u32");
     }
@@ -961,6 +937,26 @@ mod tests {
 
         assert_eq!(HashMap::from_json(str_map_of_vec).unwrap(), map_of_vec);
         assert_eq!(HashMap::from_json(str_map_of_empty_vec).unwrap(), map_of_empty_vec);
+    }
+
+    #[test]
+    fn test_dangerous_characters() { //good name right?
+        let commas = r#"{"key":"value,with,commas,!!"}"#;
+        let braces = r#"{"key":"value}}}{}}{}}{{{{}"}"#;
+        let brackets = r#"{"key":"va[[][][[[[][][]]][lue"}"#;
+
+        assert_eq!(json_object_to_map(commas).unwrap().get("key").unwrap(), &r#""value,with,commas,!!""#);
+        assert_eq!(json_object_to_map(braces).unwrap().get("key").unwrap(), &r#""value}}}{}}{}}{{{{}""#);
+        assert_eq!(json_object_to_map(brackets).unwrap().get("key").unwrap(), &r#""va[[][][[[[][][]]][lue""#);
+    }
+
+    #[test]
+    fn test_escaping() {
+        let commas = r#"{"key":"begin\"escape\\\"end"}"#;
+        let not_escaped = r#"{"key":"begin"escape\"end"}"#;
+
+        assert_eq!(json_object_to_map(commas).unwrap().get("key").unwrap(), &r#""begin\"escape\\\"end""#);
+        assert!(json_object_to_map(not_escaped).is_err());
     }
 }
 
