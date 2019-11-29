@@ -1,8 +1,8 @@
 [package]
 name = "automate-derive"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["mbenoukaiss <marwane.benou-kaiss@etu.u-bordeaux.fr>"]
-license = "MIT OR Apache-2.0"
+license = "MIT"
 repository = "https://github.com/mbenoukaiss/automate"
 description = "Derive macros for the automate library"
 readme = "../README.md"

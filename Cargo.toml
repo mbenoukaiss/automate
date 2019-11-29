@@ -1,8 +1,8 @@
 [package]
 name = "automate"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["mbenoukaiss <marwane.benou-kaiss@etu.u-bordeaux.fr>"]
-license = "MIT OR Apache-2.0"
+license = "MIT"
 repository = "https://github.com/mbenoukaiss/automate"
 keywords = ["discord", "api", "async"]
 categories = ["api-bindings"]
@@ -11,7 +11,7 @@ readme = "README.md"
 edition = "2018"
 
 [dependencies]
-automate-derive = { version = "0.1.2", path = "derive" }
+automate-derive = { version = "0.1.3", path = "derive" }
 futures-preview = { version = "0.3.0-alpha.19", features = ["compat"] }
 async-trait = "0.1.17"
 tokio = "0.2.0-alpha.6"
