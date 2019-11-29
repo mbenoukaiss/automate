@@ -42,7 +42,9 @@ pub struct Guild {
     pub banner: Nullable<String>,
     pub premium_tier: PremiumTier,
     pub premium_subscription_count: Nullable<i32>,
-    pub preferred_locale: String
+    pub preferred_locale: String,
+    pub lazy: bool,
+    pub rules_channel_id: Nullable<Snowflake>
 }
 
 #[object(server)]
@@ -145,7 +147,7 @@ pub enum PremiumTier {
     Tier3 = 3,
 }
 
-#[object(server)]
+#[object(both)]
 pub struct Role {
     pub id: Snowflake,
     pub name: String,
@@ -163,7 +165,7 @@ pub struct PartialRole {
     pub name: String,
 }
 
-#[object(server)]
+#[object(both)]
 pub struct Emoji {
     pub id: Nullable<Snowflake>,
     pub name: String,
@@ -171,32 +173,19 @@ pub struct Emoji {
     pub user: Option<User>,
     pub require_colons: Option<bool>,
     pub managed: Option<bool>,
-    pub animated: Option<bool>
+    pub animated: Option<bool>,
+    pub available: bool
 }
 
-#[object(server)]
+#[object(both)]
 pub struct PartialEmoji {
-    pub id: Nullable<Snowflake>,
+    pub id: Option<Nullable<Snowflake>>,
     pub name: String,
     pub roles: Option<Vec<Role>>,
     pub user: Option<User>,
     pub require_colons: Option<bool>,
     pub managed: Option<bool>,
     pub animated: Option<bool>
-}
-
-#[object(client)]
-pub struct NewEmoji {
-    pub name: String,
-    pub image: String,
-    pub roles: Vec<Snowflake>
-}
-
-#[object(client)]
-pub struct UpdateEmoji {
-    pub id: Snowflake,
-    pub image: String,
-    pub roles: Vec<Snowflake>
 }
 
 #[object(server)]
@@ -239,12 +228,14 @@ pub struct PartialGuildMember {
 #[object(server)]
 pub struct PresenceUpdate {
     pub user: PartialUser,
+    pub nick: Option<Nullable<String>>,
     pub roles: Vec<Snowflake>,
     pub game: Nullable<Activity>,
     pub guild_id: Snowflake,
     pub status: String,
     pub activities: Vec<Activity>,
-    pub client_status: ClientStatus
+    pub client_status: ClientStatus,
+    pub premium_since: Option<Nullable<String>>
 }
 
 /// A user's presence is their current state on a guild.
@@ -289,6 +280,7 @@ pub struct ClientStatus {
 /// More information on [Discord's documentation](https://discordapp.com/developers/docs/topics/gateway#activity-object)
 #[object(both)]
 pub struct Activity {
+    pub id: String,
     pub name: String,
     pub _type: ActivityType,
     pub url: Option<Nullable<String>>,
@@ -296,11 +288,15 @@ pub struct Activity {
     pub application_id: Option<Snowflake>,
     pub details: Option<Nullable<String>>,
     pub state: Option<Nullable<String>>,
+    pub emoji: Option<PartialEmoji>,
     pub party: Option<ActivityParty>,
     pub assets: Option<ActivityAssets>,
     pub secrets: Option<ActivitySecrets>,
     pub instance: Option<bool>,
-    pub flags: Option<u32>
+    pub flags: Option<u32>,
+    pub sync_id: Option<String>,
+    pub session_id: Option<String>,
+    pub created_at: u64
 }
 
 #[convert(u8)]

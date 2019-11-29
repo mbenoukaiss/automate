@@ -29,6 +29,33 @@ pub struct Message {
     pub flags: Option<u32>
 }
 
+#[object(server)]
+pub struct PartialMessage {
+    pub id: Snowflake,
+    pub channel_id: Snowflake,
+    pub guild_id: Option<Snowflake>,
+    pub author: User,
+    pub member: Option<PartialGuildMember>,
+    pub content: String,
+    pub timestamp: String,
+    pub edited_timestamp: Nullable<String>,
+    pub tts: bool,
+    pub mention_everyone: bool,
+    pub mentions: Vec<MentionnedUser>,
+    pub mention_roles: Vec<Snowflake>,
+    pub mention_channels: Option<Vec<ChannelMention>>,
+    pub attachments: Vec<Attachment>,
+    pub embeds: Vec<Embed>,
+    pub reactions: Option<Vec<Reaction>>,
+    pub pinned: bool,
+    pub webhook_id: Option<Snowflake>,
+    pub _type: MessageType,
+    pub activity: Option<MessageActivity>,
+    pub application: Option<MessageApplication>,
+    pub message_reference: Option<MessageReference>,
+    pub flags: Option<u32>
+}
+
 #[convert(u8)]
 pub enum MessageType {
     Default = 0,

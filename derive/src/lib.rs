@@ -233,7 +233,7 @@ pub fn from_json(item: TokenStream) -> TokenStream {
                                     #(#ons => #os_escaped = Some(::automate::json::FromJson::from_json((&json[val_idxs[0]..val_idxs[1]]).trim())?),)*
 
                                     #[cfg(feature = "strict_deserializer")]
-                                    _ => warn!("Unknown field ({}) found in {} while deserializing {}", &json[key_idxs[0]..key_idxs[1]], stringify!(#name), json),
+                                    _ => warn!("Unknown field ({}) expected in {} while deserializing {}", &json[key_idxs[0]..key_idxs[1]], stringify!(#name), json),
                                     #[cfg(not(feature = "strict_deserializer"))]
                                     _ => (),
                                 }
@@ -245,7 +245,7 @@ pub fn from_json(item: TokenStream) -> TokenStream {
                     }
 
                     Ok(#name {
-                        #(#fs: #fs_escaped.expect(concat!("Could not find ", #fns, " in JSON object")),)*
+                        #(#fs: #fs_escaped.expect(concat!("Could not find ", #fns, " for ", stringify!(#name), stringify!(#ty_generics))),)*
                         #(#os: #os_escaped,)*
                     })
                 }

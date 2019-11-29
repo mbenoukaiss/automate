@@ -133,7 +133,7 @@ pub struct GuildRoleDeleteDispatch {
 pub struct MessageCreateDispatch(pub Message);
 
 #[payload(op = 0, event = "MESSAGE_UPDATE", server)]
-pub struct MessageUpdateDispatch(pub Message);
+pub struct MessageUpdateDispatch(pub PartialMessage);
 
 #[payload(op = 0, event = "MESSAGE_DELETE", server)]
 pub struct MessageDeleteDispatch {
@@ -154,8 +154,9 @@ pub struct MessageReactionAddDispatch {
     pub guild_id: Option<Snowflake>,
     pub channel_id: Snowflake,
     pub user_id: Snowflake,
+    pub member: Option<GuildMember>,
     pub message_id: Snowflake,
-    pub emoji: PartialEmoji
+    pub emoji: PartialEmoji,
 }
 
 #[payload(op = 0, event = "MESSAGE_REACTION_REMOVE", server)]
@@ -190,7 +191,8 @@ pub struct TypingStartDispatch {
     pub guild_id: Option<Snowflake>,
     pub channel_id: Snowflake,
     pub user_id: Snowflake,
-    pub member: GuildMember
+    pub member: GuildMember,
+    pub timestamp: u32
 }
 
 #[payload(op = 0, event = "USER_UPDATE", server)]
