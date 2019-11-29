@@ -340,7 +340,7 @@ macro_rules! impl_for_arrays {
                 #[inline]
                 fn from_json(json: &str) -> Result<[T; $size], JsonError> {
                     if json.len() >= 2 && json.starts_with('[') && json.ends_with(']') {
-                        let split = json.split(',');
+                        let split = (&json[1..json.len()-1]).split(',');
                         let mut count = 0;
 
                         let array: [T; $size] = unsafe {
@@ -405,10 +405,10 @@ impl AsJson for () {
 
 impl FromJson for () {
     fn from_json(json: &str) -> Result<Self, JsonError> where Self: Sized {
-        if json.is_empty() || json == "{}" {
+        if json.trim().is_empty() || json == "{}" {
             Ok(())
         } else {
-            JsonError::err("Incorrect value for empty type")
+            JsonError::err(format!("Incorrect value for empty type: {}", json))
         }
     }
 }

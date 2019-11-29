@@ -1,7 +1,21 @@
 use crate::json::{AsJson, FromJson, JsonError};
+use crate::gateway::*;
+use crate::http::*;
 use std::fmt::{Display, Debug, Formatter, Error as FmtError};
 use std::ops::{Deref, DerefMut};
 use std::str::FromStr;
+
+macro_rules! from {
+    ($($struct:ty),*) => {
+        $(
+            impl From<$struct> for Snowflake {
+                fn from(val: $struct) -> Self {
+                    val.id
+                }
+            }
+        )*
+    }
+}
 
 #[derive(Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
 pub struct Snowflake(pub u64);
@@ -60,4 +74,16 @@ impl DerefMut for Snowflake {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
+}
+
+from! {
+    AuditLogEntry,
+    Channel, ChannelMention,
+    Overwrite,
+    Webhook,
+    Guild, PartialGuild, UnavailableGuild,
+    Role, PartialRole,
+    UpdateEmoji,
+    Message, Attachment, MessageApplication,
+    User, PartialUser, MentionnedUser
 }
