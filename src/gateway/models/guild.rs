@@ -17,7 +17,7 @@ pub struct Guild {
     pub embed_enabled: Option<bool>,
     pub embed_channel_id: Option<Snowflake>,
     pub verification_level: VerificationLevel,
-    pub default_message_notifications: DefaultMessageNotificationLevel,
+    pub default_message_notifications: MessageNotificationLevel,
     pub explicit_content_filter: ExplicitContentFilterLevel,
     pub roles: Vec<Role>,
     pub emojis: Vec<Emoji>,
@@ -105,7 +105,7 @@ pub enum VerificationLevel {
 }
 
 #[convert(u8)]
-pub enum DefaultMessageNotificationLevel {
+pub enum MessageNotificationLevel {
     AllMessages = 0,
     OnlyMentions = 1,
 }
