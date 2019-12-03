@@ -125,16 +125,44 @@ impl HttpAPI {
         self.get(api!("/gateway/bot")).await
     }
 
+    pub async fn guild<S: Into<Snowflake>>(&self, guild: S) -> Result<Guild, Error> {
+        self.get(api!("/guilds/", guild.into())).await
+    }
+
+    pub async fn create_guild(&self, guild: NewGuild) -> Result<Guild, Error> {
+        self.post(api!("/guilds"), guild).await
+    }
+
+    pub async fn modify_guild<S: Into<Snowflake>>(&self, guild: S, modification: ModifyGuild) -> Result<Guild, Error> {
+        self.patch(api!("/guilds/", guild), modification).await
+    }
+
+    pub async fn delete_guild<S: Into<Snowflake>>(&self, guild: S) -> Result<(), Error> {
+        self.delete(api!("/guilds/", guild)).await
+    }
+
     pub async fn audit_logs<S: Into<Snowflake>>(&self, guild: S) -> Result<AuditLog, Error> {
         self.get(api!("/guilds/", guild.into(), "/audit-logs")).await
+    }
+
+    pub async fn channels<S: Into<Snowflake>>(&self, guild: S) -> Result<Vec<Channel>, Error> {
+        self.get(api!("/guilds/", guild.into(), "/channels")).await
     }
 
     pub async fn channel<S: Into<Snowflake>>(&self, channel: S) -> Result<Channel, Error> {
         self.get(api!("/channels/", channel.into())).await
     }
 
+    pub async fn create_channel<S: Into<Snowflake>>(&self, guild: S, channel: NewChannel) -> Result<Channel, Error> {
+        self.post(api!("/guilds/", guild.into(), "/channels"), channel).await
+    }
+
     pub async fn modify_channel<S: Into<Snowflake>>(&self, channel: S, modification: ModifyChannel) -> Result<Channel, Error> {
         self.patch(api!("/channels/", channel.into()), modification).await
+    }
+
+    pub async fn move_channel<S: Into<Snowflake>>(&self, guild: S, moves: Vec<MoveChannel>) -> Result<(), Error> {
+        self.patch(api!("/guilds/", guild.into(), "/channels"), moves).await
     }
 
     pub async fn delete_channel<S: Into<Snowflake>>(&self, channel: S) -> Result<Channel, Error> {
