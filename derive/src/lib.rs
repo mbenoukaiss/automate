@@ -245,7 +245,7 @@ pub fn from_json(item: TokenStream) -> TokenStream {
                     }
 
                     Ok(#name {
-                        #(#fs: #fs_escaped.expect(concat!("Could not find ", #fns, " for ", stringify!(#name), stringify!(#ty_generics))),)*
+                        #(#fs: #fs_escaped.ok_or(::automate::encode::JsonError::new(format!(concat!("Could not find ", #fns, " for ", stringify!(#name), stringify!(#ty_generics), " in {}"), json)))?,)*
                         #(#os: #os_escaped,)*
                     })
                 }
