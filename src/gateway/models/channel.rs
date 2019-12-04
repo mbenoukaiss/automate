@@ -1,4 +1,4 @@
-use crate::json::Nullable;
+use crate::encode::Nullable;
 use crate::gateway::{User, PartialUser, PartialGuild};
 use crate::Snowflake;
 

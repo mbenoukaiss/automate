@@ -1,4 +1,4 @@
-use crate::json::JsonError;
+use crate::encode::JsonError;
 use std::{fmt, result};
 use std::error::Error as StdError;
 
@@ -44,6 +44,12 @@ impl From<ws::Error> for Error {
 
 impl From<hyper::Error> for Error {
     fn from(err: hyper::Error) -> Self {
+        Error::new(err.description())
+    }
+}
+
+impl From<std::fmt::Error> for Error {
+    fn from(err: std::fmt::Error) -> Self {
         Error::new(err.description())
     }
 }
