@@ -10,7 +10,7 @@ extern crate automate_derive;
 #[macro_use]
 extern crate log;
 
-pub mod json;
+pub mod encode;
 pub mod http;
 pub mod gateway;
 mod snowflake;
@@ -25,7 +25,6 @@ pub use tokio;
 pub use events::Listener;
 pub use http::HttpAPI;
 pub use gateway::{GatewayAPI, Session};
-pub use json::Nullable;
 pub use logger::setup_logging;
 pub use snowflake::Snowflake;
 pub use errors::Error;

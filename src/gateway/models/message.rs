@@ -1,5 +1,6 @@
 use crate::gateway::{User, MentionnedUser, PartialGuildMember, ChannelMention, PartialEmoji};
-use crate::{Snowflake, Nullable};
+use crate::encode::Nullable;
+use crate::Snowflake;
 
 #[object(server)]
 pub struct Message {

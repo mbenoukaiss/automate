@@ -3,8 +3,9 @@ mod models;
 pub use models::*;
 
 use ws::CloseCode;
-use crate::{json, map, Error, Listener, Nullable};
+use crate::{map, Error, Listener};
 use crate::http::HttpAPI;
+use crate::encode::{json, Nullable};
 use std::thread;
 use std::time::Duration;
 use std::sync::{Mutex, Arc};
@@ -18,7 +19,7 @@ use std::ops::Deref;
 
 macro_rules! call_dispatcher {
     ($data:ident as $payload:ty => $self:ident.$method:ident) => {{
-        let payload: $payload = <$payload as ::automate::json::FromJson>::from_json(&$data)?;
+        let payload: $payload = <$payload as ::automate::encode::FromJson>::from_json(&$data)?;
 
         if let Nullable::Value(val) = payload.s {
             *$self.sequence_number.lock().unwrap() = Some(val);
@@ -159,7 +160,7 @@ struct GatewayHandler {
 
 impl GatewayHandler {
     async fn dispatch_payload(&mut self, data: &str) -> Result<(), Error> {
-        match json::json_root_search::<u8>("op", data)? {
+        match json::root_search::<u8>("op", data)? {
             0 => self.dispatch_event(data).await?,
             7 => self.on_reconnect().await?,
             9 => call_dispatcher!(data as Payload<InvalidSession> => self.on_invalid_session),
@@ -178,7 +179,7 @@ impl GatewayHandler {
     // Currently disabling cognitive complexity since clippy
     // expands the macros (bug) before calculating CoC.
     async fn dispatch_event(&mut self, data: &str) -> Result<(), Error> {
-        match json::json_root_search::<String>("t", data)?.as_str() {
+        match json::root_search::<String>("t", data)?.as_str() {
             ReadyDispatch::EVENT_NAME => call_dispatcher!(data as Payload<ReadyDispatch> => self.on_ready),
             ResumedDispatch::EVENT_NAME => call_dispatcher!(data as Payload<ResumedDispatch> => self.on_resumed),
             ChannelCreateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<ChannelCreateDispatch> => self.on_channel_create),

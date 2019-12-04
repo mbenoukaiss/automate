@@ -1,6 +1,6 @@
 use crate::gateway::*;
 use std::collections::HashMap;
-use crate::json::{FromJson, Nullable};
+use crate::encode::{FromJson, Nullable};
 use crate::Snowflake;
 
 #[object(server)]

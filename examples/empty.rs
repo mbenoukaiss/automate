@@ -1,3 +1,5 @@
+#![allow(where_clauses_object_safety)] //should be fixable when async traits are allowed
+
 use automate::{async_trait, Listener, Session};
 use automate::{Error, Discord};
 use std::env;

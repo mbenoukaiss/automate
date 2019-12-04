@@ -1,6 +1,6 @@
 use crate::gateway::{User, Webhook, Overwrite, ChannelType, PartialRole};
-use crate::{Snowflake, Nullable};
-use crate::json::{self, FromJson, JsonError};
+use crate::Snowflake;
+use crate::encode::{FromJson, Nullable, JsonError, json};
 
 #[object(server)]
 pub struct AuditLog {
@@ -152,7 +152,7 @@ impl AuditLogChange {
 
 impl FromJson for AuditLogChange {
     fn from_json(json: &str) -> Result<Self, JsonError> where Self: Sized {
-        let map = json::json_object_to_map(json)?;
+        let map = json::object_to_map(json)?;
 
         if let Some(&key) = map.get("key") {
             let key = String::from_json(key)?;

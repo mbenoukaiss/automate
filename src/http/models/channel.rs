@@ -1,5 +1,6 @@
-use crate::{Nullable, Snowflake};
 use crate::gateway::{Overwrite, OverwriteType, ChannelType};
+use crate::encode::Nullable;
+use crate::Snowflake;
 
 #[object(client)]
 pub struct NewChannel {

@@ -16,7 +16,7 @@ use std::collections::hash_map::RandomState;
 /// # Example
 /// ```
 /// #[macro_use] extern crate automate_derive;
-/// use automate::json::AsJson;
+/// use automate::encode::AsJson;
 ///
 /// #[derive(AsJson)]
 /// struct File {
@@ -43,7 +43,7 @@ pub trait AsJson {
 ///
 /// # Example
 /// ```
-/// use automate::json::FromJson;
+/// use automate::encode::FromJson;
 /// use automate::Snowflake;
 ///
 /// assert_eq!(String::from_json("\"Hello\"").unwrap(), "Hello");
@@ -277,7 +277,7 @@ macro_rules! impl_for_associative_collection {
                 #[inline]
                 fn from_json(json: &str) -> Result<$ty<String, J>, JsonError> {
                     if json.len() >= 2 && json.starts_with('{') && json.ends_with('}') {
-                        return json_object_to_map(json)?
+                        return object_to_map(json)?
                             .iter()
                             .map(|(&k, &v)| {
                                 match J::from_json(v.trim()) {
@@ -649,7 +649,7 @@ impl<J> FromJson for HashMap<String, J, RandomState> where J: FromJson {
     #[inline]
     fn from_json(json: &str) -> Result<HashMap<String, J, RandomState>, JsonError> {
         if json.len() >= 2 && json.starts_with('{') && json.ends_with('}') {
-            return json_object_to_map(json)?
+            return object_to_map(json)?
                 .iter()
                 .map(|(&sk, &sv)| {
                     match J::from_json(sv.trim()) {
@@ -664,7 +664,7 @@ impl<J> FromJson for HashMap<String, J, RandomState> where J: FromJson {
     }
 }
 
-pub fn json_object_to_map(input: &str) -> Result<HashMap<&str, &str>, JsonError> {
+pub fn object_to_map(input: &str) -> Result<HashMap<&str, &str>, JsonError> {
     let mut map = HashMap::new();
     let mut nesting_level = 0;
     let mut in_string = false;
@@ -750,7 +750,7 @@ pub fn json_object_to_map(input: &str) -> Result<HashMap<&str, &str>, JsonError>
 /// Returns a JsonError if the candidate string is not a correct
 /// JSON string or if the function failed to find the key and
 /// its associated value in the string.
-pub fn json_root_search<T>(key: &str, candidate: &str) -> Result<T, JsonError> where T: FromJson {
+pub fn root_search<T>(key: &str, candidate: &str) -> Result<T, JsonError> where T: FromJson {
     if key.is_empty() {
         return JsonError::err("The searched key can't be empty");
     }
@@ -851,34 +851,34 @@ mod tests {
         let simple_int = r#"{"key":432}"#;
         let simple_float = r#"{"key":5.56}"#;
 
-        assert_eq!(json_root_search::<String>("key", simple_str).unwrap(), "value");
-        assert_eq!(json_root_search::<u32>("key", simple_int).unwrap(), 432);
-        assert_eq!(json_root_search::<f32>("key", simple_float).unwrap(), 5.56);
+        assert_eq!(root_search::<String>("key", simple_str).unwrap(), "value");
+        assert_eq!(root_search::<u32>("key", simple_int).unwrap(), 432);
+        assert_eq!(root_search::<f32>("key", simple_float).unwrap(), 5.56);
     }
 
     #[test]
     fn test_root_search_key_not_found() {
         let simple = r#"{"key":"value"}"#;
 
-        assert_eq!(json_root_search::<String>("ke", simple).err().unwrap().msg, "Could not find key in candidate");
-        assert_eq!(json_root_search::<String>("ey", simple).err().unwrap().msg, "Could not find key in candidate");
-        assert_eq!(json_root_search::<String>("aaa", simple).err().unwrap().msg, "Could not find key in candidate");
-        assert_eq!(json_root_search::<String>("value", simple).err().unwrap().msg, "Could not find key in candidate");
+        assert_eq!(root_search::<String>("ke", simple).err().unwrap().msg, "Could not find key in candidate");
+        assert_eq!(root_search::<String>("ey", simple).err().unwrap().msg, "Could not find key in candidate");
+        assert_eq!(root_search::<String>("aaa", simple).err().unwrap().msg, "Could not find key in candidate");
+        assert_eq!(root_search::<String>("value", simple).err().unwrap().msg, "Could not find key in candidate");
     }
 
     #[test]
     fn test_root_search_empty_key() {
         let simple = r#"{"key":"value"}"#;
 
-        assert_eq!(json_root_search::<String>("", simple).err().unwrap().msg, "The searched key can't be empty");
+        assert_eq!(root_search::<String>("", simple).err().unwrap().msg, "The searched key can't be empty");
     }
 
     #[test]
     fn test_root_search_nested_vec() {
         let contains_array = r#"{"array":["a","b","c"],"b":40}"#;
 
-        assert_eq!(json_root_search::<u8>("b", contains_array).unwrap(), 40);
-        assert_eq!(json_root_search::<String>("c", contains_array).err().unwrap().msg, "Could not find key in candidate");
+        assert_eq!(root_search::<u8>("b", contains_array).unwrap(), 40);
+        assert_eq!(root_search::<String>("c", contains_array).err().unwrap().msg, "Could not find key in candidate");
     }
 
     #[test]
@@ -886,8 +886,8 @@ mod tests {
         let nested_safe_order = r#"{"a":700,"nested":{"a":700}}"#;
         let nested_risky_order = r#"{"nested":{"a":1000},"a":700}"#;
 
-        assert_eq!(json_root_search::<u16>("a", nested_safe_order).unwrap(), 700);
-        assert_eq!(json_root_search::<u16>("a", nested_risky_order).unwrap(), 700);
+        assert_eq!(root_search::<u16>("a", nested_safe_order).unwrap(), 700);
+        assert_eq!(root_search::<u16>("a", nested_risky_order).unwrap(), 700);
     }
 
     #[test]
@@ -899,24 +899,24 @@ mod tests {
         let no_val_quote = r#"{"key":value","other":5}"#;
         let wrong_type = r#"{"int":"value"}"#;
 
-        assert_eq!(json_root_search::<String>("key", no_first_brace).err().unwrap().msg,
+        assert_eq!(root_search::<String>("key", no_first_brace).err().unwrap().msg,
                    "Incorrectly formatted JSON string");
-        assert_eq!(json_root_search::<String>("key", no_final_brace).err().unwrap().msg,
+        assert_eq!(root_search::<String>("key", no_final_brace).err().unwrap().msg,
                    "Unexpected end of string");
-        assert!(json_root_search::<String>("key", no_comma).err().unwrap().msg
+        assert!(root_search::<String>("key", no_comma).err().unwrap().msg
             .starts_with("Failed to parse JSON: Incorrect JSON string value received: "));
-        assert_eq!(json_root_search::<String>("key", no_key_quote).err().unwrap().msg,
+        assert_eq!(root_search::<String>("key", no_key_quote).err().unwrap().msg,
                    "Could not find key in candidate"); //the function can hardly know that the string is not correctly formatted
-        assert!(json_root_search::<String>("key", no_val_quote).err().unwrap().msg
+        assert!(root_search::<String>("key", no_val_quote).err().unwrap().msg
             .starts_with("Failed to parse JSON: Incorrect JSON string value received: "));
-        assert_eq!(json_root_search::<u32>("int", wrong_type).err().unwrap().msg,
+        assert_eq!(root_search::<u32>("int", wrong_type).err().unwrap().msg,
                    "Failed to parse JSON: Failed to parse \"value\" into u32");
     }
 
     #[test]
     fn test_object_to_map_basic() {
         let no_final_brace = r#"{"key":"value"}"#;
-        let no_final_brace_result = json_object_to_map(no_final_brace).unwrap();
+        let no_final_brace_result = object_to_map(no_final_brace).unwrap();
 
         assert!(no_final_brace_result.contains_key("key"));
         assert_eq!(no_final_brace_result.get("key").unwrap(), &"\"value\"");
@@ -945,9 +945,9 @@ mod tests {
         let braces = r#"{"key":"value}}}{}}{}}{{{{}"}"#;
         let brackets = r#"{"key":"va[[][][[[[][][]]][lue"}"#;
 
-        assert_eq!(json_object_to_map(commas).unwrap().get("key").unwrap(), &r#""value,with,commas,!!""#);
-        assert_eq!(json_object_to_map(braces).unwrap().get("key").unwrap(), &r#""value}}}{}}{}}{{{{}""#);
-        assert_eq!(json_object_to_map(brackets).unwrap().get("key").unwrap(), &r#""va[[][][[[[][][]]][lue""#);
+        assert_eq!(object_to_map(commas).unwrap().get("key").unwrap(), &r#""value,with,commas,!!""#);
+        assert_eq!(object_to_map(braces).unwrap().get("key").unwrap(), &r#""value}}}{}}{}}{{{{}""#);
+        assert_eq!(object_to_map(brackets).unwrap().get("key").unwrap(), &r#""va[[][][[[[][][]]][lue""#);
     }
 
     #[test]
@@ -955,8 +955,8 @@ mod tests {
         let commas = r#"{"key":"begin\"escape\\\"end"}"#;
         let not_escaped = r#"{"key":"begin"escape\"end"}"#;
 
-        assert_eq!(json_object_to_map(commas).unwrap().get("key").unwrap(), &r#""begin\"escape\\\"end""#);
-        assert!(json_object_to_map(not_escaped).is_err());
+        assert_eq!(object_to_map(commas).unwrap().get("key").unwrap(), &r#""begin\"escape\\\"end""#);
+        assert!(object_to_map(not_escaped).is_err());
     }
 }
 
@@ -1075,38 +1075,38 @@ mod benchmarks {
     }
 
     #[bench]
-    fn bench_json_object_to_map_average(b: &mut Bencher) {
+    fn bench_object_to_map_average(b: &mut Bencher) {
         let something = Something::create().as_json();
 
         b.iter(|| {
-            json_object_to_map(&something).unwrap();
+            object_to_map(&something).unwrap();
         });
     }
 
     #[bench]
-    fn bench_json_object_to_map_long_str(b: &mut Bencher) {
+    fn bench_object_to_map_long_str(b: &mut Bencher) {
         let long_str = LongStr::create().as_json();
 
         b.iter(|| {
-            json_object_to_map(&long_str).unwrap();
+            object_to_map(&long_str).unwrap();
         });
     }
 
     #[bench]
-    fn bench_json_root_search_average(b: &mut Bencher) {
+    fn bench_root_search_average(b: &mut Bencher) {
         let something = Something::create().as_json();
 
         b.iter(|| {
-            json_root_search::<String>("somewhere", &something).unwrap();
+            root_search::<String>("somewhere", &something).unwrap();
         });
     }
 
     #[bench]
-    fn bench_json_root_search_long_str(b: &mut Bencher) {
+    fn bench_root_search_long_str(b: &mut Bencher) {
         let long_str = LongStr::create().as_json();
 
         b.iter(|| {
-            json_root_search::<String>("second", &long_str).unwrap();
+            root_search::<String>("second", &long_str).unwrap();
         });
     }
 
