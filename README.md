@@ -1,4 +1,4 @@
-# Automate &nbsp; [![Actions Status](https://github.com/mbenoukaiss/automate/workflows/Checks/badge.svg)](https://github.com/mbenoukaiss/automate/actions) ![GitHub issues](https://img.shields.io/github/issues/mbenoukaiss/automate) ![Crates.io](https://img.shields.io/crates/v/automate) ![Crates.io](https://img.shields.io/crates/l/automate)
+# Automate &nbsp; [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/mbenoukaiss/automate/Checks?style=for-the-badge)](https://github.com/mbenoukaiss/automate/actions) [![GitHub issues](https://img.shields.io/github/issues/mbenoukaiss/automate?style=for-the-badge)](https://github.com/mbenoukaiss/automate/issues) [![Crates.io](https://img.shields.io/crates/v/automate?style=for-the-badge)](https://crates.io/crates/automate) [![Crates.io](https://img.shields.io/crates/l/automate?style=for-the-badge)](https://github.com/mbenoukaiss/automate/blob/master/LICENSE)
 Automate is a low level and asynchronous rust library for interacting with the Discord API
 
 **DISCLAIMER: This crate is at its very early stage and does not have most functionalities a discord bot would need (no
@@ -59,6 +59,4 @@ fn main() -> Result<(), Error> {
 ```
 
 # License
-Licensed under either of Apache License, Version 2.0 or MIT license at your option.
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in Automate by you, as
-defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
+Licensed under the [MIT license](LICENSE).
