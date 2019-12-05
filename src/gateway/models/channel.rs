@@ -35,6 +35,18 @@ pub struct Invite {
     pub approximate_member_count: Option<i32>,
 }
 
+#[object(server)]
+pub struct PartialInvite {
+    pub code: Nullable<String>,
+    pub uses: i32,
+    pub guild: Option<PartialGuild>,
+    pub channel: Option<Channel>,
+    pub target_user: Option<PartialUser>,
+    pub target_user_type: Option<i32>,
+    pub approximate_presence_count: Option<i32>,
+    pub approximate_member_count: Option<i32>,
+}
+
 pub struct InviteMetadata {
     pub max_age: i32,
     pub max_uses: i32,

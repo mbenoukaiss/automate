@@ -27,3 +27,14 @@ pub struct PartialVoiceState {
     pub self_mute: bool,
     pub suppress: bool
 }
+
+
+#[object(server)]
+pub struct VoiceRegion {
+    pub id: String,
+    pub name: String,
+    pub vip: bool,
+    pub optimal: bool,
+    pub deprecated: bool,
+    pub custom: bool,
+}

@@ -16,6 +16,9 @@ use crate::encode::{ExtractSnowflake, WriteUrl};
 /// This macro accepts three kinds of arguments:
 /// * String literals, which are simply concatenated to
 /// the final string
+/// * Types implementing the ExtractSnoflake type,
+/// their snowflake will be appended to the URL using
+/// [extract_snowflake](automate::encode:ExtractSnowflake::extract_snowflake)
 /// * Types implementing the WriteUrl type, which will
 /// be appended to the final string by calling their
 /// [write_url](automate::encode::WriteUrl::write_url)
@@ -211,7 +214,7 @@ impl HttpAPI {
         self.patch(api!("/channels/", #channel), modification).await
     }
 
-    pub async fn move_channel<S: ExtractSnowflake>(&self, guild: S, moves: Vec<MoveChannel>) -> Result<(), Error> {
+    pub async fn move_channels<S: ExtractSnowflake>(&self, guild: S, moves: Vec<MoveChannel>) -> Result<(), Error> {
         self.patch(api!("/guilds/", #guild, "/channels"), moves).await
     }
 
@@ -220,6 +223,130 @@ impl HttpAPI {
     }
 
     //TODO: delete channels recursively?
+
+    pub async fn member<S: ExtractSnowflake>(&self, guild: S, user: S) -> Result<GuildMember, Error> {
+        self.get(api!("/guilds/", #guild, "/members/", #user)).await
+    }
+
+    pub async fn members<S: ExtractSnowflake>(&self, guild: S, filter: MemberFilter) -> Result<Vec<GuildMember>, Error> {
+        let query = match filter {
+            MemberFilter::Default => String::new(),
+            MemberFilter::Limit(limit) => format!("?limit={}", limit),
+            MemberFilter::After(s, limit) => format!("?after={}&limit={}", s, limit),
+        };
+
+        self.get(api!("/guilds/", #guild, "/members", query)).await
+    }
+
+    pub async fn modify_member<S: ExtractSnowflake>(&self, guild: S, user: S, member: ModifyMember) -> Result<(), Error> {
+        self.patch(api!("/guilds/", #guild, "/members/", #user), member).await
+    }
+
+    pub async fn remove_member<S: ExtractSnowflake>(&self, guild: S, user: S) -> Result<(), Error> {
+        self.delete(api!("/guilds/", #guild, "/members/", #user)).await
+    }
+
+    pub async fn modify_own_nick<S: ExtractSnowflake>(&self, guild: S, nick: &str) -> Result<(), Error> {
+        self.patch(api!("/guilds/", #guild, "/members/@me/nick"), nick).await
+    }
+
+    pub async fn member_add_role<S: ExtractSnowflake>(&self, guild: S, user: S, role: S) -> Result<(), Error> {
+        self.put(api!("/guilds/", #guild, "/members/", #user, "/roles/", #role), ()).await
+    }
+
+    pub async fn member_remove_role<S: ExtractSnowflake>(&self, guild: S, user: S, role: S) -> Result<(), Error> {
+        self.delete(api!("/guilds/", #guild, "/members/", #user, "/roles/", #role)).await
+    }
+
+    pub async fn bans<S: ExtractSnowflake>(&self, guild: S) -> Result<Vec<Ban>, Error> {
+        self.get(api!("/guilds/", #guild, "/bans")).await
+    }
+
+    pub async fn ban<S: ExtractSnowflake>(&self, guild: S, user: S) -> Result<Ban, Error> {
+        self.get(api!("/guilds/", #guild, "/bans/", #user)).await
+    }
+
+    pub async fn create_ban<S: ExtractSnowflake>(&self, guild: S, user: S, reason: Option<&str>, delete_days: Option<i8>) -> Result<(), Error> {
+        let mut query = String::new();
+
+        if let Some(reason) = reason {
+            query.push_str("?reason=");
+            query.push_str(reason);
+        }
+
+        if let Some(delete_days) = delete_days {
+            if query.is_empty() {
+                query.push('?');
+            } else {
+                query.push('&');
+            }
+
+            query.push_str("delete-message-days=");
+            query.push_str(&delete_days.to_string());
+        }
+
+        self.put(api!("/guilds/", #guild, "/bans/", #user, query), ()).await
+    }
+
+    pub async fn remove_ban<S: ExtractSnowflake>(&self, guild: S, user: S) -> Result<(), Error> {
+        self.delete(api!("/guilds/", #guild, "/bans/", #user)).await
+    }
+
+    pub async fn roles<S: ExtractSnowflake>(&self, guild: S) -> Result<Vec<Role>, Error> {
+        self.get(api!("/guilds/", #guild, "/roles")).await
+    }
+
+    pub async fn create_role<S: ExtractSnowflake>(&self, guild: S, role: NewRole) -> Result<Role, Error> {
+        self.post(api!("/guilds/", #guild, "/roles"), role).await
+    }
+
+    pub async fn modify_roles<S: ExtractSnowflake>(&self, guild: S, role: S, modification: ModifyRole) -> Result<Role, Error> {
+        self.patch(api!("/guilds/", #guild, "/roles/", #role), modification).await
+    }
+
+    pub async fn move_roles<S: ExtractSnowflake>(&self, guild: S, roles: Vec<MoveRole>) -> Result<Vec<Role>, Error> {
+        self.patch(api!("/guilds/", #guild, "/roles"), roles).await
+    }
+
+    pub async fn remove_role<S: ExtractSnowflake>(&self, guild: S, role: S) -> Result<(), Error> {
+        self.delete(api!("/guilds/", #guild, "/roles/", #role)).await
+    }
+
+    pub async fn simulate_prune<S: ExtractSnowflake>(&self, guild: S, days: i32) -> Result<Prune, Error> {
+        self.get(api!("/guilds/", #guild, "/roles")).await
+    }
+
+    pub async fn prune<S: ExtractSnowflake>(&self, guild: S, days: i32) -> Result<(), Error> {
+        self.post(api!("/guilds/", #guild, "/prune?days=", days, "&compute_prune_count=0"), ()).await
+    }
+
+    pub async fn prune_with_report<S: ExtractSnowflake>(&self, guild: S, days: i32) -> Result<Prune, Error> {
+        self.post(api!("/guilds/", #guild, "/prune?days=", days, "&compute_prune_count=1"), ()).await
+    }
+
+    pub async fn voice_regions(&self) -> Result<Vec<VoiceRegion>, Error> {
+        self.get(api!("/voice/regions")).await
+    }
+
+    pub async fn guild_voice_regions<S: ExtractSnowflake>(&self, guild: S) -> Result<Vec<VoiceRegion>, Error> {
+        self.get(api!("/voice/", #guild, "/regions")).await
+    }
+
+    pub async fn integrations<S: ExtractSnowflake>(&self, guild: S) -> Result<Vec<Integration>, Error> {
+        self.get(api!("/guilds/", #guild, "/integrations")).await
+    }
+
+    pub async fn embed<S: ExtractSnowflake>(&self, guild: S) -> Result<GuildEmbed, Error> {
+        self.get(api!("/guilds/", #guild, "/embed")).await
+    }
+
+    pub async fn modify_embed<S: ExtractSnowflake>(&self, guild: S, embed: GuildEmbed) -> Result<GuildEmbed, Error> {
+        self.patch(api!("/guilds/", #guild, "/embed"), embed).await
+    }
+
+    pub async fn vanity_url<S: ExtractSnowflake>(&self, guild: S) -> Result<PartialInvite, Error> {
+        self.get(api!("/guilds/", #guild, "/vanity-url")).await
+    }
 
     pub async fn message<S: ExtractSnowflake>(&self, channel: S, message: S) -> Result<Message, Error> {
         self.get(api!("/channels/", #channel, "/messages/", #message)).await
@@ -234,7 +361,7 @@ impl HttpAPI {
             MessagesPosition::After(s, limit) => format!("?after={}&limit={}", s, limit),
         };
 
-        self.get(api!("/channels/", #channel, "/messages?", query)).await
+        self.get(api!("/channels/", #channel, "/messages", query)).await
     }
 
     pub async fn create_message<S: ExtractSnowflake>(&self, channel: S, message: CreateMessage) -> Result<Message, Error> {
@@ -311,8 +438,18 @@ impl HttpAPI {
         self.get(api!("/invites/", code, "?with_counts=true")).await
     }
 
-    /// Retrieves all the invites in a channel.
+    #[deprecated(since = "0.1.4", note = "Please use 'channel_invites' function instead, will be removed in 0.1.5")]
     pub async fn invites<S: ExtractSnowflake>(&self, channel: S) -> Result<Vec<Invite>, Error> {
+        self.get(api!("/channels/", #channel, "/invites")).await
+    }
+
+    /// Retrieves all the invites in a guild.
+    pub async fn guild_invites<S: ExtractSnowflake>(&self, guild: S) -> Result<Vec<Invite>, Error> {
+        self.get(api!("/guilds/", #guild, "/invites")).await
+    }
+
+    /// Retrieves all the invites in a channel.
+    pub async fn channel_invites<S: ExtractSnowflake>(&self, channel: S) -> Result<Vec<Invite>, Error> {
         self.get(api!("/channels/", #channel, "/invites")).await
     }
 
