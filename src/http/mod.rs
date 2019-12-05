@@ -8,7 +8,7 @@ use hyper_tls::HttpsConnector;
 use futures::TryStreamExt;
 use crate::gateway::*;
 use crate::encode::{FromJson, AsJson};
-use crate::{json, Error, Snowflake};
+use crate::{Error, Snowflake};
 use crate::encode::{ExtractSnowflake, WriteUrl};
 
 /// Creates the URL to an API endpoint
@@ -313,7 +313,7 @@ impl HttpAPI {
     }
 
     pub async fn simulate_prune<S: ExtractSnowflake>(&self, guild: S, days: i32) -> Result<Prune, Error> {
-        self.get(api!("/guilds/", #guild, "/roles")).await
+        self.get(api!("/guilds/", #guild, "/roles?days=", days)).await
     }
 
     pub async fn prune<S: ExtractSnowflake>(&self, guild: S, days: i32) -> Result<(), Error> {
@@ -488,14 +488,28 @@ impl HttpAPI {
         self.delete(api!("/channels/", #channel, "/pins/", #message)).await
     }
 
-    pub async fn group_dm_add_recipient<S: ExtractSnowflake>(&self, channel: S, user: S, access_token: String, nick: String) -> Result<(), Error> {
-        self.put(api!("/channels/", #channel, "/recipients/", #user), json! {
-            "access_token" => access_token,
-            "nick" => nick
-        }).await
+    pub async fn bot(&self) -> Result<User, Error> {
+        self.get(api!("/users/@me")).await
     }
 
-    pub async fn group_dm_remove_recipient<S: ExtractSnowflake>(&self, channel: S, user: S) -> Result<(), Error> {
-        self.delete(api!("/channels/", #channel, "/recipients/", #user)).await
+    pub async fn bot_guilds(&self) -> Result<Vec<PartialGuild>, Error> {
+        self.get(api!("/users/@me/guilds")).await
+    }
+
+    pub async fn modify_bot(&self, bot: ModifyBot) -> Result<User, Error> {
+        self.patch(api!("/users/@me"), bot).await
+    }
+
+    pub async fn leave_guild<S: ExtractSnowflake>(&self, guild: S) -> Result<(), Error> {
+        self.delete(api!("/users/@me/guilds/", #guild)).await
+    }
+
+    pub async fn user<S: ExtractSnowflake>(&self, user: S) -> Result<User, Error> {
+        self.get(api!("/users/", #user)).await
+    }
+
+    //TODO: create a dm channel type
+    pub async fn create_dm<S: ExtractSnowflake>(&self, recipient: Recipient) -> Result<Channel, Error> {
+        self.post(api!("/users/@me/channels"), recipient).await
     }
 }
