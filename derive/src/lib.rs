@@ -209,9 +209,9 @@ pub fn from_json(item: TokenStream) -> TokenStream {
                                     #(#fns => #fs_escaped = Some(::automate::encode::FromJson::from_json((&json[val_idxs[0]..val_idxs[1]]).trim())?),)*
                                     #(#ons => #os_escaped = Some(::automate::encode::FromJson::from_json((&json[val_idxs[0]..val_idxs[1]]).trim())?),)*
 
-                                    #[cfg(feature = "strict_deserializer")]
+                                    #[cfg(feature = "strict-deserializer")]
                                     _ => warn!("Unknown field ({}) found in {} while deserializing {}", &json[key_idxs[0]..key_idxs[1]], stringify!(#name), json),
-                                    #[cfg(not(feature = "strict_deserializer"))]
+                                    #[cfg(not(feature = "strict-deserializer"))]
                                     _ => (),
                                 }
 
@@ -232,9 +232,9 @@ pub fn from_json(item: TokenStream) -> TokenStream {
                                     #(#fns => #fs_escaped = Some(::automate::encode::FromJson::from_json((&json[val_idxs[0]..val_idxs[1]]).trim())?),)*
                                     #(#ons => #os_escaped = Some(::automate::encode::FromJson::from_json((&json[val_idxs[0]..val_idxs[1]]).trim())?),)*
 
-                                    #[cfg(feature = "strict_deserializer")]
+                                    #[cfg(feature = "strict-deserializer")]
                                     _ => warn!("Unknown field ({}) expected in {} while deserializing {}", &json[key_idxs[0]..key_idxs[1]], stringify!(#name), json),
-                                    #[cfg(not(feature = "strict_deserializer"))]
+                                    #[cfg(not(feature = "strict-deserializer"))]
                                     _ => (),
                                 }
 
