@@ -1,6 +1,7 @@
 use crate::Snowflake;
-use crate::gateway::{VerificationLevel, MessageNotificationLevel, ExplicitContentFilterLevel};
+use crate::gateway::{VerificationLevel, MessageNotificationLevel, ExplicitContentFilterLevel, User};
 use crate::http::NewChannel;
+use crate::encode::Nullable;
 
 #[object(client)]
 pub struct NewGuild {
@@ -11,7 +12,7 @@ pub struct NewGuild {
     pub default_message_notifications: MessageNotificationLevel,
     pub explicit_content_filter: ExplicitContentFilterLevel,
     pub roles: Vec<NewRole>,
-    pub channels: Vec<NewChannel>
+    pub channels: Vec<NewChannel>,
 
 }
 
@@ -39,7 +40,22 @@ pub struct NewRole {
     pub position: i32,
     pub permissions: u32,
     pub managed: bool,
-    pub mentionable: bool
+    pub mentionable: bool,
+}
+
+#[object(client)]
+pub struct ModifyRole {
+    pub name: Option<String>,
+    pub color: Option<i32>,
+    pub hoist: Option<bool>,
+    pub permissions: Option<u32>,
+    pub mentionable: Option<bool>,
+}
+
+#[object(client)]
+pub struct MoveRole {
+    pub id: u64,
+    pub position: i32,
 }
 
 #[object(client)]
@@ -54,4 +70,57 @@ pub struct UpdateEmoji {
     pub id: Snowflake,
     pub image: String,
     pub roles: Vec<Snowflake>,
+}
+
+pub enum MemberFilter {
+    Default,
+    Limit(i32),
+    After(Snowflake, i32),
+}
+
+#[object(client, default)]
+pub struct ModifyMember {
+    pub nick: Option<String>,
+    pub roles: Option<Vec<Snowflake>>,
+    pub mute: Option<bool>,
+    pub deaf: Option<bool>,
+    pub channel_id: Option<Nullable<u64>>,
+}
+
+#[object(client, default)]
+pub struct NewBan {
+    pub reason: Option<String>,
+    pub delete_message_days: Option<i8>,
+}
+
+#[object(server)]
+pub struct Prune {
+    pub pruned: i32,
+}
+
+#[object(server)]
+pub struct Integration {
+    pub id: Snowflake,
+    pub name: String,
+    pub _type: String,
+    pub enabled: bool,
+    pub syncing: bool,
+    pub role_id: Snowflake,
+    pub expire_behavior: i32,
+    pub expire_grace_period: i32,
+    pub user: User,
+    pub account: IntegrationAccount,
+    pub synced_at: String,
+}
+
+#[object(server)]
+pub struct IntegrationAccount {
+    pub id: String,
+    pub name: String,
+}
+
+#[object(server)]
+pub struct GuildEmbed {
+    pub enabled: bool,
+    pub channel_id: Nullable<Snowflake>,
 }

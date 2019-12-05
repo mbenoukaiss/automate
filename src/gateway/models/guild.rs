@@ -350,3 +350,9 @@ pub struct ActivitySecrets {
     pub spectate: Option<String>,
     pub _match: Option<String>,
 }
+
+#[object(both)]
+pub struct Ban {
+    pub user: User,
+    pub reason: Nullable<String>
+}
