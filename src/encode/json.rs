@@ -3,7 +3,6 @@ use std::str::FromStr;
 use std::fmt::{Display, Formatter, Error, Debug, Write};
 use std::hash::{Hash, BuildHasher};
 use std::mem::MaybeUninit;
-use backtrace::Backtrace;
 use std::collections::hash_map::RandomState;
 
 /// A data structure that can be represented in a
@@ -60,28 +59,42 @@ pub trait FromJson {
 /// not a correctly formatted JSON string.
 pub struct JsonError {
     pub msg: String,
+
+    #[cfg(feature = "backtrace")]
     pub backtrace: String,
 }
 
 impl JsonError {
     pub fn new<S>(msg: S) -> JsonError where S: Into<String> {
-        JsonError { msg: msg.into(), backtrace: format!("{:#?}", Backtrace::new()) }
+        JsonError {
+            msg: msg.into(),
+
+            #[cfg(feature = "backtrace")]
+            backtrace: format!("{:#?}", backtrace::Backtrace::new()),
+        }
     }
 
     pub fn err<S, T>(msg: S) -> Result<T, JsonError> where S: Into<String> {
-        Err(JsonError { msg: msg.into(), backtrace: format!("{:#?}", Backtrace::new()) })
+        Err(JsonError {
+            msg: msg.into(),
+
+            #[cfg(feature = "backtrace")]
+            backtrace: format!("{:#?}", backtrace::Backtrace::new()),
+        })
     }
 }
 
 impl Display for JsonError {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
-        write!(f, "{}", self.msg)
+        #[cfg(not(feature = "backtrace"))] return write!(f, "{}", self.msg);
+        #[cfg(feature = "backtrace")] return write!(f, "{}\n{}", self.msg, self.backtrace);
     }
 }
 
 impl Debug for JsonError {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
-        write!(f, "{{ msg: {} }}", self.msg)
+        #[cfg(not(feature = "backtrace"))] return write!(f, "{{ msg: {} }}", self.msg);
+        #[cfg(feature = "backtrace")] return write!(f, "{{ msg: {}, backtrace: {} }}", self.msg, self.backtrace);
     }
 }
 
