@@ -119,7 +119,7 @@ pub struct IntegrationAccount {
     pub name: String,
 }
 
-#[object(server)]
+#[object(both)]
 pub struct GuildEmbed {
     pub enabled: bool,
     pub channel_id: Nullable<Snowflake>,
