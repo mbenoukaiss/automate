@@ -1,6 +1,40 @@
-use proc_macro::TokenStream;
+use proc_macro::{TokenStream, TokenTree};
 use quote::quote;
 use syn::{DeriveInput, Data, Fields};
+use std::collections::HashMap;
+
+pub type Arguments = HashMap<String, Vec<String>>;
+
+/// Parses the list of arguments.
+/// Returns a vector associating the name of an argument
+/// such as `op` to the tokens of this argument.
+pub fn parse_arguments_list(metadata: TokenStream) -> Arguments {
+    let mut arguments: HashMap<String, Vec<String>> = HashMap::new();
+    let mut current_arg: Option<String> = None;
+
+    for token in metadata {
+        if let Some(arg) = current_arg.as_ref() {
+            match token {
+                TokenTree::Ident(ident) => arguments.get_mut(arg).unwrap().push(ident.to_string()),
+                TokenTree::Literal(lit) => arguments.get_mut(arg).unwrap().push(lit.to_string()),
+                TokenTree::Group(group) => arguments.get_mut(arg).unwrap().push(group.to_string()),
+                TokenTree::Punct(punct) => {
+                    if punct.as_char() == ',' {
+                        current_arg = None;
+                        continue;
+                    }
+
+                    arguments.get_mut(arg).unwrap().push(punct.to_string());
+                }
+            }
+        } else {
+            current_arg = Some(extract_token!(Ident in token));
+            arguments.insert(current_arg.clone().unwrap(), Vec::new());
+        }
+    }
+
+    arguments
+}
 
 pub fn extend_with_deref(input: &DeriveInput, quote: &mut TokenStream) {
     let name = &input.ident;

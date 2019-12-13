@@ -1,12 +1,10 @@
-use proc_macro::{TokenStream, TokenTree};
+use proc_macro::TokenStream;
 use syn::DeriveInput;
 use quote::quote;
-use std::collections::HashMap;
+use crate::utils::Arguments;
 
 pub const OBJECT_ERROR: &str = "Expected arguments under the format: ([client|server|both])";
 pub const PAYLOAD_ERROR: &str = "Expected arguments under the format: (op = <u8>, [client|server|both])";
-
-pub type Arguments = HashMap<String, Vec<String>>;
 
 /// Which side is creating and sending this struct
 /// mostly useful to avoid implementing `AsJson` or
@@ -44,37 +42,6 @@ impl StructSide {
             panic!(OBJECT_ERROR);
         }
     }
-}
-
-/// Parses the list of arguments.
-/// Returns a vector associating the name of an argument
-/// such as `op` to the tokens of this argument.
-pub fn parse_arguments_list(metadata: TokenStream) -> Arguments {
-    let mut arguments: HashMap<String, Vec<String>> = HashMap::new();
-    let mut current_arg: Option<String> = None;
-
-    for token in metadata {
-        if let Some(arg) = current_arg.as_ref() {
-            match token {
-                TokenTree::Ident(ident) => arguments.get_mut(arg).unwrap().push(ident.to_string()),
-                TokenTree::Literal(lit) => arguments.get_mut(arg).unwrap().push(lit.to_string()),
-                TokenTree::Group(group) => arguments.get_mut(arg).unwrap().push(group.to_string()),
-                TokenTree::Punct(punct) => {
-                    if punct.as_char() == ',' {
-                        current_arg = None;
-                        continue;
-                    }
-
-                    arguments.get_mut(arg).unwrap().push(punct.to_string());
-                }
-            }
-        } else {
-            current_arg = Some(extract_token!(Ident in token));
-            arguments.insert(current_arg.clone().unwrap(), Vec::new());
-        }
-    }
-
-    arguments
 }
 
 pub fn append_client_quote(input: &DeriveInput, opcode: u8, quote: &mut TokenStream) {

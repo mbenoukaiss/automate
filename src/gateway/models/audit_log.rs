@@ -56,7 +56,7 @@ pub enum AuditLogEvent {
     MessageUnpin = 75,
     IntegrationCreate = 80,
     IntegrationUpdate = 81,
-    IntegrationDelete = 82
+    IntegrationDelete = 82,
 }
 
 #[object(server)]
@@ -67,7 +67,7 @@ pub struct AuditEntryInfo {
     pub count: Option<i32>,
     pub id: Option<Snowflake>,
     pub _type: Option<String>,
-    pub role_name: Option<String>
+    pub role_name: Option<String>,
 }
 
 #[derive(Debug)]
@@ -85,7 +85,7 @@ pub enum AuditLogChangeValue {
     Boolean(bool),
     Roles(Vec<PartialRole>),
     Overwrites(Vec<Overwrite>),
-    Channel(ChannelType)
+    Channel(ChannelType),
 }
 
 impl AuditLogChange {
