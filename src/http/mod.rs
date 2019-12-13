@@ -13,65 +13,65 @@ use crate::encode::{ExtractSnowflake, WriteUrl};
 
 /// Creates the URL to an API endpoint
 /// by concatenating the given expressions.
-/// This macro accepts three kinds of arguments:
+///
+/// This macro accepts four kinds of arguments:
 /// * String literals, which are simply concatenated to
 /// the final string
 /// * Types implementing the ExtractSnoflake type,
 /// their snowflake will be appended to the URL using
 /// [extract_snowflake](automate::encode:ExtractSnowflake::extract_snowflake)
+/// (prefix: #).
 /// * Types implementing the WriteUrl type, which will
 /// be appended to the final string by calling their
 /// [write_url](automate::encode::WriteUrl::write_url)
 /// method. Useful for types that require a specific
 /// formatting or for strings that need to be escaped
+/// (prefix: ~).
 /// * Expressions that return a type implementing
-/// [write_fmt](std::fmt::Write).
+/// [write_fmt](std::fmt::Write) (no prefix).
 macro_rules! api {
-    ($($tokens:tt)*) => {&{
-        let mut s = String::from("https://discordapp.com/api/v6");
-        api_ttmuncher!(s, $($tokens)*);
-        s
-    }}
-}
-
-macro_rules! api_ttmuncher {
-    ($buf:ident,) => {};
+    //exit
+    (impl $buf:ident,) => {};
     //string literals
-    ($buf:ident, $lit:literal) => {
+    (impl $buf:ident, $lit:literal) => {
         ::std::fmt::Write::write_fmt(&mut $buf, format_args!("{}", $lit)).expect("Failed to write api string");
     };
-    ($buf:ident, $lit:literal, $($tail:tt)*) => {
-        api_ttmuncher!($buf, $lit);
-        api_ttmuncher!($buf, $($tail)*);
+    (impl $buf:ident, $lit:literal, $($tail:tt)*) => {
+        api!(impl $buf, $lit);
+        api!(impl $buf, $($tail)*);
     };
     //types to convert using ExtractSnowflake
-    ($buf:ident, #$snow:expr) => {
+    (impl $buf:ident, #$snow:expr) => {
         let ext: Snowflake = ::automate::encode::ExtractSnowflake::extract_snowflake(&$snow)?;
         ::std::fmt::Write::write_fmt(&mut $buf, format_args!("{}", ext)).expect("Failed to write api string");
     };
-    ($buf:ident, #$snow:expr, $($tail:tt)*) => {
-        api_ttmuncher!($buf, #$snow);
-        api_ttmuncher!($buf, $($tail)*);
+    (impl $buf:ident, #$snow:expr, $($tail:tt)*) => {
+        api!(impl $buf, #$snow);
+        api!(impl $buf, $($tail)*);
     };
     //types to convert using WriteUrl
-    ($buf:ident, ~$wurl:expr) => {
+    (impl $buf:ident, ~$wurl:expr) => {
         ::automate::encode::WriteUrl::write_url($wurl, &mut $buf)?;
     };
-    ($buf:ident, ~$wurl:expr, $($tail:tt)*) => {
-        api_ttmuncher!($buf, ~$wurl);
-        api_ttmuncher!($buf, $($tail)*);
+    (impl $buf:ident, ~$wurl:expr, $($tail:tt)*) => {
+        api!(impl $buf, ~$wurl);
+        api!(impl $buf, $($tail)*);
     };
     //any other expression
-    ($buf:ident, $any:expr) => {
+    (impl $buf:ident, $any:expr) => {
         ::std::fmt::Write::write_fmt(&mut $buf, format_args!("{}", $any)).expect("Failed to write api string");
     };
-    ($buf:ident, $any:expr, $($tail:tt)*) => {
-        api_ttmuncher!($buf, $any);
-        api_ttmuncher!($buf, $($tail)*);
+    (impl $buf:ident, $any:expr, $($tail:tt)*) => {
+        api!(impl $buf, $any);
+        api!(impl $buf, $($tail)*);
     };
+    //entry point
+    ($($tokens:tt)*) => {&{
+        let mut s = String::from("https://discordapp.com/api/v6");
+        api!(impl s, $($tokens)*);
+        s
+    }};
 }
-
-
 
 /// Default user agent for automate bots
 const USER_AGENT: &str = concat!("DiscordBot (https://github.com/mbenoukaiss/automate, ", env!("CARGO_PKG_VERSION"), ")");
@@ -438,7 +438,7 @@ impl HttpAPI {
         self.get(api!("/invites/", code, "?with_counts=true")).await
     }
 
-    #[deprecated(since = "0.1.4", note = "Please use 'channel_invites' function instead, will be removed in 0.1.5")]
+    #[deprecated(since = "0.1.4", note = "Please use 'channel_invites' function instead, will be removed in next version")]
     pub async fn invites<S: ExtractSnowflake>(&self, channel: S) -> Result<Vec<Invite>, Error> {
         self.get(api!("/channels/", #channel, "/invites")).await
     }

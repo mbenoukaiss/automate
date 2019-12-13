@@ -16,6 +16,7 @@ use std::sync::mpsc;
 use std::sync::mpsc::RecvTimeoutError;
 use futures::executor;
 use std::ops::Deref;
+use std::error::Error as StdError;
 
 macro_rules! call_dispatcher {
     ($data:ident as $payload:ty => $self:ident.$method:ident) => {{
@@ -292,7 +293,7 @@ impl GatewayHandler {
                     while match rx.recv_timeout(Duration::from_millis(u64::from(payload.heartbeat_interval))) {
                         Ok(_) => false,
                         Err(RecvTimeoutError::Timeout) => true,
-                        Err(RecvTimeoutError::Disconnected) => panic!("The other end was disconnected")
+                        Err(RecvTimeoutError::Disconnected) => Error::err("The main thread was disconnected")?
                     } {
                         if !heartbeat_confirmed.load(Ordering::Relaxed) {
                             warn!("Zombied connection detected, shutting down connection");
@@ -309,7 +310,10 @@ impl GatewayHandler {
 
                 if let Err(err) = rs {
                     error!("Heartbeat thread failed ({}), shutting down connection", err.msg);
-                    sender.shutdown().expect("Failed to shutdown");
+
+                    if let Err(err) = sender.shutdown() {
+                        error!("Failed to shutdown: {}", err.description());
+                    }
                 }
             });
 

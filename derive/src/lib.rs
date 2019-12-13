@@ -260,7 +260,7 @@ pub fn from_json(item: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn object(metadata: TokenStream, item: TokenStream) -> TokenStream {
-    let arguments = discord::parse_arguments_list(metadata);
+    let arguments = utils::parse_arguments_list(metadata);
 
     let mut quote = StructSide::from_args(&arguments).appropriate_derive(&arguments);
     quote.extend(item.clone());
@@ -273,7 +273,7 @@ pub fn object(metadata: TokenStream, item: TokenStream) -> TokenStream {
 
 #[proc_macro_attribute]
 pub fn payload(metadata: TokenStream, item: TokenStream) -> TokenStream {
-    let arguments = discord::parse_arguments_list(metadata);
+    let arguments = utils::parse_arguments_list(metadata);
 
     let opcode: u8 = if let Some(tokens) = arguments.get("op") {
         if tokens.len() != 2 {
