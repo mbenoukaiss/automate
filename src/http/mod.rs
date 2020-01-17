@@ -2,10 +2,10 @@ mod models;
 
 pub use models::*;
 
-use hyper::{Client, Request, Body, Chunk, Response, Method};
+use hyper::{Client, Request, Body, Response, Method};
 use hyper::client::HttpConnector;
+use hyper::body::Buf;
 use hyper_tls::HttpsConnector;
-use futures::TryStreamExt;
 use crate::gateway::*;
 use crate::encode::{FromJson, AsJson};
 use crate::{Error, Snowflake};
@@ -85,7 +85,7 @@ pub struct HttpAPI {
 
 impl HttpAPI {
     pub fn new(token: &str) -> HttpAPI {
-        let https = HttpsConnector::new().unwrap();
+        let https = HttpsConnector::new();
 
         let mut bot_token = String::with_capacity(token.len() + 4);
         bot_token.push_str("Bot ");
@@ -102,24 +102,25 @@ impl HttpAPI {
     }
 
     #[inline]
-    async fn request(&self, uri: &str, method: Method, body: Body) -> Result<Response<Body>, Error> {
-        let response = self.client.request(Request::builder()
+    async fn request(&self, uri: &str, method: Method, body: Body) -> Result<impl Buf, Error> {
+        let body: Response<Body> = self.client.request(Request::builder()
             .uri(uri)
             .method(method)
             .header("Content-Type", "application/json")
             .header("Authorization", &self.token)
             .header("User-Agent", USER_AGENT)
             .body(body)
-            .unwrap()).await?;
+            .unwrap())
+            .await?;
 
-        Ok(response)
+        Ok(hyper::body::aggregate(body.into_body()).await?)
     }
 
     #[inline]
     async fn get<T>(&self, uri: &str) -> Result<T, Error> where T: FromJson {
-        let body: Chunk = self.request(uri, Method::GET, Body::empty()).await?.into_body().try_concat().await?;
+        let body = self.request(uri, Method::GET, Body::empty()).await?;
 
-        if let Ok(json) = std::str::from_utf8(body.as_ref()) {
+        if let Ok(json) = std::str::from_utf8(body.bytes()) {
             Ok(T::from_json(json)?)
         } else {
             Error::err("Failed to convert response body to a string")
@@ -128,9 +129,9 @@ impl HttpAPI {
 
     #[inline]
     async fn post<T, R>(&self, uri: &str, content: T) -> Result<R, Error> where T: AsJson, R: FromJson {
-        let body: Chunk = self.request(uri, Method::POST, Body::from(content.as_json())).await?.into_body().try_concat().await?;
+        let body = self.request(uri, Method::POST, Body::from(content.as_json())).await?;
 
-        if let Ok(json) = std::str::from_utf8(body.as_ref()) {
+        if let Ok(json) = std::str::from_utf8(body.bytes()) {
             Ok(R::from_json(json)?)
         } else {
             Error::err("Failed to convert response body to a string")
@@ -139,9 +140,9 @@ impl HttpAPI {
 
     #[inline]
     async fn put<T, R>(&self, uri: &str, content: T) -> Result<R, Error> where T: AsJson, R: FromJson {
-        let body: Chunk = self.request(uri, Method::PUT, Body::from(content.as_json())).await?.into_body().try_concat().await?;
+        let body = self.request(uri, Method::PUT, Body::from(content.as_json())).await?;
 
-        if let Ok(json) = std::str::from_utf8(body.as_ref()) {
+        if let Ok(json) = std::str::from_utf8(body.bytes()) {
             Ok(R::from_json(json)?)
         } else {
             Error::err("Failed to convert response body to a string")
@@ -150,9 +151,9 @@ impl HttpAPI {
 
     #[inline]
     async fn patch<T, R>(&self, uri: &str, content: T) -> Result<R, Error> where T: AsJson, R: FromJson {
-        let body: Chunk = self.request(uri, Method::PATCH, Body::from(content.as_json())).await?.into_body().try_concat().await?;
+        let body = self.request(uri, Method::PATCH, Body::from(content.as_json())).await?;
 
-        if let Ok(json) = std::str::from_utf8(body.as_ref()) {
+        if let Ok(json) = std::str::from_utf8(body.bytes()) {
             Ok(R::from_json(json)?)
         } else {
             Error::err("Failed to convert response body to a string")
@@ -161,9 +162,9 @@ impl HttpAPI {
 
     #[inline]
     async fn delete<T>(&self, uri: &str) -> Result<T, Error> where T: FromJson {
-        let body: Chunk = self.request(uri, Method::DELETE, Body::empty()).await?.into_body().try_concat().await?;
+        let body = self.request(uri, Method::DELETE, Body::empty()).await?;
 
-        if let Ok(json) = std::str::from_utf8(body.as_ref()) {
+        if let Ok(json) = std::str::from_utf8(body.bytes()) {
             Ok(T::from_json(json)?)
         } else {
             Error::err("Failed to convert response body to a string")

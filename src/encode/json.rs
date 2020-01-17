@@ -677,6 +677,112 @@ impl<J> FromJson for HashMap<String, J, RandomState> where J: FromJson {
     }
 }
 
+#[derive(Debug)]
+pub enum Tree<'a> {
+    Primitive(&'a str),
+    Named(&'a str, Box<Tree<'a>>),
+    Container(Vec<Tree<'a>>),
+}
+
+pub fn parse(input: &str) -> Result<Tree, JsonError> {
+    let mut tokens = None;
+    let mut root = Vec::with_capacity(5);
+
+    let mut escape_next_char = false;
+    let mut in_string = false;
+    let mut npos: [usize; 2] = [0; 2];
+    let mut vpos: usize = 0;
+
+    for (i, c) in input.char_indices() {
+        if escape_next_char {
+            escape_next_char = false;
+            continue;
+        } else if c == '\\' {
+            escape_next_char = true;
+            continue;
+        }
+
+        if in_string {
+            if c == '"' {
+                in_string = false;
+            } else {
+                continue;
+            }
+        } else if c == '"' {
+            in_string = true;
+        }
+
+        if c == '{' || c == '[' {
+            let name = if npos[0] != 0 && npos[1] != 0 {
+                Some(&input[npos[0]..npos[1]])
+            } else {
+                None
+            };
+
+            root.push((name, Vec::new()));
+
+            npos = [i + if c == '[' { 1 } else { 2 }, 0];
+            vpos = 0;
+        } else if c == '}' || c == ']' {
+            if let Some((name, mut current)) = root.pop() {
+                if vpos != 0 {
+                    //it is a named value
+                    current.push(Tree::Named(&input[npos[0]..npos[1]], Box::new(Tree::Primitive(&input[vpos..i]))));
+                } else if npos[0] != 0 {
+                    //it is an unnamed value
+                    current.push(Tree::Primitive(&input[npos[0] - 1..i]));
+                }
+
+                npos = [0; 2];
+                vpos = 0;
+
+                if let Some((_, parent)) = root.last_mut() {
+                    if let Some(name) = name {
+                        parent.push(Tree::Named(name, Box::new(Tree::Container(current))));
+                    } else {
+                        parent.push(Tree::Container(current));
+                    }
+                } else {
+                    tokens = Some(Tree::Container(current));
+                }
+            } else {
+                return JsonError::err(format!("Expected end of string, found {}", c));
+            }
+        } else {
+            if c == '"' {
+                if npos[0] == 0 {
+                    npos[0] = i + 1;
+                } else if npos[1] == 0 && npos[0] != i + 1 {
+                    npos[1] = i;
+                }
+            } else if c == ':' {
+                vpos = i + 1;
+            } else if c == ',' && npos[0] != 0 {
+                if let Some((_, current)) = root.last_mut() {
+                    let token = if vpos != 0 {
+                        Tree::Named(&input[npos[0]..npos[1]], Box::new(Tree::Primitive(&input[vpos..i])))
+                    } else {
+                        Tree::Primitive(&input[npos[0]..i])
+                    };
+
+                    current.push(token);
+                } else {
+                    return JsonError::err("Bad object");
+                }
+
+                npos = [i + 2, 0];
+                vpos = 0;
+            }
+        }
+    }
+
+    if let Some(tokens) = tokens {
+        Ok(tokens)
+    } else {
+        JsonError::err("Reached end of input but expected more tokens")
+    }
+}
+
 pub fn object_to_map(input: &str) -> Result<HashMap<&str, &str>, JsonError> {
     let mut map = HashMap::new();
     let mut nesting_level = 0;
@@ -1085,6 +1191,24 @@ mod benchmarks {
                 fourth: None,
             }
         }
+    }
+
+    #[bench]
+    fn bench_parse_average(b: &mut Bencher) {
+        let something = Something::create().as_json();
+
+        b.iter(|| {
+            parse(&something).unwrap();
+        });
+    }
+
+    #[bench]
+    fn bench_parse_long_str(b: &mut Bencher) {
+        let long_str = LongStr::create().as_json();
+
+        b.iter(|| {
+            parse(&long_str).unwrap();
+        });
     }
 
     #[bench]
