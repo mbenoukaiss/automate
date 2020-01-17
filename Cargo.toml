@@ -1,6 +1,6 @@
 [package]
 name = "automate"
-version = "0.1.3"
+version = "0.1.4"
 authors = ["mbenoukaiss <marwane.benou-kaiss@etu.u-bordeaux.fr>"]
 license = "MIT"
 repository = "https://github.com/mbenoukaiss/automate"
@@ -11,15 +11,15 @@ readme = "README.md"
 edition = "2018"
 
 [dependencies]
-automate-derive = { version = "0.1.3", path = "derive" }
-futures-preview = { version = "0.3.0-alpha.19", features = ["compat"] }
-async-trait = "0.1.17"
-tokio = "0.2.0-alpha.6"
-hyper = { version = "0.13.0-alpha.4", features = ["unstable-stream"] }
-hyper-tls = "0.4.0-alpha.4"
+automate-derive = { version = "0.1.4", path = "derive" }
+futures = "0.3"
+async-trait = "0.1"
+tokio = "0.2"
+hyper = "0.13"
+hyper-tls = "0.4"
 ws = { version = "0.9.1", features = ["ssl"] }
-chrono = "0.4.9"
-log = "0.4.8"
+chrono = "0.4"
+log = "0.4"
 percent-encoding = "2.1.0"
 
 [dependencies.backtrace]

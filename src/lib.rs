@@ -10,9 +10,9 @@ extern crate automate_derive;
 #[macro_use]
 extern crate log;
 
-pub mod encode;
 pub mod http;
 pub mod gateway;
+pub mod encode;
 mod snowflake;
 mod events;
 mod macros;
