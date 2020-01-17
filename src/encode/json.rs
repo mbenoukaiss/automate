@@ -748,31 +748,29 @@ pub fn parse(input: &str) -> Result<Tree, JsonError> {
             } else {
                 return JsonError::err(format!("Expected end of string, found {}", c));
             }
-        } else {
-            if c == '"' {
-                if npos[0] == 0 {
-                    npos[0] = i + 1;
-                } else if npos[1] == 0 && npos[0] != i + 1 {
-                    npos[1] = i;
-                }
-            } else if c == ':' {
-                vpos = i + 1;
-            } else if c == ',' && npos[0] != 0 {
-                if let Some((_, current)) = root.last_mut() {
-                    let token = if vpos != 0 {
-                        Tree::Named(&input[npos[0]..npos[1]], Box::new(Tree::Primitive(&input[vpos..i])))
-                    } else {
-                        Tree::Primitive(&input[npos[0]..i])
-                    };
-
-                    current.push(token);
-                } else {
-                    return JsonError::err("Bad object");
-                }
-
-                npos = [i + 2, 0];
-                vpos = 0;
+        } else if c == '"' {
+            if npos[0] == 0 {
+                npos[0] = i + 1;
+            } else if npos[1] == 0 && npos[0] != i + 1 {
+                npos[1] = i;
             }
+        } else if c == ':' {
+            vpos = i + 1;
+        } else if c == ',' && npos[0] != 0 {
+            if let Some((_, current)) = root.last_mut() {
+                let token = if vpos != 0 {
+                    Tree::Named(&input[npos[0]..npos[1]], Box::new(Tree::Primitive(&input[vpos..i])))
+                } else {
+                    Tree::Primitive(&input[npos[0]..i])
+                };
+
+                current.push(token);
+            } else {
+                return JsonError::err("Bad object");
+            }
+
+            npos = [i + 2, 0];
+            vpos = 0;
         }
     }
 
