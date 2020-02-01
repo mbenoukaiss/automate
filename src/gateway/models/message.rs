@@ -1,5 +1,4 @@
 use crate::gateway::{User, MentionnedUser, PartialGuildMember, ChannelMention, PartialEmoji};
-use crate::encode::Nullable;
 use crate::Snowflake;
 
 #[object(server)]
@@ -11,7 +10,7 @@ pub struct Message {
     pub member: Option<PartialGuildMember>,
     pub content: String,
     pub timestamp: String,
-    pub edited_timestamp: Nullable<String>,
+    pub edited_timestamp: Option<String>,
     pub tts: bool,
     pub mention_everyone: bool,
     pub mentions: Vec<MentionnedUser>,
@@ -20,9 +19,10 @@ pub struct Message {
     pub attachments: Vec<Attachment>,
     pub embeds: Vec<Embed>,
     pub reactions: Option<Vec<Reaction>>,
-    pub nonce: Nullable<Snowflake>,
+    pub nonce: Option<Snowflake>,
     pub pinned: bool,
     pub webhook_id: Option<Snowflake>,
+    #[serde(rename = "type")]
     pub _type: MessageType,
     pub activity: Option<MessageActivity>,
     pub application: Option<MessageApplication>,
@@ -39,7 +39,7 @@ pub struct PartialMessage {
     pub member: Option<PartialGuildMember>,
     pub content: Option<String>,
     pub timestamp: Option<String>,
-    pub edited_timestamp: Option<Nullable<String>>,
+    pub edited_timestamp: Option<String>,
     pub tts: Option<bool>,
     pub mention_everyone: Option<bool>,
     pub mentions: Option<Vec<MentionnedUser>>,
@@ -50,6 +50,7 @@ pub struct PartialMessage {
     pub reactions: Option<Vec<Reaction>>,
     pub pinned: Option<bool>,
     pub webhook_id: Option<Snowflake>,
+    #[serde(rename = "type")]
     pub _type: Option<MessageType>,
     pub activity: Option<MessageActivity>,
     pub application: Option<MessageApplication>,
@@ -95,6 +96,7 @@ pub struct Attachment {
 #[object(both)]
 pub struct Embed {
     pub title: Option<String>,
+    #[serde(rename = "type")]
     pub _type: Option<String>,
     pub description: Option<String>,
     pub url: Option<String>,
@@ -169,6 +171,7 @@ pub struct Reaction {
 
 #[object(server)]
 pub struct MessageActivity {
+    #[serde(rename = "type")]
     pub _type: MessageActivityType,
     pub party_id: Option<String>
 }
@@ -186,7 +189,7 @@ pub struct MessageApplication {
     pub id: Snowflake,
     pub cover_image: Option<String>,
     pub description: String,
-    pub icon: Nullable<String>,
+    pub icon: Option<String>,
     pub name: String
 }
 

@@ -8,7 +8,7 @@ pub const PAYLOAD_ERROR: &str = "Expected arguments under the format: (op = <u8>
 
 /// Which side is creating and sending this struct
 /// mostly useful to avoid implementing `AsJson` or
-/// `FromJson` on types that don't need them.
+/// `Deserialize` on types that don't need them.
 pub enum StructSide {
     Server = 1,
     Client = 2,
@@ -25,8 +25,8 @@ impl StructSide {
 
         match self {
             StructSide::Client => quote!(#[derive(#(#default_traits),*, AsJson)]),
-            StructSide::Server => quote!(#[derive(#(#default_traits),*, FromJson)]),
-            StructSide::Both => quote!(#[derive(#(#default_traits),*, AsJson, FromJson)])
+            StructSide::Server => quote!(#[derive(#(#default_traits),*, ::serde::Deserialize)]),
+            StructSide::Both => quote!(#[derive(#(#default_traits),*, AsJson, ::serde::Deserialize)])
         }.into()
     }
 
@@ -49,14 +49,14 @@ pub fn append_client_quote(input: &DeriveInput, opcode: u8, quote: &mut TokenStr
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     let message_from = quote! {
-            impl #impl_generics From<#struct_name #ty_generics> for ::ws::Message #where_clause {
+            impl #impl_generics From<#struct_name #ty_generics> for ::tungstenite::Message #where_clause {
                 fn from(origin: #struct_name #ty_generics) -> Self {
                     let mut msg = String::with_capacity(14);
                     msg.push_str(concat!("{\"op\":", #opcode, ",\"d\":"));
                     msg.push_str(&::automate::encode::AsJson::as_json(&origin));
                     msg.push('}');
 
-                    ::ws::Message::Text(msg)
+                    ::tungstenite::Message::Text(msg)
                 }
             }
         };

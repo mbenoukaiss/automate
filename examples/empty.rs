@@ -18,10 +18,10 @@ impl Listener for MessageListener {
     }
 }
 
-fn main() -> Result<!, Error> {
+fn main() {
     automate::setup_logging();
 
     Discord::new(&env::var("DISCORD_API_TOKEN").expect("API token not found"))
-        .with_listener(Box::new(MessageListener))
+        .with_listener(MessageListener)
         .connect_blocking()
 }

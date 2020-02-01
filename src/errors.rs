@@ -1,6 +1,5 @@
 use crate::encode::JsonError;
 use std::{fmt, result};
-use std::error::Error as StdError;
 
 /// Represents an error that occurred while using
 /// Automate library.
@@ -36,20 +35,32 @@ impl From<JsonError> for Error {
     }
 }
 
-impl From<ws::Error> for Error {
-    fn from(err: ws::Error) -> Self {
-        Error::new(err.details)
+impl From<hyper::Error> for Error {
+    fn from(err: hyper::Error) -> Self {
+        Error::new(err.to_string())
     }
 }
 
-impl From<hyper::Error> for Error {
-    fn from(err: hyper::Error) -> Self {
-        Error::new(err.description())
+impl From<futures::channel::mpsc::SendError> for Error {
+    fn from(err: futures::channel::mpsc::SendError) -> Self {
+        Error::new(err.to_string())
+    }
+}
+
+impl From<tktungstenite::tungstenite::Error> for Error {
+    fn from(err: tktungstenite::tungstenite::Error) -> Self {
+        Error::new(err.to_string())
     }
 }
 
 impl From<std::fmt::Error> for Error {
     fn from(err: std::fmt::Error) -> Self {
-        Error::new(err.description())
+        Error::new(err.to_string())
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(err: serde_json::Error) -> Self {
+        Error::new(err.to_string())
     }
 }

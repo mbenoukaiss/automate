@@ -1,7 +1,6 @@
 use crate::Snowflake;
 use crate::gateway::{VerificationLevel, MessageNotificationLevel, ExplicitContentFilterLevel, User};
 use crate::http::NewChannel;
-use crate::encode::Nullable;
 
 #[object(client)]
 pub struct NewGuild {
@@ -84,7 +83,7 @@ pub struct ModifyMember {
     pub roles: Option<Vec<Snowflake>>,
     pub mute: Option<bool>,
     pub deaf: Option<bool>,
-    pub channel_id: Option<Nullable<u64>>,
+    pub channel_id: Option<u64>,
 }
 
 #[object(client, default)]
@@ -102,6 +101,7 @@ pub struct Prune {
 pub struct Integration {
     pub id: Snowflake,
     pub name: String,
+    #[serde(rename = "type")]
     pub _type: String,
     pub enabled: bool,
     pub syncing: bool,
@@ -122,5 +122,5 @@ pub struct IntegrationAccount {
 #[object(both)]
 pub struct GuildEmbed {
     pub enabled: bool,
-    pub channel_id: Nullable<Snowflake>,
+    pub channel_id: Option<Snowflake>,
 }
