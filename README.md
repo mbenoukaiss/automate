@@ -8,7 +8,7 @@ to learn how to switch to rust nightly.
 
 In order to use Automate in your project, add the following line to your `Cargo.toml` under the `[dependencies]` section :
 ```
-automate = "0.1.4"
+automate = "0.2"
 ```
 
 You can then write the following in your `main.rs`. This simple example will respond Hello <name of the user>! to any
@@ -45,12 +45,12 @@ impl Listener for MessageListener {
     }
 }
 
-fn main() -> Result<(), Error> {
+fn main() {
     automate::setup_logging();
 
     Discord::new(&env::var("DISCORD_API_TOKEN").expect("API token not found"))
-        .with_listener(Box::new(MessageListener))
-        .connect_blocking()?;
+        .with_listener(MessageListener)
+        .connect_blocking()
 }
 ```
 
