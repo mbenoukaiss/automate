@@ -1,14 +1,14 @@
 use crate::gateway::*;
-use std::collections::HashMap;
-use crate::encode::{FromJson, Nullable};
 use crate::Snowflake;
+use std::collections::HashMap;
+use serde_json::Value;
 
 #[object(server)]
-pub struct Payload<D> where D: FromJson {
+pub struct Payload<D> {
     pub op: u8,
     pub d: D,
-    pub s: Nullable<i32>,
-    pub t: Nullable<String>,
+    pub s: Option<i32>,
+    pub t: Option<String>,
 }
 
 #[payload(op = 0, event = "READY", server)]
@@ -22,7 +22,7 @@ pub struct ReadyDispatch {
 }
 
 #[payload(op = 0, event = "RESUMED", server)]
-pub struct ResumedDispatch;
+pub struct ResumedDispatch(Value);
 
 #[payload(op = 0, event = "CHANNEL_CREATE", server)]
 pub struct ChannelCreateDispatch(pub Channel);
@@ -79,11 +79,11 @@ pub struct GuildIntegrationsUpdateDispatch {
 pub struct GuildMemberAddDispatch {
     pub guild_id: Snowflake,
     pub user: User,
-    pub nick: Option<Nullable<String>>,
+    pub nick: Option<String>,
     pub roles: Vec<Snowflake>,
     pub joined_at: String,
-    pub premium_since: Option<Nullable<String>>,
-    pub hoisted_role: Nullable<Snowflake>,
+    pub premium_since: Option<String>,
+    pub hoisted_role: Option<Snowflake>,
     pub deaf: bool,
     pub mute: bool
 }
@@ -215,7 +215,7 @@ pub struct WebhooksUpdateDispatch {
 }
 
 #[payload(op = 1, client)]
-pub struct Heartbeat(pub Nullable<i32>);
+pub struct Heartbeat(pub Option<i32>);
 
 #[payload(op = 2, client)]
 pub struct Identify {
@@ -230,8 +230,8 @@ pub struct Identify {
 
 #[payload(op = 3, client)]
 pub struct UpdateStatus {
-    pub since: Nullable<i32>,
-    pub game: Nullable<Activity>,
+    pub since: Option<i32>,
+    pub game: Option<Activity>,
     pub status: StatusType,
     pub afk: bool
 }

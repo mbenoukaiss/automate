@@ -1,13 +1,9 @@
 # Automate &nbsp; [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/mbenoukaiss/automate/Checks?style=for-the-badge)](https://github.com/mbenoukaiss/automate/actions) [![GitHub issues](https://img.shields.io/github/issues/mbenoukaiss/automate?style=for-the-badge)](https://github.com/mbenoukaiss/automate/issues) [![Crates.io](https://img.shields.io/crates/v/automate?style=for-the-badge)](https://crates.io/crates/automate) [![Crates.io](https://img.shields.io/crates/l/automate?style=for-the-badge)](https://github.com/mbenoukaiss/automate/blob/master/LICENSE)
 Automate is a low level and asynchronous rust library for interacting with the Discord API
 
-**DISCLAIMER: This crate is at its very early stage and does not have most functionalities a discord bot would need (no
-voice, and only channel manipulation operations). Please don't use this crate except for experimenting.
-The crate also only works in rust nightly.**
-
 # Getting started
-Automate is currently unstable and only works with Rust nightly. The minimum tested version and the one used in CI is
-`nightly-2019-11-24`. Refer to [rust edition guide](https://doc.rust-lang.org/edition-guide/rust-2018/rustup-for-managing-rust-versions.html)
+Automate currently only works with Rust nightly. The tested version and the one used in CI is
+`nightly-2020-01-31`. Refer to [rust edition guide](https://doc.rust-lang.org/edition-guide/rust-2018/rustup-for-managing-rust-versions.html)
 to learn how to switch to rust nightly.
 
 In order to use Automate in your project, add the following line to your `Cargo.toml` under the `[dependencies]` section :
@@ -57,6 +53,10 @@ fn main() -> Result<(), Error> {
         .connect_blocking()?;
 }
 ```
+
+# Contributing
+Any kind of contribution is welcome, from issues to pull requests. For major changes, please open an issue first to discuss what you would like to change.
+Please make sure to update tests as appropriate.
 
 # License
 Licensed under the [MIT license](LICENSE).

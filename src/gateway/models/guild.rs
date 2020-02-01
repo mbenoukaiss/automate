@@ -1,4 +1,3 @@
-use crate::encode::Nullable;
 use crate::gateway::{User, PartialUser, PartialVoiceState, Channel};
 use crate::Snowflake;
 
@@ -6,13 +5,13 @@ use crate::Snowflake;
 pub struct Guild {
     pub id: Snowflake,
     pub name: String,
-    pub icon: Nullable<String>,
-    pub splash: Nullable<String>,
+    pub icon: Option<String>,
+    pub splash: Option<String>,
     pub owner: Option<bool>,
     pub owner_id: Snowflake,
     pub permissions: Option<u32>,
     pub region: String,
-    pub afk_channel_id: Nullable<Snowflake>,
+    pub afk_channel_id: Option<Snowflake>,
     pub afk_timeout: i32,
     pub embed_enabled: Option<bool>,
     pub embed_channel_id: Option<Snowflake>,
@@ -23,10 +22,10 @@ pub struct Guild {
     pub emojis: Vec<Emoji>,
     pub features: Vec<GuildFeature>,
     pub mfa_level: MFALevel,
-    pub application_id: Nullable<Snowflake>,
+    pub application_id: Option<Snowflake>,
     pub widget_enabled: Option<bool>,
     pub widget_channel_id: Option<Snowflake>,
-    pub system_channel_id: Nullable<Snowflake>,
+    pub system_channel_id: Option<Snowflake>,
     pub joined_at: Option<String>,
     pub large: Option<bool>,
     pub unavailable: Option<bool>,
@@ -35,24 +34,24 @@ pub struct Guild {
     pub members: Option<Vec<GuildMember>>,
     pub channels: Option<Vec<Channel>>,
     pub presences: Option<Vec<PartialPresenceUpdate>>,
-    pub max_presences: Option<Nullable<i32>>,
+    pub max_presences: Option<i32>,
     pub max_members: Option<i32>,
-    pub vanity_url_code: Nullable<String>,
-    pub description: Nullable<String>,
-    pub banner: Nullable<String>,
+    pub vanity_url_code: Option<String>,
+    pub description: Option<String>,
+    pub banner: Option<String>,
     pub premium_tier: PremiumTier,
-    pub premium_subscription_count: Nullable<i32>,
+    pub premium_subscription_count: Option<i32>,
     pub preferred_locale: String,
     pub lazy: bool,
-    pub rules_channel_id: Nullable<Snowflake>
+    pub rules_channel_id: Option<Snowflake>
 }
 
 #[object(server)]
 pub struct PartialGuild {
     pub id: Snowflake,
     pub name: String,
-    pub icon: Nullable<String>,
-    pub splash: Nullable<String>
+    pub icon: Option<String>,
+    pub splash: Option<String>
 }
 
 #[object(server)]
@@ -167,7 +166,7 @@ pub struct PartialRole {
 
 #[object(both)]
 pub struct Emoji {
-    pub id: Nullable<Snowflake>,
+    pub id: Option<Snowflake>,
     pub name: String,
     pub roles: Option<Vec<Role>>,
     pub user: Option<User>,
@@ -179,7 +178,7 @@ pub struct Emoji {
 
 #[object(both)]
 pub struct PartialEmoji {
-    pub id: Option<Nullable<Snowflake>>,
+    pub id: Option<Snowflake>,
     pub name: String,
     pub roles: Option<Vec<Role>>,
     pub user: Option<User>,
@@ -191,11 +190,11 @@ pub struct PartialEmoji {
 #[object(server)]
 pub struct GuildMember {
     pub user: User,
-    pub nick: Option<Nullable<String>>,
+    pub nick: Option<String>,
     pub roles: Vec<Snowflake>,
     pub joined_at: String,
-    pub premium_since: Option<Nullable<String>>,
-    pub hoisted_role: Nullable<Snowflake>,
+    pub premium_since: Option<String>,
+    pub hoisted_role: Option<Snowflake>,
     pub deaf: bool,
     pub mute: bool
 }
@@ -203,11 +202,11 @@ pub struct GuildMember {
 #[object(server)]
 pub struct PartialGuildMember {
     pub user: Option<User>,
-    pub nick: Option<Nullable<String>>,
+    pub nick: Option<String>,
     pub roles: Vec<Snowflake>,
     pub joined_at: String,
-    pub premium_since: Option<Nullable<String>>,
-    pub hoisted_role: Nullable<Snowflake>,
+    pub premium_since: Option<String>,
+    pub hoisted_role: Option<Snowflake>,
     pub deaf: bool,
     pub mute: bool
 }
@@ -228,14 +227,14 @@ pub struct PartialGuildMember {
 #[object(server)]
 pub struct PresenceUpdate {
     pub user: PartialUser,
-    pub nick: Option<Nullable<String>>,
+    pub nick: Option<String>,
     pub roles: Vec<Snowflake>,
-    pub game: Nullable<Activity>,
+    pub game: Option<Activity>,
     pub guild_id: Snowflake,
     pub status: String,
     pub activities: Vec<Activity>,
     pub client_status: ClientStatus,
-    pub premium_since: Option<Nullable<String>>
+    pub premium_since: Option<String>
 }
 
 /// A user's presence is their current state on a guild.
@@ -255,7 +254,7 @@ pub struct PresenceUpdate {
 pub struct PartialPresenceUpdate {
     pub user: Option<PartialUser>,
     pub roles: Option<Vec<Snowflake>>,
-    pub game: Option<Nullable<Activity>>,
+    pub game: Option<Activity>,
     pub guild_id: Option<Snowflake>,
     pub status: Option<String>,
     pub activities: Option<Vec<Activity>>,
@@ -282,12 +281,13 @@ pub struct ClientStatus {
 pub struct Activity {
     pub id: String,
     pub name: String,
+    #[serde(rename = "type")]
     pub _type: ActivityType,
-    pub url: Option<Nullable<String>>,
+    pub url: Option<String>,
     pub timestamps: Option<ActivityTimestamps>,
     pub application_id: Option<Snowflake>,
-    pub details: Option<Nullable<String>>,
-    pub state: Option<Nullable<String>>,
+    pub details: Option<String>,
+    pub state: Option<String>,
     pub emoji: Option<PartialEmoji>,
     pub party: Option<ActivityParty>,
     pub assets: Option<ActivityAssets>,
@@ -354,5 +354,5 @@ pub struct ActivitySecrets {
 #[object(both)]
 pub struct Ban {
     pub user: User,
-    pub reason: Nullable<String>
+    pub reason: Option<String>
 }

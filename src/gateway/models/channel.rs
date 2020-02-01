@@ -1,26 +1,26 @@
-use crate::encode::Nullable;
 use crate::gateway::{User, PartialUser, PartialGuild};
 use crate::Snowflake;
 
 #[object(server)]
 pub struct Channel {
     pub id: Snowflake,
+    #[serde(rename = "type")]
     pub _type: ChannelType,
     pub guild_id: Option<Snowflake>,
     pub position: Option<i32>,
     pub permission_overwrites: Option<Vec<Overwrite>>,
     pub name: Option<String>,
-    pub topic: Option<Nullable<String>>,
+    pub topic: Option<String>,
     pub nsfw: Option<bool>,
-    pub last_message_id: Option<Nullable<Snowflake>>,
+    pub last_message_id: Option<Snowflake>,
     pub bitrate: Option<i32>,
     pub user_limit: Option<i32>,
     pub rate_limit_per_user: Option<i32>,
     pub recipients: Option<Vec<User>>,
-    pub icon: Option<Nullable<String>>,
+    pub icon: Option<String>,
     pub owner_id: Option<Snowflake>,
     pub application_id: Option<Snowflake>,
-    pub parent_id: Option<Nullable<Snowflake>>,
+    pub parent_id: Option<Snowflake>,
     pub last_pin_timestamp: Option<String>,
 }
 
@@ -37,7 +37,7 @@ pub struct Invite {
 
 #[object(server)]
 pub struct PartialInvite {
-    pub code: Nullable<String>,
+    pub code: Option<String>,
     pub uses: i32,
     pub guild: Option<PartialGuild>,
     pub channel: Option<Channel>,
@@ -68,6 +68,7 @@ pub enum ChannelType {
 #[object(both)]
 pub struct Overwrite {
     pub id: Snowflake,
+    #[serde(rename = "type")]
     pub _type: OverwriteType,
     pub allow: u32,
     pub deny: u32
@@ -83,6 +84,7 @@ pub enum OverwriteType {
 pub struct ChannelMention {
     pub id: Snowflake,
     pub guild_id: Snowflake,
+    #[serde(rename = "type")]
     pub _type: ChannelType,
     pub name: String
 }
@@ -90,12 +92,13 @@ pub struct ChannelMention {
 #[object(server)]
 pub struct Webhook {
     pub id: Snowflake,
+    #[serde(rename = "type")]
     pub _type: WebhookType,
     pub guild_id: Option<Snowflake>,
     pub channel_id: Snowflake,
     pub user: Option<User>,
-    pub name: Nullable<String>,
-    pub avatar: Nullable<String>,
+    pub name: Option<String>,
+    pub avatar: Option<String>,
     pub token: Option<String>,
 }
 

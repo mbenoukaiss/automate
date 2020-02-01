@@ -1,9 +1,7 @@
 use std::collections::{VecDeque, LinkedList, HashMap, BTreeMap, HashSet, BTreeSet};
-use std::str::FromStr;
 use std::fmt::{Display, Formatter, Error, Debug, Write};
-use std::hash::{Hash, BuildHasher};
-use std::mem::MaybeUninit;
-use std::collections::hash_map::RandomState;
+use std::hash::{BuildHasher};
+use serde::Deserialize;
 
 /// A data structure that can be represented in a
 /// JSON string.
@@ -35,23 +33,6 @@ use std::collections::hash_map::RandomState;
 pub trait AsJson {
     fn as_json(&self) -> String;
     fn concat_json(&self, dest: &mut String);
-}
-
-/// A data structure that can be parsed from the value
-/// of a JSON string, quotes/braces/brackets included.
-///
-/// # Example
-/// ```
-/// use automate::encode::FromJson;
-/// use automate::Snowflake;
-///
-/// assert_eq!(String::from_json("\"Hello\"").unwrap(), "Hello");
-/// assert_eq!(u32::from_json("643789").unwrap(), 643789);
-/// assert_eq!(i128::from_json("434233249862398463649324").unwrap(), 434233249862398463649324);
-/// assert_eq!(Snowflake::from_json("\"349327072309\"").unwrap(), Snowflake(349327072309));
-/// ```
-pub trait FromJson {
-    fn from_json(json: &str) -> Result<Self, JsonError> where Self: Sized;
 }
 
 /// Represents an error relative to a JSON string.
@@ -98,24 +79,9 @@ impl Debug for JsonError {
     }
 }
 
-/// A value that has to be included in the JSON
-/// string but can contain the value null.
-///
-/// Some values in discord can be omitted from
-/// the JSON string, these are represented as
-/// Option<T>. Some other values must be in the
-/// JSON string but may contain the null value
-/// and should be represented using Nullable<T>.
-#[derive(Debug, Clone, Copy)]
-pub enum Nullable<T> {
-    Value(T),
-    Null,
-}
-
-/// Implements [AsJson](automate::AsJson) and
-/// [FromJson](automate::FromJson) for simple numeric and
-/// other types that should be represented as is in the
-/// JSON string.
+/// Implements [AsJson](automate::AsJson) for simple
+/// numeric and other types that should be represented
+/// as is in the JSON string.
 macro_rules! impl_for_num {
     ($($ty:ty),*) => (
         $(
@@ -130,20 +96,11 @@ macro_rules! impl_for_num {
                     dest.write_fmt(format_args!("{}", self)).expect("A Display implementation returned an error unexpectedly");
                 }
             }
-
-            impl FromJson for $ty {
-                #[inline]
-                fn from_json(json: &str) -> Result<$ty, JsonError> {
-                    <$ty>::from_str(json)
-                        .map_err(|_| JsonError::new(format!("Failed to parse {} into {}", json, stringify!($ty))))
-                }
-            }
         )*
     )
 }
 
-/// Implements [AsJson](automate::AsJson) and
-/// [FromJson](automate::FromJson) for collections.
+/// Implements [AsJson](automate::AsJson) for collections.
 macro_rules! impl_for_single_collection {
     ($($ty:ident:$insert_method:ident <$($rq_trait:ident),*> ),*) => {
         $(
@@ -184,63 +141,11 @@ macro_rules! impl_for_single_collection {
                     dest.push(']');
                 }
             }
-
-            impl<J> FromJson for $ty<J> where J: FromJson $(+ $rq_trait)* {
-                #[inline]
-                fn from_json(json: &str) -> Result<$ty<J>, JsonError> {
-                    if json.len() >= 2 && json.starts_with('[') && json.ends_with(']') {
-                        let mut col: $ty<J> = $ty::new();
-                        if (&json[1..json.len()-1]).trim().is_empty() {
-                            return Ok(col);
-                        }
-
-                        let mut nesting_level = 0;
-                        let mut val_begin: usize = 0;
-
-                        for (i, c) in json.char_indices() {
-                            if c == '{' || c == '[' {
-                                nesting_level += 1;
-
-                                //we enter the root object
-                                if nesting_level == 1 {
-                                    val_begin = i + 1;
-                                }
-
-                                continue;
-                            } else if c == '}' || c == ']' {
-                                nesting_level -= 1;
-
-                                //we hit end of json, but because there isn't a final comma, there is still 1 value
-                                //waiting to be added to the collection
-                                if nesting_level == 0 && val_begin != 0 {
-                                    col.$insert_method(J::from_json((&json[val_begin..i]).trim())?);
-                                    return Ok(col);
-                                }
-
-                                continue;
-                            }
-
-                            if nesting_level == 1 {
-                                if c == ',' {
-                                    col.$insert_method(J::from_json((&json[val_begin..i]).trim())?);
-
-                                    val_begin = i + 1;
-                                }
-                            }
-                        }
-
-                        return Ok(col);
-                    }
-
-                    JsonError::err("Invalid array format given")
-                }
-            }
         )*
     };
 }
 
-/// Implements [AsJson](automate::AsJson) and
-/// [FromJson](automate::FromJson) for collections.
+/// Implements [AsJson](automate::AsJson) for collections.
 macro_rules! impl_for_associative_collection {
     ($($ty:ident <$($rq_first_trait:ident),*> ),*) => {
         $(
@@ -283,25 +188,6 @@ macro_rules! impl_for_associative_collection {
                     }
 
                     dest.push('}');
-                }
-            }
-
-            impl<J> FromJson for $ty<String, J> where J: FromJson $(+ $rq_first_trait)* {
-                #[inline]
-                fn from_json(json: &str) -> Result<$ty<String, J>, JsonError> {
-                    if json.len() >= 2 && json.starts_with('{') && json.ends_with('}') {
-                        return object_to_map(json)?
-                            .iter()
-                            .map(|(&k, &v)| {
-                                match J::from_json(v.trim()) {
-                                    Ok(v) => Ok((String::from(k), v)),
-                                    Err(err) => Err(err)
-                                }
-                            })
-                            .collect::<Result<$ty<String, J>, JsonError>>()
-                    }
-
-                    JsonError::err(format!("Invalid object given in {}", json))
                 }
             }
         )*
@@ -348,37 +234,6 @@ macro_rules! impl_for_arrays {
                     dest.push(']');
                 }
             }
-
-            impl<T> FromJson for [T; $size] where T: FromJson  {
-                #[inline]
-                fn from_json(json: &str) -> Result<[T; $size], JsonError> {
-                    if json.len() >= 2 && json.starts_with('[') && json.ends_with(']') {
-                        let split = (&json[1..json.len()-1]).split(',');
-                        let mut count = 0;
-
-                        let array: [T; $size] = unsafe {
-                            let mut arr: MaybeUninit<[T; $size]> = MaybeUninit::uninit();
-                            let arr_ptr = arr.as_mut_ptr() as *mut T; // pointer to 1st element
-
-                            for val in split {
-                                arr_ptr.add(count).write(T::from_json(val.trim())?);
-                                count += 1;
-                            }
-
-                            if count != $size {
-                                return JsonError::err(format!("Expected an array of size {}, got {}", $size, count));
-                            }
-
-                            arr.assume_init()
-                        };
-
-
-                        return Ok(array);
-                    }
-
-                    JsonError::err("Invalid array format given")
-                }
-            }
         )*
     )
 }
@@ -407,21 +262,29 @@ impl_for_arrays! {
 }
 
 impl AsJson for () {
+    #[inline]
     fn as_json(&self) -> String {
-        String::from("{}")
+        String::from("")
     }
 
-    fn concat_json(&self, dest: &mut String) {
-        dest.push_str("{}")
+    #[inline]
+    fn concat_json(&self, _: &mut String) {
+
     }
 }
 
-impl FromJson for () {
-    fn from_json(json: &str) -> Result<Self, JsonError> where Self: Sized {
-        if json.trim().is_empty() || json == "{}" {
-            Ok(())
-        } else {
-            JsonError::err(format!("Incorrect value for empty type: {}", json))
+impl<T> AsJson for Option<T> where T: AsJson {
+    fn as_json(&self) -> String {
+        match self {
+            Some(val) => val.as_json(),
+            None => String::from("null")
+        }
+    }
+
+    fn concat_json(&self, dest: &mut String) {
+        match self {
+            Some(val) => val.concat_json(dest),
+            None => dest.push_str("null")
         }
     }
 }
@@ -446,17 +309,6 @@ impl AsJson for String {
     }
 }
 
-impl FromJson for String {
-    #[inline]
-    fn from_json(json: &str) -> Result<String, JsonError> {
-        if json.len() >= 2 && json.starts_with('"') && json.ends_with('"') {
-            Ok(String::from(&json[1..json.len() - 1]))
-        } else {
-            JsonError::err(format!("Incorrect JSON string value received: {}", json))
-        }
-    }
-}
-
 impl AsJson for &str {
     #[inline]
     fn as_json(&self) -> String {
@@ -474,58 +326,6 @@ impl AsJson for &str {
         dest.push('"');
         dest.push_str(&self);
         dest.push('"');
-    }
-}
-
-impl<T> Display for Nullable<T> where T: Display {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
-        match self {
-            Nullable::Value(v) => f.write_fmt(format_args!("{}", v)),
-            Nullable::Null => f.write_str("null")
-        }
-    }
-}
-
-impl<T> AsJson for Nullable<T> where T: AsJson {
-    fn as_json(&self) -> String {
-        if let Nullable::Value(val) = self {
-            val.as_json()
-        } else {
-            "null".to_owned()
-        }
-    }
-
-    fn concat_json(&self, dest: &mut String) {
-        if let Nullable::Value(val) = self {
-            val.concat_json(dest);
-        } else {
-            dest.push_str("null");
-        }
-    }
-}
-
-impl<T> FromJson for Nullable<T> where T: FromJson {
-    fn from_json(json: &str) -> Result<Nullable<T>, JsonError> where Self: Sized {
-        Ok(match json {
-            "null" => Nullable::Null,
-            val => Nullable::Value(T::from_json(val)?)
-        })
-    }
-}
-
-impl<T> Default for Nullable<T> {
-    fn default() -> Self {
-        Nullable::Null
-    }
-}
-
-impl<T> From<Option<T>> for Nullable<T> {
-    fn from(opt: Option<T>) -> Self {
-        if let Some(opt) = opt {
-            Nullable::Value(opt)
-        } else {
-            Nullable::Null
-        }
     }
 }
 
@@ -564,55 +364,6 @@ impl<J, S: BuildHasher> AsJson for HashSet<J, S> where J: AsJson {
         }
 
         dest.push(']');
-    }
-}
-
-impl<J> FromJson for HashSet<J, RandomState> where J: FromJson + Hash + Eq {
-    #[inline]
-    fn from_json(json: &str) -> Result<HashSet<J, RandomState>, JsonError> {
-        if json.len() >= 2 && json.starts_with('[') && json.ends_with(']') {
-            let mut col: HashSet<J, RandomState> = HashSet::new();
-            if (&json[1..json.len() - 1]).trim().is_empty() {
-                return Ok(col);
-            }
-
-            let mut nesting_level = 0;
-            let mut val_begin: usize = 0;
-
-            for (i, c) in json.char_indices() {
-                if c == '[' {
-                    nesting_level += 1;
-
-                    //we enter the root object
-                    if nesting_level == 1 {
-                        val_begin = i + 1;
-                    }
-
-                    continue;
-                } else if c == ']' {
-                    nesting_level -= 1;
-
-                    //we hit end of json, but because there isn't a final comma, there is still 1 value
-                    //waiting to be added to the collection
-                    if nesting_level == 0 && val_begin != 0 {
-                        col.insert(J::from_json((&json[val_begin..i]).trim())?);
-                        return Ok(col);
-                    }
-
-                    continue;
-                }
-
-                if c == ',' {
-                    col.insert(J::from_json((&json[val_begin..i]).trim())?);
-
-                    val_begin = i + 1;
-                }
-            }
-
-            return Ok(col);
-        }
-
-        JsonError::err("Invalid array format given")
     }
 }
 
@@ -658,203 +409,6 @@ impl<J, S: BuildHasher> AsJson for HashMap<String, J, S> where J: AsJson {
     }
 }
 
-impl<J> FromJson for HashMap<String, J, RandomState> where J: FromJson {
-    #[inline]
-    fn from_json(json: &str) -> Result<HashMap<String, J, RandomState>, JsonError> {
-        if json.len() >= 2 && json.starts_with('{') && json.ends_with('}') {
-            return object_to_map(json)?
-                .iter()
-                .map(|(&sk, &sv)| {
-                    match J::from_json(sv.trim()) {
-                        Ok(v) => Ok((String::from(sk), v)),
-                        Err(err) => Err(err)
-                    }
-                })
-                .collect();
-        }
-
-        JsonError::err(format!("Invalid object given in {}", json))
-    }
-}
-
-#[derive(Debug)]
-pub enum Tree<'a> {
-    Primitive(&'a str),
-    Named(&'a str, Box<Tree<'a>>),
-    Container(Vec<Tree<'a>>),
-}
-
-pub fn parse(input: &str) -> Result<Tree, JsonError> {
-    let mut tokens = None;
-    let mut root = Vec::with_capacity(5);
-
-    let mut escape_next_char = false;
-    let mut in_string = false;
-    let mut npos: [usize; 2] = [0; 2];
-    let mut vpos: usize = 0;
-
-    for (i, c) in input.char_indices() {
-        if escape_next_char {
-            escape_next_char = false;
-            continue;
-        } else if c == '\\' {
-            escape_next_char = true;
-            continue;
-        }
-
-        if in_string {
-            if c == '"' {
-                in_string = false;
-            } else {
-                continue;
-            }
-        } else if c == '"' {
-            in_string = true;
-        }
-
-        if c == '{' || c == '[' {
-            let name = if npos[0] != 0 && npos[1] != 0 {
-                Some(&input[npos[0]..npos[1]])
-            } else {
-                None
-            };
-
-            root.push((name, Vec::new()));
-
-            npos = [i + if c == '[' { 1 } else { 2 }, 0];
-            vpos = 0;
-        } else if c == '}' || c == ']' {
-            if let Some((name, mut current)) = root.pop() {
-                if vpos != 0 {
-                    //it is a named value
-                    current.push(Tree::Named(&input[npos[0]..npos[1]], Box::new(Tree::Primitive(&input[vpos..i]))));
-                } else if npos[0] != 0 {
-                    //it is an unnamed value
-                    current.push(Tree::Primitive(&input[npos[0] - 1..i]));
-                }
-
-                npos = [0; 2];
-                vpos = 0;
-
-                if let Some((_, parent)) = root.last_mut() {
-                    if let Some(name) = name {
-                        parent.push(Tree::Named(name, Box::new(Tree::Container(current))));
-                    } else {
-                        parent.push(Tree::Container(current));
-                    }
-                } else {
-                    tokens = Some(Tree::Container(current));
-                }
-            } else {
-                return JsonError::err(format!("Expected end of string, found {}", c));
-            }
-        } else if c == '"' {
-            if npos[0] == 0 {
-                npos[0] = i + 1;
-            } else if npos[1] == 0 && npos[0] != i + 1 {
-                npos[1] = i;
-            }
-        } else if c == ':' {
-            vpos = i + 1;
-        } else if c == ',' && npos[0] != 0 {
-            if let Some((_, current)) = root.last_mut() {
-                let token = if vpos != 0 {
-                    Tree::Named(&input[npos[0]..npos[1]], Box::new(Tree::Primitive(&input[vpos..i])))
-                } else {
-                    Tree::Primitive(&input[npos[0]..i])
-                };
-
-                current.push(token);
-            } else {
-                return JsonError::err("Bad object");
-            }
-
-            npos = [i + 2, 0];
-            vpos = 0;
-        }
-    }
-
-    if let Some(tokens) = tokens {
-        Ok(tokens)
-    } else {
-        JsonError::err("Reached end of input but expected more tokens")
-    }
-}
-
-pub fn object_to_map(input: &str) -> Result<HashMap<&str, &str>, JsonError> {
-    let mut map = HashMap::new();
-    let mut nesting_level = 0;
-    let mut in_string = false;
-    let mut escape_next_char = false;
-    let mut key_idxs: [usize; 2] = [0; 2];
-    let mut val_idxs: [usize; 2] = [0; 2];
-
-    for (i, c) in input.char_indices() {
-        if escape_next_char {
-            escape_next_char = false;
-            continue;
-        } else if c == '\\' {
-            escape_next_char = true;
-            continue;
-        }
-
-        if in_string {
-            if c == '"' {
-                in_string = false;
-            } else {
-                continue;
-            }
-        } else if c == '"' {
-            in_string = true;
-        }
-
-        if c == '{' || c == '[' {
-            nesting_level += 1;
-        } else if c == '}' || c == ']' {
-            nesting_level -= 1;
-
-            //we hit end of json, but because there isn't a final comma, there is still 1 key/value
-            //pair waiting to be added to the map
-            if nesting_level == 0 && val_idxs[0] != 0 {
-                val_idxs[1] = i;
-
-                map.insert(
-                    &input[key_idxs[0]..key_idxs[1]],
-                    (&input[val_idxs[0]..val_idxs[1]]).trim(),
-                );
-
-                return Ok(map);
-            }
-        } else if nesting_level == 1 {
-            if c == '"' {
-                if key_idxs[0] == 0 {
-                    key_idxs[0] = i + 1;
-                } else if key_idxs[1] == 0 {
-                    key_idxs[1] = i;
-                }
-            } else if val_idxs[0] == 0 && c == ':' {
-                val_idxs[0] = i + 1;
-            } else if val_idxs[1] == 0 && c == ',' {
-                val_idxs[1] = i;
-
-                map.insert(
-                    &input[key_idxs[0]..key_idxs[1]],
-                    (&input[val_idxs[0]..val_idxs[1]]).trim(),
-                );
-
-                key_idxs = [0; 2];
-                val_idxs = [0; 2];
-            }
-        }
-    }
-
-    if nesting_level == 0 {
-        Ok(map)
-    } else {
-        JsonError::err(format!("Given string is not a valid JSON string: {}", nesting_level))
-    }
-}
-
 /// Searches for a key through the root JSON object of the
 /// candidate string and returns a parsed value.
 ///
@@ -867,7 +421,7 @@ pub fn object_to_map(input: &str) -> Result<HashMap<&str, &str>, JsonError> {
 /// Returns a JsonError if the candidate string is not a correct
 /// JSON string or if the function failed to find the key and
 /// its associated value in the string.
-pub fn root_search<T>(key: &str, candidate: &str) -> Result<T, JsonError> where T: FromJson {
+pub fn root_search<'de, T>(key: &str, candidate: &'de str) -> Result<T, JsonError> where T: Deserialize<'de> {
     if key.is_empty() {
         return JsonError::err("The searched key can't be empty");
     }
@@ -948,7 +502,7 @@ pub fn root_search<T>(key: &str, candidate: &str) -> Result<T, JsonError> where 
     }
 
     if let Some(value) = value {
-        return match T::from_json(value) {
+        return match serde_json::from_str(value) {
             Ok(value) => Ok(value),
             Err(e) => JsonError::err(format!("Failed to parse JSON: {}", e))
         };
@@ -960,7 +514,6 @@ pub fn root_search<T>(key: &str, candidate: &str) -> Result<T, JsonError> where 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::map;
 
     #[test]
     fn test_root_search() {
@@ -1016,74 +569,25 @@ mod tests {
         let no_val_quote = r#"{"key":value","other":5}"#;
         let wrong_type = r#"{"int":"value"}"#;
 
-        assert_eq!(root_search::<String>("key", no_first_brace).err().unwrap().msg,
-                   "Incorrectly formatted JSON string");
-        assert_eq!(root_search::<String>("key", no_final_brace).err().unwrap().msg,
-                   "Unexpected end of string");
-        assert!(root_search::<String>("key", no_comma).err().unwrap().msg
-            .starts_with("Failed to parse JSON: Incorrect JSON string value received: "));
-        assert_eq!(root_search::<String>("key", no_key_quote).err().unwrap().msg,
-                   "Could not find key in candidate"); //the function can hardly know that the string is not correctly formatted
-        assert!(root_search::<String>("key", no_val_quote).err().unwrap().msg
-            .starts_with("Failed to parse JSON: Incorrect JSON string value received: "));
-        assert_eq!(root_search::<u32>("int", wrong_type).err().unwrap().msg,
-                   "Failed to parse JSON: Failed to parse \"value\" into u32");
+        println!("{:#?}", root_search::<String>("key", no_key_quote));
+
+        assert!(root_search::<String>("key", no_first_brace).is_err());
+        assert!(root_search::<String>("key", no_final_brace).is_err());
+        assert!(root_search::<String>("key", no_comma).is_err());
+        assert!(root_search::<String>("key", no_key_quote).is_err());
+        assert!(root_search::<String>("key", no_val_quote).is_err());
+        assert!(root_search::<u32>("int", wrong_type).is_err());
     }
 
-    #[test]
-    fn test_object_to_map_basic() {
-        let no_final_brace = r#"{"key":"value"}"#;
-        let no_final_brace_result = object_to_map(no_final_brace).unwrap();
-
-        assert!(no_final_brace_result.contains_key("key"));
-        assert_eq!(no_final_brace_result.get("key").unwrap(), &"\"value\"");
-    }
-
-    #[test]
-    fn test_serialize_map() {
-        let str_map_of_vec = r#"{"key":["vec","of","strings"]}"#;
-        let str_map_of_empty_vec = r#"{"key":[]}"#;
-
-        let map_of_vec: HashMap<String, Vec<String>> = map! {
-            "key".to_owned() => vec!["vec".to_owned(), "of".to_owned(), "strings".to_owned()]
-        };
-
-        let map_of_empty_vec: HashMap<String, Vec<String>> = map! {
-            "key".to_owned() => vec![]
-        };
-
-        assert_eq!(HashMap::from_json(str_map_of_vec).unwrap(), map_of_vec);
-        assert_eq!(HashMap::from_json(str_map_of_empty_vec).unwrap(), map_of_empty_vec);
-    }
-
-    #[test]
-    fn test_dangerous_characters() { //good name right?
-        let commas = r#"{"key":"value,with,commas,!!"}"#;
-        let braces = r#"{"key":"value}}}{}}{}}{{{{}"}"#;
-        let brackets = r#"{"key":"va[[][][[[[][][]]][lue"}"#;
-
-        assert_eq!(object_to_map(commas).unwrap().get("key").unwrap(), &r#""value,with,commas,!!""#);
-        assert_eq!(object_to_map(braces).unwrap().get("key").unwrap(), &r#""value}}}{}}{}}{{{{}""#);
-        assert_eq!(object_to_map(brackets).unwrap().get("key").unwrap(), &r#""va[[][][[[[][][]]][lue""#);
-    }
-
-    #[test]
-    fn test_escaping() {
-        let commas = r#"{"key":"begin\"escape\\\"end"}"#;
-        let not_escaped = r#"{"key":"begin"escape\"end"}"#;
-
-        assert_eq!(object_to_map(commas).unwrap().get("key").unwrap(), &r#""begin\"escape\\\"end""#);
-        assert!(object_to_map(not_escaped).is_err());
-    }
 }
 
 #[cfg(test)]
 mod benchmarks {
     use super::*;
-    use serde::{Serialize, Deserialize};
+    use serde::Serialize;
     use test::Bencher;
 
-    #[derive(Serialize, Deserialize, AsJson, FromJson)]
+    #[derive(Serialize, AsJson)]
     struct Something {
         somewhere: String,
         somehow: i32,
@@ -1114,7 +618,7 @@ mod benchmarks {
         }
     }
 
-    #[derive(Serialize, Deserialize, AsJson, FromJson)]
+    #[derive(Serialize, AsJson)]
     struct Short {
         a: u8,
         b: u16,
@@ -1131,7 +635,7 @@ mod benchmarks {
         }
     }
 
-    #[derive(Serialize, Deserialize, AsJson, FromJson, Clone)]
+    #[derive(Serialize, AsJson)]
     struct LongStr {
         first: String,
         second: String,
@@ -1154,7 +658,7 @@ mod benchmarks {
         }
     }
 
-    #[derive(Serialize, Deserialize, AsJson, FromJson)]
+    #[derive(Serialize, AsJson)]
     struct Options {
         first: Option<String>,
         second: Option<u32>,
@@ -1189,42 +693,6 @@ mod benchmarks {
                 fourth: None,
             }
         }
-    }
-
-    #[bench]
-    fn bench_parse_average(b: &mut Bencher) {
-        let something = Something::create().as_json();
-
-        b.iter(|| {
-            parse(&something).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_parse_long_str(b: &mut Bencher) {
-        let long_str = LongStr::create().as_json();
-
-        b.iter(|| {
-            parse(&long_str).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_object_to_map_average(b: &mut Bencher) {
-        let something = Something::create().as_json();
-
-        b.iter(|| {
-            object_to_map(&something).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_object_to_map_long_str(b: &mut Bencher) {
-        let long_str = LongStr::create().as_json();
-
-        b.iter(|| {
-            object_to_map(&long_str).unwrap();
-        });
     }
 
     #[bench]
@@ -1434,206 +902,6 @@ mod benchmarks {
 
         b.iter(|| {
             serde_json::to_string(&options).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_deserializer_average_automate(b: &mut Bencher) {
-        let something_json = Something::create().as_json();
-
-        b.iter(|| {
-            Something::from_json(&something_json).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_deserializer_average_serde(b: &mut Bencher) {
-        let something_json = Something::create().as_json();
-
-        b.iter(|| {
-            serde_json::from_str::<Something>(&something_json).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_deserializer_short_automate(b: &mut Bencher) {
-        let short_json = Short::create().as_json();
-
-        b.iter(|| {
-            Short::from_json(&short_json).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_deserializer_short_serde(b: &mut Bencher) {
-        let short_json = Short::create().as_json();
-
-        b.iter(|| {
-            serde_json::from_str::<Short>(&short_json).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_deserializer_long_string_automate(b: &mut Bencher) {
-        let long_str_json = LongStr::create().as_json();
-
-        b.iter(|| {
-            LongStr::from_json(&long_str_json).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_deserializer_long_string_serde(b: &mut Bencher) {
-        let long_str_json = LongStr::create().as_json();
-
-        b.iter(|| {
-            serde_json::from_str::<LongStr>(&long_str_json).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_deserializer_empty_hashmap_automate(b: &mut Bencher) {
-        let map_json = HashMap::<String, String>::new().as_json();
-
-        b.iter(|| {
-            HashMap::<String, String>::from_json(&map_json).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_deserializer_empty_hashmap_serde(b: &mut Bencher) {
-        let map_json = HashMap::<String, String>::new().as_json();
-
-        b.iter(|| {
-            serde_json::from_str::<HashMap<String, String>>(&map_json).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_deserializer_full_hashmap_automate(b: &mut Bencher) {
-        let mut map: HashMap<String, String> = HashMap::new();
-        for _ in 0..500 {
-            map.insert(String::from("hello"), String::from("world"));
-        }
-
-        let map_json = map.as_json();
-
-        b.iter(|| {
-            HashMap::<String, String>::from_json(&map_json).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_deserializer_full_hashmap_serde(b: &mut Bencher) {
-        let mut map: HashMap<String, String> = HashMap::new();
-        for _ in 0..500 {
-            map.insert(String::from("hello"), String::from("world"));
-        }
-
-        let map_json = map.as_json();
-
-        b.iter(|| {
-            serde_json::from_str::<HashMap<String, String>>(&map_json).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_deserializer_empty_vec_automate(b: &mut Bencher) {
-        let vec_json = Vec::<String>::new().as_json();
-
-        b.iter(|| {
-            Vec::<String>::from_json(&vec_json).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_deserializer_empty_vec_serde(b: &mut Bencher) {
-        let vec_json = Vec::<String>::new().as_json();
-
-        b.iter(|| {
-            serde_json::from_str::<Vec<String>>(&vec_json).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_deserializer_full_vec_automate(b: &mut Bencher) {
-        let mut vec: Vec<String> = Vec::new();
-        for _ in 0..500 {
-            vec.push(String::from("hello world"));
-        }
-
-        let vec_json = vec.as_json();
-
-        b.iter(|| {
-            Vec::<String>::from_json(&vec_json).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_deserializer_full_vec_serde(b: &mut Bencher) {
-        let mut vec: Vec<String> = Vec::new();
-        for _ in 0..500 {
-            vec.push(String::from("hello world"));
-        }
-
-        let vec_json = vec.as_json();
-
-        b.iter(|| {
-            serde_json::from_str::<Vec<String>>(&vec_json).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_deserializer_options_all_some_automate(b: &mut Bencher) {
-        let options_json = Options::all_some().as_json();
-
-        b.iter(|| {
-            Options::from_json(&options_json).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_deserializer_options_all_some_serde(b: &mut Bencher) {
-        let options_json = Options::all_some().as_json();
-
-        b.iter(|| {
-            serde_json::from_str::<Options>(&options_json).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_deserializer_options_half_some_automate(b: &mut Bencher) {
-        let options_json = Options::half_some().as_json();
-
-        b.iter(|| {
-            Options::from_json(&options_json).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_deserializer_options_half_some_serde(b: &mut Bencher) {
-        let options_json = Options::half_some().as_json();
-
-        b.iter(|| {
-            serde_json::from_str::<Options>(&options_json).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_deserializer_options_no_some_automate(b: &mut Bencher) {
-        let options_json = Options::no_some().as_json();
-
-        b.iter(|| {
-            Options::from_json(&options_json).unwrap();
-        });
-    }
-
-    #[bench]
-    fn bench_deserializer_options_no_some_serde(b: &mut Bencher) {
-        let options_json = Options::no_some().as_json();
-
-        b.iter(|| {
-            serde_json::from_str::<Options>(&options_json).unwrap();
         });
     }
 }

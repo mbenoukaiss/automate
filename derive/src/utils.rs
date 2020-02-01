@@ -36,6 +36,8 @@ pub fn parse_arguments_list(metadata: TokenStream) -> Arguments {
     arguments
 }
 
+/// Extends [Deref](std::ops::Deref) and [DerefMut](std::ops::DerefMut)
+/// on tuple struct of one element.
 pub fn extend_with_deref(input: &DeriveInput, quote: &mut TokenStream) {
     let name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
@@ -65,7 +67,7 @@ pub fn extend_with_deref(input: &DeriveInput, quote: &mut TokenStream) {
 
                 quote.extend(TokenStream::from(deref));
             } else {
-                //TODO: raise warning or idk
+                panic!("Structs with multiple unnamed fields are not supported yet");
             }
         }
     }

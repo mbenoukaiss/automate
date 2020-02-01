@@ -18,7 +18,7 @@ jobs:
         uses: actions-rs/toolchain@master
         with:
           profile: minimal
-          toolchain: nightly-2019-11-24
+          toolchain: nightly-2020-01-31
           components: clippy
           override: true
       - name: Run clippy
@@ -36,7 +36,7 @@ jobs:
         uses: actions-rs/toolchain@master
         with:
           profile: minimal
-          toolchain: nightly-2019-11-24
+          toolchain: nightly-2020-01-31
           override: true
       - name: Run tests
         uses: actions-rs/cargo@master

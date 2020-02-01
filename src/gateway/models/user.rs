@@ -1,4 +1,3 @@
-use crate::encode::Nullable;
 use crate::gateway::PartialGuildMember;
 use crate::Snowflake;
 
@@ -19,12 +18,12 @@ pub struct User {
     pub id: Snowflake,
     pub username: String,
     pub discriminator: String,
-    pub avatar: Nullable<String>,
+    pub avatar: Option<String>,
     pub bot: Option<bool>,
     pub mfa_enabled: Option<bool>,
     pub locale: Option<String>,
     pub verified: Option<bool>,
-    pub email: Option<Nullable<String>>,
+    pub email: Option<String>,
     pub flags: Option<i32>,
     pub premium_type: Option<i32>
 }
@@ -38,7 +37,7 @@ pub struct PartialUser {
     pub id: Snowflake,
     pub username: Option<String>,
     pub discriminator: Option<String>,
-    pub avatar: Option<Nullable<String>>,
+    pub avatar: Option<String>,
     pub bot: Option<bool>,
     pub mfa_enabled: Option<bool>,
     pub locale: Option<String>,
@@ -54,12 +53,12 @@ pub struct MentionnedUser {
     pub member: PartialGuildMember,
     pub username: String,
     pub discriminator: String,
-    pub avatar: Nullable<String>,
+    pub avatar: Option<String>,
     pub bot: Option<bool>,
     pub mfa_enabled: Option<bool>,
     pub locale: Option<String>,
     pub verified: Option<bool>,
-    pub email: Option<Nullable<String>>,
+    pub email: Option<String>,
     pub flags: Option<i32>,
     pub premium_type: Option<i32>
 }

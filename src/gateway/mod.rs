@@ -2,28 +2,30 @@ mod models;
 
 pub use models::*;
 
-use ws::CloseCode;
 use crate::{map, Error, Listener};
 use crate::http::HttpAPI;
-use crate::encode::{json, Nullable};
+use crate::encode::json;
 use std::thread;
 use std::time::Duration;
-use std::sync::{Mutex, Arc};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::mpsc;
-use std::sync::mpsc::RecvTimeoutError;
-use futures::executor;
 use std::ops::Deref;
-use std::error::Error as StdError;
+use url::Url;
+use futures::{SinkExt, StreamExt};
+use futures::lock::Mutex;
+use futures::stream;
+use futures::channel::mpsc;
+use futures::channel::mpsc::SendError;
+use futures::channel::mpsc::UnboundedSender;
 
 macro_rules! call_dispatcher {
     ($data:ident as $payload:ty => $self:ident.$method:ident) => {{
-        let payload: $payload = <$payload as ::automate::encode::FromJson>::from_json(&$data)?;
+        let payload: $payload = ::serde_json::from_str(&$data)?;
 
-        if let Nullable::Value(val) = payload.s {
-            *$self.sequence_number.lock().unwrap() = Some(val);
+        if let Some(val) = payload.s {
+            *$self.sequence_number.lock().await = Some(val);
         }
 
         $self.$method(payload.d).await?
@@ -33,62 +35,11 @@ macro_rules! call_dispatcher {
 macro_rules! dispatcher {
     ($name:ident: $type:ty) => {
         async fn $name(&self, payload: $type) -> Result<(), Error> {
-            for listener in &mut *self.session.listeners.lock().unwrap() {
+            for listener in &mut *self.session.listeners.lock().await {
                 (*listener).$name(&self.session, &payload).await?
             }
 
             Ok(())
-        }
-    }
-}
-
-/// Communicates with Discord's gateway
-pub struct GatewayAPI;
-
-impl GatewayAPI {
-    /// Establishes a connection to Discord's
-    /// gateway and calls the provided listeners
-    /// when receiving an event.
-    pub async fn connect(http: HttpAPI, listeners: Arc<Mutex<Vec<Box<dyn Listener + Send>>>>) -> ! {
-        let mut delayer = Delayer::new();
-        let session_id = Rc::new(RefCell::new(None));
-        let sequence_number = Arc::new(Mutex::new(None));
-
-        loop {
-            let execution: Result<(), Error> = try {
-                let gateway_bot = http.gateway_bot().await?;
-
-                ws::connect(gateway_bot.url.as_ref(), |client| {
-                    GatewayHandler {
-                        session: Session {
-                            sender: client,
-                            http: http.clone(),
-                            bot: None,
-                            listeners: listeners.clone(),
-                        },
-                        session_id: Rc::clone(&session_id),
-                        sequence_number: Arc::clone(&sequence_number),
-                        heartbeat_confirmed: Arc::new(AtomicBool::new(true)),
-                        heartbeat: None,
-                    }
-                })?;
-
-                delayer.reset();
-            };
-
-            if let Err(err) = execution {
-                error!("Connection was interrupted with '{}'", err.msg);
-            } else {
-                error!("Connection interrupted");
-            }
-
-            delayer.delay();
-
-            if let Some(sid) = &*session_id.borrow() {
-                info!("Attempting to resume session {} with sequence_number: {}", sid, sequence_number.lock().unwrap().unwrap());
-            } else {
-                info!("Attempting to reconnect");
-            }
         }
     }
 }
@@ -120,7 +71,7 @@ impl Delayer {
 }
 
 pub struct Session {
-    sender: ws::Sender,
+    sender: UnboundedSender<tungstenite::Message>,
     http: HttpAPI,
     bot: Option<User>,
     listeners: Arc<Mutex<Vec<Box<dyn Listener + Send>>>>,
@@ -128,8 +79,8 @@ pub struct Session {
 
 impl Session {
     #[inline]
-    pub fn send<M: Into<ws::Message>>(&self, msg: M) -> Result<(), Error> {
-        Ok(self.sender.send(msg)?)
+    pub async fn send<M: Into<tungstenite::Message>>(&mut self, msg: M) -> Result<(), Error> {
+        Ok(self.sender.send(msg.into()).await?)
     }
 
     #[inline]
@@ -151,15 +102,127 @@ impl Deref for Session {
     }
 }
 
-struct GatewayHandler {
+#[derive(Debug)]
+enum Direction {
+    Receive(Result<tungstenite::Message, tungstenite::Error>),
+    Send(tungstenite::Message),
+}
+
+/// Communicates with Discord's gateway
+pub struct GatewayAPI {
     session: Session,
     session_id: Rc<RefCell<Option<String>>>,
     sequence_number: Arc<Mutex<Option<i32>>>,
     heartbeat_confirmed: Arc<AtomicBool>,
-    heartbeat: Option<mpsc::Sender<bool>>,
 }
 
-impl GatewayHandler {
+impl GatewayAPI {
+    /// Establishes a connection to Discord's
+    /// gateway and calls the provided listeners
+    /// when receiving an event.
+    pub async fn connect(http: HttpAPI, listeners: Vec<Box<dyn Listener + Send>>) {
+        let listeners = Arc::new(Mutex::new(listeners));
+
+        let mut delayer = Delayer::new();
+        let session_id = Rc::new(RefCell::new(None));
+        let sequence_number = Arc::new(Mutex::new(None));
+
+        loop {
+            let execution: Result<(), Error> = try {
+                let gateway_bot = http.gateway_bot().await?;
+
+                let (tx, rx) = mpsc::unbounded();
+                let (socket, _) = tktungstenite::connect_async(Url::parse(&gateway_bot.url).unwrap()).await?;
+
+                let mut gateway = GatewayAPI {
+                    session: Session {
+                        sender: tx,
+                        http: http.clone(),
+                        bot: None,
+                        listeners: listeners.clone(),
+                    },
+                    session_id: Rc::clone(&session_id),
+                    sequence_number: Arc::clone(&sequence_number),
+                    heartbeat_confirmed: Arc::new(AtomicBool::new(true)),
+                };
+
+                let mut select = stream::select(
+                    socket.map(Direction::Receive),
+                    rx.map(Direction::Send),
+                );
+
+                while let Some(message) = select.next().await {
+                    match message {
+                        Direction::Receive(message) => gateway.on_message(message?).await,
+                        Direction::Send(message) => select.get_mut().0.send(message).await?
+                    }
+                }
+
+                select.get_mut().0.close().await?;
+
+                delayer.reset();
+            };
+
+            if let Err(err) = execution {
+                error!("Connection was interrupted with '{}'", err.msg);
+            } else {
+                error!("Connection interrupted");
+            }
+
+            delayer.delay();
+
+            if let Some(sid) = &*session_id.borrow() {
+                info!("Attempting to resume session {} with sequence_number: {}", sid, sequence_number.lock().await.unwrap());
+            } else {
+                info!("Attempting to reconnect");
+            }
+        }
+    }
+
+    /*async fn connect(&mut self) -> Result<(), Error> {
+        while let Some(message) = self.session.socket.next().await {
+            if self.heartbeat.is_some() {
+                break;
+            }
+
+            self.on_message(message?).await;
+        }
+
+        if let Some(mut rx) = self.heartbeat.take() {
+            let mut select = stream::select(
+                self.session.socket.map(|m| Direction::Receive(m)),
+                rx.map(|m| Direction::Send(m)),
+            );
+
+            let test = select.get_mut().0;
+
+            while let Some(message) = select.next().await {
+                match message {
+                    Direction::Receive(message) => self.on_message(message?).await,
+                    Direction::Send(message) => self.session.send(message).await?
+                }
+            }
+        }
+
+        self.heartbeat.as_mut()
+            .expect("No heartbeat sender")
+            .close();
+
+        self.session.socket.close(None).await?;
+
+        Ok(())
+    }*/
+
+    async fn on_message(&mut self, msg: tungstenite::Message) {
+        if let tungstenite::Message::Text(data) = msg {
+            if let Err(err) = self.dispatch_payload(&data).await {
+                error!("An error occurred while reading message: {}\n{}", err.msg, data);
+            }
+        } else {
+            error!("Unknown message type received");
+        }
+    }
+
     async fn dispatch_payload(&mut self, data: &str) -> Result<(), Error> {
         match json::root_search::<u8>("op", data)? {
             0 => self.dispatch_event(data).await?,
@@ -258,10 +321,10 @@ impl GatewayHandler {
             let resume = Resume {
                 token: self.session.http.token().clone(),
                 session_id: sid.to_owned(),
-                seq: self.sequence_number.lock().unwrap().unwrap(),
+                seq: self.sequence_number.lock().await.unwrap(),
             };
 
-            self.session.send(resume)?;
+            self.session.send(resume).await?;
             info!("Requested to resume session");
         } else {
             let identify = Identify {
@@ -278,47 +341,39 @@ impl GatewayHandler {
                 guild_subscriptions: Some(true),
             };
 
-            self.session.send(identify)?;
+            self.session.send(identify).await?;
         }
 
-        self.heartbeat = {
-            let sequence_number = self.sequence_number.clone();
-            let heartbeat_confirmed = self.heartbeat_confirmed.clone();
-            let sender = self.session.sender.clone();
+        let mut sender = self.session.sender.clone();
+        let sequence_number = self.sequence_number.clone();
+        let heartbeat_confirmed = self.heartbeat_confirmed.clone();
 
-            let (tx, rx) = mpsc::channel();
+        tokio::spawn(async move {
+            let rs: Result<(), SendError> = try {
+                loop {
+                    tokio::time::delay_for(Duration::from_millis(u64::from(payload.heartbeat_interval))).await;
 
-            thread::spawn(move || {
-                let rs: Result<(), Error> = try {
-                    while match rx.recv_timeout(Duration::from_millis(u64::from(payload.heartbeat_interval))) {
-                        Ok(_) => false,
-                        Err(RecvTimeoutError::Timeout) => true,
-                        Err(RecvTimeoutError::Disconnected) => Error::err("The main thread was disconnected")?
-                    } {
-                        if !heartbeat_confirmed.load(Ordering::Relaxed) {
-                            warn!("Zombied connection detected, shutting down connection");
-                            sender.shutdown()?;
-                            break;
-                        }
-
-                        sender.send(Heartbeat(Nullable::from(*sequence_number.lock().unwrap())))?;
-                        heartbeat_confirmed.store(false, Ordering::Relaxed);
-
-                        info!("Successfully sent heartbeat");
+                    if !heartbeat_confirmed.load(Ordering::Relaxed) {
+                        warn!("Zombied connection detected, shutting down connection");
+                        sender.close().await?;
+                        break;
                     }
-                };
 
-                if let Err(err) = rs {
-                    error!("Heartbeat thread failed ({}), shutting down connection", err.msg);
+                    sender.send(Heartbeat(*sequence_number.lock().await).into()).await?;
+                    heartbeat_confirmed.store(false, Ordering::Relaxed);
 
-                    if let Err(err) = sender.shutdown() {
-                        error!("Failed to shutdown: {}", err.description());
-                    }
+                    info!("Successfully sent heartbeat");
                 }
-            });
+            };
 
-            Some(tx)
-        };
+            if let Err(err) = rs {
+                error!("Heartbeat thread failed ({}), shutting down connection", err.to_string());
+
+                if let Err(err) = sender.close().await {
+                    error!("Failed to close channel: {}", err.to_string());
+                }
+            }
+        });
 
         Ok(())
     }
@@ -339,7 +394,7 @@ impl GatewayHandler {
 
     async fn on_reconnect(&mut self) -> Result<(), Error> {
         warn!("Received reconnect payload, disconnecting");
-        self.session.sender.shutdown()?;
+        self.session.sender.close().await?;
 
         Ok(())
     }
@@ -349,7 +404,7 @@ impl GatewayHandler {
             *self.session_id.borrow_mut() = None;
 
             warn!("Invalid session, shutting down connection");
-            self.session.sender.shutdown()?;
+            self.session.sender.close().await?;
         }
 
         Ok(())
@@ -360,26 +415,5 @@ impl GatewayHandler {
 
         info!("Received heartbeat acknowledgement");
         Ok(())
-    }
-}
-
-impl ws::Handler for GatewayHandler {
-    fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {
-        if let ws::Message::Text(data) = msg {
-            if let Err(err) = executor::block_on(self.dispatch_payload(&data)) {
-                error!("An error occurred while reading message: {}\n{}", err.msg, data);
-            }
-        } else {
-            error!("Unknown message type received");
-        }
-
-        Ok(())
-    }
-
-    fn on_close(&mut self, _code: CloseCode, _reason: &str) {
-        self.heartbeat.as_ref()
-            .expect("No heartbeat sender")
-            .send(true) //might legitimately fail if the heartbeat thread failed, maybe expect is not appropriate
-            .expect("Failed to reach the heartbeat thread");
     }
 }

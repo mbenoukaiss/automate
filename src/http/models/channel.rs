@@ -1,5 +1,4 @@
 use crate::gateway::{Overwrite, OverwriteType, ChannelType};
-use crate::encode::Nullable;
 use crate::Snowflake;
 
 #[object(client)]
@@ -7,7 +6,7 @@ pub struct NewChannel {
     pub parent_id: Option<u64>,
     pub name: String,
     pub _type: Option<ChannelType>,
-    pub topic: Option<Nullable<String>>,
+    pub topic: Option<String>,
     pub bitrate: Option<i32>,
     pub position: Option<i32>,
     pub permission_overwrites: Option<Vec<Overwrite>>,
@@ -20,13 +19,13 @@ pub struct NewChannel {
 pub struct ModifyChannel {
     pub name: Option<String>,
     pub position: Option<i32>,
-    pub topic: Option<Nullable<String>>,
+    pub topic: Option<String>,
     pub nsfw: Option<bool>,
     pub rate_limit_per_user: Option<i32>,
     pub bitrate: Option<i32>,
     pub user_limit: Option<i32>,
     pub permission_overwrites: Option<Vec<Overwrite>>,
-    pub parent_id: Option<Nullable<Snowflake>>,
+    pub parent_id: Option<Snowflake>,
 }
 
 #[object(client)]

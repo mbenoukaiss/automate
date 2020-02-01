@@ -1,9 +1,13 @@
-use crate::encode::{AsJson, FromJson, JsonError};
+use crate::encode::AsJson;
 use std::fmt::{Display, Debug, Formatter, Error as FmtError};
 use std::ops::{Deref, DerefMut};
-use std::str::FromStr;
+use serde::{Deserializer, Deserialize};
+use serde::de::Visitor;
+use serde::de::Error as DeError;
+use core::fmt;
 
-#[derive(Eq, PartialEq, Ord, PartialOrd, Copy, Clone)]
+#[derive(Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Copy, Clone)]
 pub struct Snowflake(pub u64);
 
 impl AsJson for Snowflake {
@@ -18,15 +22,39 @@ impl AsJson for Snowflake {
     }
 }
 
-impl FromJson for Snowflake {
-    #[inline]
-    fn from_json(json: &str) -> Result<Snowflake, JsonError> {
-        if json.len() >= 2 && json.starts_with('"') && json.ends_with('"') {
-            Ok(Snowflake(u64::from_str(&json[1..json.len() - 1])
-                .map_err(|_| JsonError::new(format!("Failed to parse {} into Snowflake", json)))?))
+
+struct SnowflakeVisitor;
+
+impl<'de> Visitor<'de> for SnowflakeVisitor {
+    type Value = Snowflake;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("A large integer or a large integer in a string")
+    }
+
+    fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E> where E: DeError {
+        if value < std::u64::MIN as i64 {
+            Ok(Snowflake(value as u64))
         } else {
-            JsonError::err("Incorrect JSON snowflake received")
+            Err(E::custom(format!("Snowflake out of range: {}", value)))
         }
+    }
+
+    fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E> where E: DeError {
+        Ok(Snowflake(value))
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: DeError, {
+        match value.parse::<u64>() {
+            Ok(val) => self.visit_u64(val),
+            Err(_) => Err(E::custom("Failed to parse snowflake")),
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for Snowflake {
+    fn deserialize<D>(deserializer: D) -> Result<Snowflake, D::Error> where D: Deserializer<'de>, {
+        deserializer.deserialize_str(SnowflakeVisitor)
     }
 }
 
