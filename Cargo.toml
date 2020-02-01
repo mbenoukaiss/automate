@@ -1,6 +1,6 @@
 [package]
 name = "automate"
-version = "0.1.4"
+version = "0.2.0"
 authors = ["mbenoukaiss <marwane.benou-kaiss@etu.u-bordeaux.fr>"]
 license = "MIT"
 repository = "https://github.com/mbenoukaiss/automate"
@@ -11,7 +11,7 @@ readme = "README.md"
 edition = "2018"
 
 [dependencies]
-automate-derive = { version = "0.1.4", path = "derive" }
+automate-derive = { version = "0.2.0", path = "derive" }
 futures = "0.3"
 async-trait = "0.1"
 tokio = { version = "0.2", features = ["time"] }

@@ -409,11 +409,6 @@ impl HttpAPI {
         self.request(Method::GET, api!("/invites/", code, "?with_counts=true"), ()).await
     }
 
-    #[deprecated(since = "0.1.4", note = "Please use 'channel_invites' function instead, will be removed in next version")]
-    pub async fn invites<S: ExtractSnowflake>(&self, channel: S) -> Result<Vec<Invite>, Error> {
-        self.request(Method::GET, api!("/channels/", #channel, "/invites"), ()).await
-    }
-
     /// Retrieves all the invites in a guild.
     pub async fn guild_invites<S: ExtractSnowflake>(&self, guild: S) -> Result<Vec<Invite>, Error> {
         self.request(Method::GET, api!("/guilds/", #guild, "/invites"), ()).await
