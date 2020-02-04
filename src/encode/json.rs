@@ -569,8 +569,6 @@ mod tests {
         let no_val_quote = r#"{"key":value","other":5}"#;
         let wrong_type = r#"{"int":"value"}"#;
 
-        println!("{:#?}", root_search::<String>("key", no_key_quote));
-
         assert!(root_search::<String>("key", no_first_brace).is_err());
         assert!(root_search::<String>("key", no_final_brace).is_err());
         assert!(root_search::<String>("key", no_comma).is_err());

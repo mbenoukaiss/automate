@@ -24,6 +24,12 @@ macro_rules! automate_types {
                     Ok(self.id)
                 }
             }
+
+            impl ExtractSnowflake for &$struct {
+                fn extract_snowflake(&self) -> Result<Snowflake, Error> {
+                    Ok(self.id)
+                }
+            }
         )*
     }
 }

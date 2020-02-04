@@ -5,7 +5,9 @@ struct QuickLogger;
 
 impl Log for QuickLogger {
     fn enabled(&self, metadata: &Metadata) -> bool {
-        metadata.level() == Level::Error || metadata.target().starts_with(env!("CARGO_PKG_NAME"))
+        metadata.level() == Level::Error ||
+            metadata.target().starts_with("automate") ||
+            metadata.target().starts_with(env!("CARGO_PKG_NAME"))
     }
 
     fn log(&self, record: &Record) {

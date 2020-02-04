@@ -41,6 +41,12 @@ impl From<hyper::Error> for Error {
     }
 }
 
+impl From<hyper::header::ToStrError> for Error {
+    fn from(err: hyper::header::ToStrError) -> Self {
+        Error::new(err.to_string())
+    }
+}
+
 impl From<futures::channel::mpsc::SendError> for Error {
     fn from(err: futures::channel::mpsc::SendError) -> Self {
         Error::new(err.to_string())
@@ -55,6 +61,12 @@ impl From<tktungstenite::tungstenite::Error> for Error {
 
 impl From<std::fmt::Error> for Error {
     fn from(err: std::fmt::Error) -> Self {
+        Error::new(err.to_string())
+    }
+}
+
+impl From<std::num::ParseIntError> for Error {
+    fn from(err: std::num::ParseIntError) -> Self {
         Error::new(err.to_string())
     }
 }

@@ -12,7 +12,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::ops::Deref;
-use url::Url;
 use futures::{SinkExt, StreamExt};
 use futures::lock::Mutex;
 use futures::stream;
@@ -132,7 +131,7 @@ impl GatewayAPI {
                 let gateway_bot = http.gateway_bot().await?;
 
                 let (tx, rx) = mpsc::unbounded();
-                let (socket, _) = tktungstenite::connect_async(Url::parse(&gateway_bot.url).unwrap()).await?;
+                let (socket, _) = tktungstenite::connect_async(&gateway_bot.url).await?;
 
                 let mut gateway = GatewayAPI {
                     session: Session {
@@ -178,40 +177,6 @@ impl GatewayAPI {
             }
         }
     }
-
-    /*async fn connect(&mut self) -> Result<(), Error> {
-        while let Some(message) = self.session.socket.next().await {
-            if self.heartbeat.is_some() {
-                break;
-            }
-
-            self.on_message(message?).await;
-        }
-
-        if let Some(mut rx) = self.heartbeat.take() {
-            let mut select = stream::select(
-                self.session.socket.map(|m| Direction::Receive(m)),
-                rx.map(|m| Direction::Send(m)),
-            );
-
-            let test = select.get_mut().0;
-
-            while let Some(message) = select.next().await {
-                match message {
-                    Direction::Receive(message) => self.on_message(message?).await,
-                    Direction::Send(message) => self.session.send(message).await?
-                }
-            }
-        }
-
-        self.heartbeat.as_mut()
-            .expect("No heartbeat sender")
-            .close();
-
-        self.session.socket.close(None).await?;
-
-        Ok(())
-    }*/
 
     async fn on_message(&mut self, msg: tungstenite::Message) {
         if let tungstenite::Message::Text(data) = msg {
@@ -362,7 +327,7 @@ impl GatewayAPI {
                     sender.send(Heartbeat(*sequence_number.lock().await).into()).await?;
                     heartbeat_confirmed.store(false, Ordering::Relaxed);
 
-                    info!("Successfully sent heartbeat");
+                    trace!("Successfully sent heartbeat");
                 }
             };
 
@@ -413,7 +378,7 @@ impl GatewayAPI {
     async fn on_heartbeat_ack(&mut self) -> Result<(), Error> {
         self.heartbeat_confirmed.store(true, Ordering::Relaxed);
 
-        info!("Received heartbeat acknowledgement");
+        trace!("Received heartbeat acknowledgement");
         Ok(())
     }
 }
