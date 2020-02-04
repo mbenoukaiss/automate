@@ -12,7 +12,6 @@ pub struct NewGuild {
     pub explicit_content_filter: ExplicitContentFilterLevel,
     pub roles: Vec<NewRole>,
     pub channels: Vec<NewChannel>,
-
 }
 
 #[object(client, default)]

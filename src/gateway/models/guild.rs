@@ -42,7 +42,6 @@ pub struct Guild {
     pub premium_tier: PremiumTier,
     pub premium_subscription_count: Option<i32>,
     pub preferred_locale: String,
-    pub lazy: bool,
     pub rules_channel_id: Option<Snowflake>
 }
 

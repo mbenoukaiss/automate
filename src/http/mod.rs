@@ -2,15 +2,18 @@ mod models;
 
 pub use models::*;
 
-use hyper::{Client, Request, Body, Response, Method};
-use hyper::client::HttpConnector;
-use hyper::body::Buf;
-use hyper_tls::HttpsConnector;
 use crate::gateway::*;
 use crate::encode::AsJson;
 use crate::{Error, Snowflake};
 use crate::encode::{ExtractSnowflake, WriteUrl};
+use crate::http::rate_limit::Bucket;
+use bytes::buf::ext::BufExt;
+use hyper::{Client, Request, Body, Response, Method, HeaderMap};
+use hyper::client::HttpConnector;
+use hyper::header::HeaderValue;
+use hyper_tls::HttpsConnector;
 use serde::de::DeserializeOwned;
+use chrono::NaiveDateTime;
 
 /// Creates the URL to an API endpoint
 /// by concatenating the given expressions.
@@ -120,13 +123,9 @@ impl HttpAPI {
     #[inline]
     async fn request<T, R>(&self, method: Method, uri: &str, content: T) -> Result<R, Error> where T: AsJson, R: DeserializeOwned {
         let response = self.send(uri, method, Body::from(content.as_json())).await?;
-        let body = hyper::body::aggregate(response.into_body()).await?;
+        let body = hyper::body::aggregate(response).await?;
 
-        if let Ok(json) = std::str::from_utf8(body.bytes()) {
-            Ok(serde_json::from_str(json)?)
-        } else {
-            Error::err("Failed to convert response body to a string")
-        }
+        Ok(serde_json::from_reader(body.reader())?)
     }
 
     #[inline]
@@ -153,6 +152,11 @@ impl HttpAPI {
         self.request(Method::GET, api!("/guilds/", #guild), ()).await
     }
 
+    /// Creates a guild
+    /// The first role defined in the roles vector will
+    /// be used to define the permissions for `@everyone`.
+    //TODO: Check if the bot is in less than 10 guilds
+    //TODO: Check that channels don't have a `parent_id`
     pub async fn create_guild(&self, guild: NewGuild) -> Result<Guild, Error> {
         self.request(Method::POST, api!("/guilds"), guild).await
     }
@@ -454,10 +458,13 @@ impl HttpAPI {
         self.request_code(Method::DELETE, api!("/channels/", #channel, "/pins/", #message), (), 204).await
     }
 
-    pub async fn bot(&self) -> Result<User, Error> {
+    /// Returns the current user.
+    pub async fn curent_user(&self) -> Result<User, Error> {
         self.request(Method::GET, api!("/users/@me"), ()).await
     }
 
+    /// Retrieves the ids of the guilds this
+    /// bot is in.
     pub async fn bot_guilds(&self) -> Result<Vec<PartialGuild>, Error> {
         self.request(Method::GET, api!("/users/@me/guilds"), ()).await
     }
