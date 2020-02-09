@@ -1,8 +1,10 @@
 mod models;
+mod events;
 
 pub use models::*;
+pub use events::Listener;
 
-use crate::{map, Error, Listener};
+use crate::{map, Error};
 use crate::http::HttpAPI;
 use crate::encode::json;
 use std::thread;
@@ -346,6 +348,12 @@ impl GatewayAPI {
     }
 
     async fn on_ready(&mut self, payload: ReadyDispatch) -> Result<(), Error> {
+        for listener in &mut *self.session.listeners.lock().await {
+            if let Err(error) = (*listener).on_ready(&self.session, &payload).await {
+                error!("Listener on_ready failed with: {}", error);
+            }
+        }
+
         self.session.bot = Some(payload.user);
         *self.session_id.borrow_mut() = Some(payload.session_id);
 

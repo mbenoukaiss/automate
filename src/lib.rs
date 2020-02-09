@@ -18,7 +18,6 @@ pub mod http;
 pub mod gateway;
 pub mod encode;
 mod snowflake;
-mod events;
 mod macros;
 mod errors;
 mod logger;
@@ -26,7 +25,7 @@ mod logger;
 pub use async_trait::async_trait;
 pub use tokio;
 
-pub use events::Listener;
+pub use gateway::Listener;
 pub use http::HttpAPI;
 pub use gateway::{GatewayAPI, Session};
 pub use logger::setup_logging;
