@@ -2,9 +2,8 @@
 
 use automate::{async_trait, Listener, Session};
 use automate::{Error, Discord};
+use automate::gateway::MessageReactionAddDispatch;
 use std::env;
-use automate::gateway::{MessageReactionAddDispatch, VerificationLevel, MessageNotificationLevel, ExplicitContentFilterLevel};
-use automate::http::NewGuild;
 
 struct MessageListener;
 

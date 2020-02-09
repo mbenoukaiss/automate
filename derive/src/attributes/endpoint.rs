@@ -14,7 +14,7 @@ fn generate_route(route: String, span: Span) -> proc_macro2::TokenStream {
     let mut quote = quote!(let mut route = String::from("https://discordapp.com/api/v6"););
 
     for part in route.trim_matches('"').split(&['{', '}'][..]) {
-        if part.starts_with("#") {
+        if part.starts_with('#') {
             let part = Ident::new(&part[1..].to_owned(), span);
 
             quote = quote! {
@@ -22,7 +22,7 @@ fn generate_route(route: String, span: Span) -> proc_macro2::TokenStream {
                 let ext: Snowflake = ::automate::encode::ExtractSnowflake::extract_snowflake(&#part)?;
                 ::std::fmt::Write::write_fmt(&mut route, format_args!("{}", ext)).expect("Failed to write api string");
             };
-        } else if part.starts_with("+") {
+        } else if part.starts_with('+') {
             let part = Ident::new(&part[1..], span);
 
             quote = quote! {
@@ -156,7 +156,7 @@ pub fn endpoint(metadata: TokenStream, item: TokenStream) -> TokenStream {
     let arguments = utils::parse_arguments_list(metadata);
 
     let input = parse_macro_input!(item as ItemFn);
-    let span = input.span().into();
+    let span = input.span();
     let visibility = &input.vis;
     let signature = &input.sig;
     let content = &input.block;

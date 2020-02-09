@@ -19,6 +19,7 @@ macro_rules! listener {
 }
 
 listener! {
+    on_ready: ReadyDispatch,
     on_channel_create: ChannelCreateDispatch,
     on_channel_update: ChannelUpdateDispatch,
     on_channel_delete: ChannelDeleteDispatch,
