@@ -1,4 +1,5 @@
 mod models;
+mod rate_limit;
 
 pub use models::*;
 
@@ -7,80 +8,13 @@ use crate::encode::AsJson;
 use crate::{Error, Snowflake};
 use crate::encode::{ExtractSnowflake, WriteUrl};
 use crate::http::rate_limit::Bucket;
-use bytes::buf::ext::BufExt;
-use hyper::{Client, Request, Body, Response, Method, HeaderMap};
+use hyper::{Client, HeaderMap};
 use hyper::client::HttpConnector;
 use hyper::header::HeaderValue;
 use hyper_tls::HttpsConnector;
-use serde::de::DeserializeOwned;
 use chrono::NaiveDateTime;
 
-/// Creates the URL to an API endpoint
-/// by concatenating the given expressions.
-///
-/// This macro accepts four kinds of arguments:
-/// * String literals, which are simply concatenated to
-/// the final string
-/// * Types implementing the ExtractSnoflake type,
-/// their snowflake will be appended to the URL using
-/// [extract_snowflake](automate::encode:ExtractSnowflake::extract_snowflake)
-/// (prefix: #).
-/// * Types implementing the WriteUrl type, which will
-/// be appended to the final string by calling their
-/// [write_url](automate::encode::WriteUrl::write_url)
-/// method. Useful for types that require a specific
-/// formatting or for strings that need to be escaped
-/// (prefix: ~).
-/// * Expressions that return a type implementing
-/// [write_fmt](std::fmt::Write) (no prefix).
-macro_rules! api {
-    //exit
-    (impl $buf:ident,) => {};
-    //string literals
-    (impl $buf:ident, $lit:literal) => {
-        ::std::fmt::Write::write_fmt(&mut $buf, format_args!("{}", $lit)).expect("Failed to write api string");
-    };
-    (impl $buf:ident, $lit:literal, $($tail:tt)*) => {
-        api!(impl $buf, $lit);
-        api!(impl $buf, $($tail)*);
-    };
-    //types to convert using ExtractSnowflake
-    (impl $buf:ident, #$snow:expr) => {
-        let ext: Snowflake = ::automate::encode::ExtractSnowflake::extract_snowflake(&$snow)?;
-        ::std::fmt::Write::write_fmt(&mut $buf, format_args!("{}", ext)).expect("Failed to write api string");
-    };
-    (impl $buf:ident, #$snow:expr, $($tail:tt)*) => {
-        api!(impl $buf, #$snow);
-        api!(impl $buf, $($tail)*);
-    };
-    //types to convert using WriteUrl
-    (impl $buf:ident, ~$wurl:expr) => {
-        ::automate::encode::WriteUrl::write_url($wurl, &mut $buf)?;
-    };
-    (impl $buf:ident, ~$wurl:expr, $($tail:tt)*) => {
-        api!(impl $buf, ~$wurl);
-        api!(impl $buf, $($tail)*);
-    };
-    //any other expression
-    (impl $buf:ident, $any:expr) => {
-        ::std::fmt::Write::write_fmt(&mut $buf, format_args!("{}", $any)).expect("Failed to write api string");
-    };
-    (impl $buf:ident, $any:expr, $($tail:tt)*) => {
-        api!(impl $buf, $any);
-        api!(impl $buf, $($tail)*);
-    };
-    //entry point
-    ($($tokens:tt)*) => {&{
-        let mut s = String::from("https://discordapp.com/api/v6");
-        api!(impl s, $($tokens)*);
-        s
-    }};
-}
-
-/// Default user agent for automate bots
-const USER_AGENT: &str = concat!("DiscordBot (https://github.com/mbenoukaiss/automate, ", env!("CARGO_PKG_VERSION"), ")");
-
-/// Struct to interact with the discord HTTP API.
+/// Struct used to interact with the discord HTTP API.
 #[derive(Clone)]
 pub struct HttpAPI {
     client: Client<HttpsConnector<HttpConnector>>,
@@ -106,227 +40,179 @@ impl HttpAPI {
     }
 
     #[inline]
-    async fn send(&self, uri: &str, method: Method, body: Body) -> Result<Response<Body>, Error> {
-        let response = self.client.request(Request::builder()
-            .uri(uri)
-            .method(method)
-            .header("Content-Type", "application/json")
-            .header("Authorization", &self.token)
-            .header("User-Agent", USER_AGENT)
-            .body(body)
-            .unwrap())
-            .await?;
+    fn bucket(&self, headers: &HeaderMap<HeaderValue>) -> Result<Bucket, Error> {
+        let bucket: Option<&HeaderValue> = headers.get("x-ratelimit-bucket");
+        let limit: Option<&HeaderValue> = headers.get("x-ratelimit-limit");
+        let remaining: Option<&HeaderValue> = headers.get("x-ratelimit-remaining");
+        let reset: Option<&HeaderValue> = headers.get("x-ratelimit-reset");
 
-        Ok(response)
-    }
+        if let (Some(bucket), Some(limit), Some(remaining), Some(reset)) = (bucket, limit, remaining, reset) {
+            let bucket = Bucket::new(
+                bucket.to_str()?.to_owned(),
+                limit.to_str()?.parse::<u16>()?,
+                remaining.to_str()?.parse::<u16>()?,
+                NaiveDateTime::parse_from_str(reset.to_str()?, "%s").unwrap(),
+            );
 
-    #[inline]
-    async fn request<T, R>(&self, method: Method, uri: &str, content: T) -> Result<R, Error> where T: AsJson, R: DeserializeOwned {
-        let response = self.send(uri, method, Body::from(content.as_json())).await?;
-        let body = hyper::body::aggregate(response).await?;
-
-        Ok(serde_json::from_reader(body.reader())?)
-    }
-
-    #[inline]
-    async fn request_code<T>(&self, method: Method, uri: &str, content: T, exp_code: u16) -> Result<(), Error> where T: AsJson {
-        let response = self.send(uri, method, Body::from(content.as_json())).await?;
-        let code = response.status().as_u16();
-
-        if exp_code == code {
-            Ok(())
+            Ok(bucket)
         } else {
-            Error::err(format!("Expected status code {}, got {}", exp_code, code))
+            Error::err("Bucket not found in header")
         }
     }
 
-    pub async fn gateway(&self) -> Result<Gateway, Error> {
-        self.request(Method::GET, api!("/gateway"), ()).await
-    }
+    #[endpoint(get, route = "/gateway", status = 200)]
+    pub async fn gateway(&self) -> Result<Gateway, Error> {}
 
-    pub async fn gateway_bot(&self) -> Result<GatewayBot, Error> {
-        self.request(Method::GET, api!("/gateway/bot"), ()).await
-    }
+    #[endpoint(get, route = "/gateway/bot", status = 200)]
+    pub async fn gateway_bot(&self) -> Result<GatewayBot, Error> {}
 
-    pub async fn guild<S: ExtractSnowflake>(&self, guild: S) -> Result<Guild, Error> {
-        self.request(Method::GET, api!("/guilds/", #guild), ()).await
-    }
+    #[endpoint(get, route = "/guilds/{#guild}/audit-logs", status = 200)]
+    pub async fn audit_logs<S: ExtractSnowflake>(&self, guild: S) -> Result<AuditLog, Error> {}
+
+    #[endpoint(get, route = "/guilds/{#guild}", status = 200)]
+    pub async fn guild<S: ExtractSnowflake>(&self, guild: S) -> Result<Guild, Error> {}
 
     /// Creates a guild
     /// The first role defined in the roles vector will
     /// be used to define the permissions for `@everyone`.
     //TODO: Check if the bot is in less than 10 guilds
     //TODO: Check that channels don't have a `parent_id`
-    pub async fn create_guild(&self, guild: NewGuild) -> Result<Guild, Error> {
-        self.request(Method::POST, api!("/guilds"), guild).await
-    }
+    #[endpoint(post, route = "/guilds", body = "guild", status = 201)]
+    pub async fn create_guild(&self, guild: NewGuild) -> Result<Guild, Error> {}
 
-    pub async fn modify_guild<S: ExtractSnowflake>(&self, guild: S, modification: ModifyGuild) -> Result<Guild, Error> {
-        self.request(Method::PATCH, api!("/guilds/", #guild), modification).await
-    }
+    #[endpoint(patch, route = "/guilds/{#guild}", body = "modification", status = 200)]
+    pub async fn modify_guild<S: ExtractSnowflake>(&self, guild: S, modification: ModifyGuild) -> Result<Guild, Error> {}
 
-    pub async fn delete_guild<S: ExtractSnowflake>(&self, guild: S) -> Result<(), Error> {
-        self.request_code(Method::DELETE, api!("/guilds/", #guild), (), 204).await
-    }
+    #[endpoint(delete, route = "/guilds/{#guild}", status = 204, empty)]
+    pub async fn delete_guild<S: ExtractSnowflake>(&self, guild: S) -> Result<(), Error> {}
 
-    pub async fn audit_logs<S: ExtractSnowflake>(&self, guild: S) -> Result<AuditLog, Error> {
-        self.request(Method::GET, api!("/guilds/", #guild, "/audit-logs"), ()).await
-    }
+    #[endpoint(get, route = "/guilds/{#guild}/channels", status = 200)]
+    pub async fn channels<S: ExtractSnowflake>(&self, guild: S) -> Result<Vec<Channel>, Error> {}
 
-    pub async fn channels<S: ExtractSnowflake>(&self, guild: S) -> Result<Vec<Channel>, Error> {
-        self.request(Method::GET, api!("/guilds/", #guild, "/channels"), ()).await
-    }
+    #[endpoint(get, route = "/channels/{#channel}", status = 200)]
+    pub async fn channel<S: ExtractSnowflake>(&self, channel: S) -> Result<Channel, Error> {}
 
-    pub async fn channel<S: ExtractSnowflake>(&self, channel: S) -> Result<Channel, Error> {
-        self.request(Method::GET, api!("/channels/", #channel), ()).await
-    }
+    #[endpoint(post, route = "/guilds/{#guild}/channels", body = "channel", status = 200)]
+    pub async fn create_channel<S: ExtractSnowflake>(&self, guild: S, channel: NewChannel) -> Result<Channel, Error> {}
 
-    pub async fn create_channel<S: ExtractSnowflake>(&self, guild: S, channel: NewChannel) -> Result<Channel, Error> {
-        self.request(Method::POST, api!("/guilds/", #guild, "/channels"), channel).await
-    }
+    #[endpoint(patch, route = "/channels/{#channel}", body = "modification", status = 200)]
+    pub async fn modify_channel<S: ExtractSnowflake>(&self, channel: S, modification: ModifyChannel) -> Result<Channel, Error> {}
 
-    pub async fn modify_channel<S: ExtractSnowflake>(&self, channel: S, modification: ModifyChannel) -> Result<Channel, Error> {
-        self.request(Method::PATCH, api!("/channels/", #channel), modification).await
-    }
-
-    pub async fn move_channels<S: ExtractSnowflake>(&self, guild: S, moves: Vec<MoveChannel>) -> Result<(), Error> {
-        self.request_code(Method::PATCH, api!("/guilds/", #guild, "/channels"), moves, 204).await
-    }
-
-    pub async fn delete_channel<S: ExtractSnowflake>(&self, channel: S) -> Result<Channel, Error> {
-        self.request(Method::DELETE, api!("/channels/", #channel), ()).await
-    }
+    //TODO: Check if there are at least 2 channels
+    #[endpoint(patch, route = "/guilds/{#guild}/channels", body = "moves", status = 204, empty)]
+    pub async fn move_channels<S: ExtractSnowflake>(&self, guild: S, moves: Vec<MoveChannel>) -> Result<(), Error> {}
 
     //TODO: delete channels recursively?
+    #[endpoint(delete, route = "/channels/{#channel}", status = 200)]
+    pub async fn delete_channel<S: ExtractSnowflake>(&self, channel: S) -> Result<Channel, Error> {}
 
-    pub async fn member<S: ExtractSnowflake>(&self, guild: S, user: S) -> Result<GuildMember, Error> {
-        self.request(Method::GET, api!("/guilds/", #guild, "/members/", #user), ()).await
-    }
+    #[endpoint(get, route = "/guilds/{#guild}/members/{#user}", status = 200)]
+    pub async fn member<S: ExtractSnowflake>(&self, guild: S, user: S) -> Result<GuildMember, Error> {}
 
+    #[endpoint(get, route = "/guilds/{#guild}/members/{query}", status = 200)]
     pub async fn members<S: ExtractSnowflake>(&self, guild: S, filter: MemberFilter) -> Result<Vec<GuildMember>, Error> {
         let query = match filter {
             MemberFilter::Default => String::new(),
             MemberFilter::Limit(limit) => format!("?limit={}", limit),
             MemberFilter::After(s, limit) => format!("?after={}&limit={}", s, limit),
         };
-
-        self.request(Method::GET, api!("/guilds/", #guild, "/members", query), ()).await
     }
 
-    pub async fn modify_member<S: ExtractSnowflake>(&self, guild: S, user: S, member: ModifyMember) -> Result<(), Error> {
-        self.request_code(Method::PATCH, api!("/guilds/", #guild, "/members/", #user), member, 204).await
-    }
+    #[endpoint(patch, route = "/guilds/{#guild}/members/{#user}", body = "member", status = 204, empty)]
+    pub async fn modify_member<S: ExtractSnowflake>(&self, guild: S, user: S, member: ModifyMember) -> Result<(), Error> {}
 
-    pub async fn remove_member<S: ExtractSnowflake>(&self, guild: S, user: S) -> Result<(), Error> {
-        self.request_code(Method::DELETE, api!("/guilds/", #guild, "/members/", #user), (), 204).await
-    }
+    #[endpoint(delete, route = "/guilds/{#guild}/members/{#user}", status = 204, empty)]
+    pub async fn remove_member<S: ExtractSnowflake>(&self, guild: S, user: S) -> Result<(), Error> {}
 
+    #[endpoint(patch, route = "/guilds/{#guild}/members/@me/nick", body = "nick", status = 200, empty)]
     pub async fn modify_own_nick<S: ExtractSnowflake>(&self, guild: S, nick: &str) -> Result<(), Error> {
-        self.request_code(Method::PATCH, api!("/guilds/", #guild, "/members/@me/nick"), nick, 200).await
+        let nick = serde_json::json!({
+            "nick": nick
+        });
     }
 
-    pub async fn member_add_role<S: ExtractSnowflake>(&self, guild: S, user: S, role: S) -> Result<(), Error> {
-        self.request_code(Method::PUT, api!("/guilds/", #guild, "/members/", #user, "/roles/", #role), (), 204).await
-    }
+    #[endpoint(put, route = "/guilds/{#guild}/members/{#user}/roles/{#role}", status = 204, empty)]
+    pub async fn member_add_role<S: ExtractSnowflake>(&self, guild: S, user: S, role: S) -> Result<(), Error> {}
 
-    pub async fn member_remove_role<S: ExtractSnowflake>(&self, guild: S, user: S, role: S) -> Result<(), Error> {
-        self.request_code(Method::DELETE, api!("/guilds/", #guild, "/members/", #user, "/roles/", #role), (), 204).await
-    }
+    #[endpoint(delete, route = "/guilds/{#guild}/members/{#user}/roles/{#role}", status = 204, empty)]
+    pub async fn member_remove_role<S: ExtractSnowflake>(&self, guild: S, user: S, role: S) -> Result<(), Error> {}
 
-    pub async fn bans<S: ExtractSnowflake>(&self, guild: S) -> Result<Vec<Ban>, Error> {
-        self.request(Method::GET, api!("/guilds/", #guild, "/bans"), ()).await
-    }
+    #[endpoint(get, route = "/guilds/{#guild}/bans", status = 200)]
+    pub async fn bans<S: ExtractSnowflake>(&self, guild: S) -> Result<Vec<Ban>, Error> {}
 
-    pub async fn ban<S: ExtractSnowflake>(&self, guild: S, user: S) -> Result<Ban, Error> {
-        self.request(Method::GET, api!("/guilds/", #guild, "/bans/", #user), ()).await
-    }
+    #[endpoint(get, route = "/guilds/{#guild}/bans/{#user}", status = 200)]
+    pub async fn ban<S: ExtractSnowflake>(&self, guild: S, user: S) -> Result<Ban, Error> {}
 
+    #[endpoint(put, route = "/guilds/{#guild}/bans/{#user}/{query}", status = 204, empty)]
     pub async fn create_ban<S: ExtractSnowflake>(&self, guild: S, user: S, reason: Option<&str>, delete_days: Option<i8>) -> Result<(), Error> {
-        let mut query = String::new();
+        let mut query = String::from("?");
 
         if let Some(reason) = reason {
-            query.push_str("?reason=");
+            query.push_str("reason=");
             query.push_str(reason);
         }
 
         if let Some(delete_days) = delete_days {
-            if query.is_empty() {
-                query.push('?');
-            } else {
+            if query.len() != 1 {
                 query.push('&');
             }
 
             query.push_str("delete-message-days=");
             query.push_str(&delete_days.to_string());
         }
-
-        self.request_code(Method::PUT, api!("/guilds/", #guild, "/bans/", #user, query), (), 204).await
     }
 
-    pub async fn remove_ban<S: ExtractSnowflake>(&self, guild: S, user: S) -> Result<(), Error> {
-        self.request_code(Method::DELETE, api!("/guilds/", #guild, "/bans/", #user), (), 204).await
-    }
+    #[endpoint(delete, route = "/guilds/{#guild}/bans/{#user}", status = 204, empty)]
+    pub async fn remove_ban<S: ExtractSnowflake>(&self, guild: S, user: S) -> Result<(), Error> {}
 
-    pub async fn roles<S: ExtractSnowflake>(&self, guild: S) -> Result<Vec<Role>, Error> {
-        self.request(Method::GET, api!("/guilds/", #guild, "/roles"), ()).await
-    }
+    #[endpoint(get, route = "/guilds/{#guild}/roles", status = 200)]
+    pub async fn roles<S: ExtractSnowflake>(&self, guild: S) -> Result<Vec<Role>, Error> {}
 
-    pub async fn create_role<S: ExtractSnowflake>(&self, guild: S, role: NewRole) -> Result<Role, Error> {
-        self.request(Method::POST, api!("/guilds/", #guild, "/roles"), role).await
-    }
+    #[endpoint(post, route = "/guilds/{#guild}/roles", body = "role", status = 200)]
+    pub async fn create_role<S: ExtractSnowflake>(&self, guild: S, role: NewRole) -> Result<Role, Error> {}
 
-    pub async fn modify_roles<S: ExtractSnowflake>(&self, guild: S, role: S, modification: ModifyRole) -> Result<Role, Error> {
-        self.request(Method::PATCH, api!("/guilds/", #guild, "/roles/", #role), modification).await
-    }
+    #[endpoint(patch, route = "/guilds/{#guild}/roles/{#role}", body = "modification", status = 200)]
+    pub async fn modify_roles<S: ExtractSnowflake>(&self, guild: S, role: S, modification: ModifyRole) -> Result<Role, Error> {}
 
-    pub async fn move_roles<S: ExtractSnowflake>(&self, guild: S, roles: Vec<MoveRole>) -> Result<Vec<Role>, Error> {
-        self.request(Method::PATCH, api!("/guilds/", #guild, "/roles"), roles).await
-    }
+    #[endpoint(patch, route = "/guilds/{#guild}/roles", body = "roles", status = 200)]
+    pub async fn move_roles<S: ExtractSnowflake>(&self, guild: S, roles: Vec<MoveRole>) -> Result<Vec<Role>, Error> {}
 
-    pub async fn remove_role<S: ExtractSnowflake>(&self, guild: S, role: S) -> Result<(), Error> {
-        self.request_code(Method::DELETE, api!("/guilds/", #guild, "/roles/", #role), (), 204).await
-    }
+    #[endpoint(delete, route = "/guilds/{#guild}/roles/{#role}", status = 204, empty)]
+    pub async fn remove_role<S: ExtractSnowflake>(&self, guild: S, role: S) -> Result<(), Error> {}
 
-    pub async fn simulate_prune<S: ExtractSnowflake>(&self, guild: S, days: i32) -> Result<Prune, Error> {
-        self.request(Method::GET, api!("/guilds/", #guild, "/roles?days=", days), ()).await
-    }
+    #[endpoint(get, route = "/guilds/{#guild}/prune?days={days}", status = 200)]
+    pub async fn simulate_prune<S: ExtractSnowflake>(&self, guild: S, days: i32) -> Result<Prune, Error> {}
 
-    pub async fn prune<S: ExtractSnowflake>(&self, guild: S, days: i32) -> Result<(), Error> {
-        self.request(Method::POST, api!("/guilds/", #guild, "/prune?days=", days, "&compute_prune_count=0"), ()).await
-    }
+    #[endpoint(post, route = "/guilds/{#guild}/prune?days={days}&compute_prune_count=false", status = 200, empty)]
+    pub async fn prune<S: ExtractSnowflake>(&self, guild: S, days: i32) -> Result<(), Error> {}
 
-    pub async fn prune_with_report<S: ExtractSnowflake>(&self, guild: S, days: i32) -> Result<Prune, Error> {
-        self.request(Method::POST, api!("/guilds/", #guild, "/prune?days=", days, "&compute_prune_count=1"), ()).await
-    }
+    #[endpoint(post, route = "/guilds/{#guild}/prune?days={days}&compute_prune_count=true", status = 200)]
+    pub async fn prune_with_report<S: ExtractSnowflake>(&self, guild: S, days: i32) -> Result<Prune, Error> {}
 
-    pub async fn voice_regions(&self) -> Result<Vec<VoiceRegion>, Error> {
-        self.request(Method::GET, api!("/voice/regions"), ()).await
-    }
+    #[endpoint(get, route = "/voice/regions", status = 200)]
+    pub async fn voice_regions(&self) -> Result<Vec<VoiceRegion>, Error> {}
 
-    pub async fn guild_voice_regions<S: ExtractSnowflake>(&self, guild: S) -> Result<Vec<VoiceRegion>, Error> {
-        self.request(Method::GET, api!("/voice/", #guild, "/regions"), ()).await
-    }
+    #[endpoint(get, route = "/guilds/{#guild}/regions", status = 200)]
+    pub async fn guild_voice_regions<S: ExtractSnowflake>(&self, guild: S) -> Result<Vec<VoiceRegion>, Error> {}
 
-    pub async fn integrations<S: ExtractSnowflake>(&self, guild: S) -> Result<Vec<Integration>, Error> {
-        self.request(Method::GET, api!("/guilds/", #guild, "/integrations"), ()).await
-    }
+    #[endpoint(get, route = "/guilds/{#guild}/integrations", status = 200)]
+    pub async fn integrations<S: ExtractSnowflake>(&self, guild: S) -> Result<Vec<Integration>, Error> {}
 
-    pub async fn embed<S: ExtractSnowflake>(&self, guild: S) -> Result<GuildEmbed, Error> {
-        self.request(Method::GET, api!("/guilds/", #guild, "/embed"), ()).await
-    }
+    #[endpoint(get, route = "/guilds/{#guild}/embed", status = 200)]
+    pub async fn embed<S: ExtractSnowflake>(&self, guild: S) -> Result<GuildEmbed, Error> {}
 
-    pub async fn modify_embed<S: ExtractSnowflake>(&self, guild: S, embed: GuildEmbed) -> Result<GuildEmbed, Error> {
-        self.request(Method::PATCH, api!("/guilds/", #guild, "/embed"), embed).await
-    }
+    #[endpoint(patch, route = "/guilds/{#guild}/embed", body = "embed", status = 200)]
+    pub async fn modify_embed<S: ExtractSnowflake>(&self, guild: S, embed: GuildEmbed) -> Result<GuildEmbed, Error> {}
 
-    pub async fn vanity_url<S: ExtractSnowflake>(&self, guild: S) -> Result<PartialInvite, Error> {
-        self.request(Method::GET, api!("/guilds/", #guild, "/vanity-url"), ()).await
-    }
+    #[endpoint(get, route = "/guilds/{#guild}/vanity-url", status = 200)]
+    pub async fn vanity_url<S: ExtractSnowflake>(&self, guild: S) -> Result<PartialInvite, Error> {}
 
-    pub async fn message<S: ExtractSnowflake>(&self, channel: S, message: S) -> Result<Message, Error> {
-        self.request(Method::GET, api!("/channels/", #channel, "/messages/", #message), ()).await
-    }
+    //TODO: guild widget image
 
+    #[endpoint(get, route = "/channels/{#channel}/messages/{#message}", status = 200)]
+    pub async fn message<S: ExtractSnowflake>(&self, channel: S, message: S) -> Result<Message, Error> {}
+
+    #[endpoint(get, route = "/channels/{#channel}/messages/{query}", status = 200)]
     pub async fn messages<S: ExtractSnowflake>(&self, channel: S, messages: MessagesPosition) -> Result<Vec<Message>, Error> {
         let query = match messages {
             MessagesPosition::Default => String::new(),
@@ -335,154 +221,121 @@ impl HttpAPI {
             MessagesPosition::Around(s, limit) => format!("?around={}&limit={}", s, limit),
             MessagesPosition::After(s, limit) => format!("?after={}&limit={}", s, limit),
         };
-
-        self.request(Method::GET, api!("/channels/", #channel, "/messages", query), ()).await
     }
 
-    pub async fn create_message<S: ExtractSnowflake>(&self, channel: S, message: CreateMessage) -> Result<Message, Error> {
-        self.request(Method::POST, api!("/channels/", #channel, "/messages"), message).await
-    }
+    //TODO: handle sending files
+    #[endpoint(post, route = "/channels/{#channel}/messages", body = "message", status = 200)]
+    pub async fn create_message<S: ExtractSnowflake>(&self, channel: S, message: CreateMessage) -> Result<Message, Error> {}
 
-    pub async fn modify_message<S: ExtractSnowflake>(&self, channel: S, message: S, modification: ModifyMessage) -> Result<Message, Error> {
-        self.request(Method::PATCH, api!("/channels/", #channel, "/messages", #message), modification).await
-    }
+    #[endpoint(post, route = "/channels/{#channel}/messages/{#message}", body = "modification", status = 200)]
+    pub async fn modify_message<S: ExtractSnowflake>(&self, channel: S, message: S, modification: ModifyMessage) -> Result<Message, Error> {}
 
-    pub async fn delete_message<S: ExtractSnowflake>(&self, channel: S, message: S) -> Result<(), Error> {
-        self.request_code(Method::DELETE, api!("/channels/", #channel, "/messages/", #message), (), 204).await
-    }
+    #[endpoint(delete, route = "/channels/{#channel}/messages/{#message}", status = 204, empty)]
+    pub async fn delete_message<S: ExtractSnowflake>(&self, channel: S, message: S) -> Result<(), Error> {}
 
-    pub async fn delete_message_bulk<S: ExtractSnowflake + AsJson>(&self, channel: S, messages: Vec<S>) -> Result<(), Error> {
-        self.request_code(Method::POST, api!("/channels/", #channel, "/messages/bulk-delete"), messages, 204).await
-    }
+    #[endpoint(delete, route = "/channels/{#channel}/messages/bulk-delete", body = "messages", status = 204, empty)]
+    pub async fn delete_message_bulk<S: ExtractSnowflake + AsJson>(&self, channel: S, messages: Vec<S>) -> Result<(), Error> {}
 
-    pub async fn reactions<S: ExtractSnowflake>(&self, channel: S, message: S, emoji: &str, reactions: ReactionsPosition) -> Result<Vec<User>, Error> {
+    #[endpoint(get, route = "/channels/{#channel}/messages/{#message}/reactions/{+emoji}/{query}", status = 200)]
+    pub async fn reactions<S: ExtractSnowflake, U: WriteUrl>(&self, channel: S, message: S, emoji: &U, reactions: ReactionsPosition) -> Result<Vec<User>, Error> {
         let query = match reactions {
             ReactionsPosition::Default => String::new(),
             ReactionsPosition::Limit(limit) => format!("?limit={}", limit),
             ReactionsPosition::Before(s, limit) => format!("?before={}&limit={}", s, limit),
             ReactionsPosition::After(s, limit) => format!("?after={}&limit={}", s, limit),
         };
-
-        self.request(Method::GET, api!("/channels/", #channel, "/messages/", #message, "/reactions/", emoji, query), ()).await
     }
 
-    pub async fn create_reaction<S: ExtractSnowflake, U: WriteUrl>(&self, channel: S, message: S, emoji: &U) -> Result<(), Error> {
-        self.request_code(Method::PUT, api!("/channels/", #channel, "/messages/", #message, "/reactions/", ~emoji, "/@me"), "", 204).await
-    }
+    #[endpoint(put, route = "/channels/{#channel}/messages/{#message}/reactions/{+emoji}/@me", status = 204, empty)]
+    pub async fn create_reaction<S: ExtractSnowflake, U: WriteUrl>(&self, channel: S, message: S, emoji: &U) -> Result<(), Error> {}
 
-    pub async fn delete_reaction<S: ExtractSnowflake, U: WriteUrl>(&self, channel: S, message: S, emoji: &U, user: S) -> Result<(), Error> {
-        self.request_code(Method::DELETE, api!("/channels/", #channel, "/messages/", #message, "/reactions/", ~emoji, "/", #user), (), 204).await
-    }
+    #[endpoint(delete, route = "/channels/{#channel}/messages/{#message}/reactions/{+emoji}/{#user}", status = 204, empty)]
+    pub async fn delete_reaction<S: ExtractSnowflake, U: WriteUrl>(&self, channel: S, message: S, emoji: &U, user: S) -> Result<(), Error> {}
 
-    pub async fn delete_own_reaction<S: ExtractSnowflake, U: WriteUrl>(&self, channel: S, message: S, emoji: &U) -> Result<(), Error> {
-        self.request_code(Method::DELETE, api!("/channels/", #channel, "/messages/", #message, "/reactions/", ~emoji, "/@me"), (), 204).await
-    }
+    #[endpoint(delete, route = "/channels/{#channel}/messages/{#message}/reactions/{+emoji}/@me", status = 204, empty)]
+    pub async fn delete_own_reaction<S: ExtractSnowflake, U: WriteUrl>(&self, channel: S, message: S, emoji: &U) -> Result<(), Error> {}
 
-    pub async fn delete_all_reaction<S: ExtractSnowflake>(&self, channel: S, message: S) -> Result<(), Error> {
-        self.request_code(Method::DELETE, api!("/channels/", #channel, "/messages/", #message, "/reactions"), (), 204).await
-    }
+    #[endpoint(delete, route = "/channels/{#channel}/messages/{#message}/reactions", status = 204, empty)]
+    pub async fn delete_all_reaction<S: ExtractSnowflake>(&self, channel: S, message: S) -> Result<(), Error> {}
 
-    pub async fn emojis<S: ExtractSnowflake>(&self, guild: S) -> Result<Vec<Emoji>, Error> {
-        self.request(Method::GET, api!("/guilds/", #guild, "/emojis"), ()).await
-    }
+    #[endpoint(get, route = "/guilds/{#guild}/emojis", status = 200)]
+    pub async fn emojis<S: ExtractSnowflake>(&self, guild: S) -> Result<Vec<Emoji>, Error> {}
 
-    pub async fn emoji<S: ExtractSnowflake>(&self, guild: S, emoji: S) -> Result<Emoji, Error> {
-        self.request(Method::GET, api!("/guilds/", #guild, "/emojis/", #emoji), ()).await
-    }
+    #[endpoint(get, route = "/guilds/{#guild}/emojis/{#emoji}", status = 200)]
+    pub async fn emoji<S: ExtractSnowflake>(&self, guild: S, emoji: S) -> Result<Emoji, Error> {}
 
-    pub async fn create_emoji<S: ExtractSnowflake>(&self, guild: S, emoji: NewEmoji) -> Result<Emoji, Error> {
-        self.request(Method::POST, api!("/guilds/", #guild, "/emojis"), emoji).await
-    }
+    #[endpoint(post, route = "/guilds/{#guild}/emojis", body = "emoji", status = 200)]
+    pub async fn create_emoji<S: ExtractSnowflake>(&self, guild: S, emoji: NewEmoji) -> Result<Emoji, Error> {}
 
-    pub async fn modify_emoji<S: ExtractSnowflake>(&self, guild: S, emoji: UpdateEmoji) -> Result<Emoji, Error> {
-        self.request(Method::PATCH, api!("/guilds/", #guild, "/emojis/", #emoji), emoji).await
-    }
+    #[endpoint(patch, route = "/guilds/{#guild}/emojis/{#emoji}", body = "emoji", status = 200)]
+    pub async fn modify_emoji<S: ExtractSnowflake>(&self, guild: S, emoji: UpdateEmoji) -> Result<Emoji, Error> {}
 
-    pub async fn delete_emoji<S: ExtractSnowflake>(&self, guild: S, emoji: S) -> Result<(), Error> {
-        self.request_code(Method::DELETE, api!("/guilds/", #guild, "/emojis/", #emoji), (), 204).await
-    }
+    #[endpoint(delete, route = "/guilds/{#guild}/emojis/{#emoji}", status = 204, empty)]
+    pub async fn delete_emoji<S: ExtractSnowflake>(&self, guild: S, emoji: S) -> Result<(), Error> {}
 
     /// Retrieves an invite by its code.
-    pub async fn invite(&self, code: &str) -> Result<Invite, Error> {
-        self.request(Method::GET, api!("/invites/", code), ()).await
-    }
+    #[endpoint(get, route = "/invites/{code}", status = 200)]
+    pub async fn invite(&self, code: &str) -> Result<Invite, Error> {}
 
     /// Retrieves an invite by its code with the
     /// approximate member counts of the server.
-    pub async fn invite_with_counts(&self, code: &str) -> Result<Invite, Error> {
-        self.request(Method::GET, api!("/invites/", code, "?with_counts=true"), ()).await
-    }
+    #[endpoint(get, route = "/invites/{code}?with_counts=true", status = 200)]
+    pub async fn invite_with_counts(&self, code: &str) -> Result<Invite, Error> {}
 
     /// Retrieves all the invites in a guild.
-    pub async fn guild_invites<S: ExtractSnowflake>(&self, guild: S) -> Result<Vec<Invite>, Error> {
-        self.request(Method::GET, api!("/guilds/", #guild, "/invites"), ()).await
-    }
+    #[endpoint(get, route = "/guilds/{#guild}/invites", status = 200)]
+    pub async fn guild_invites<S: ExtractSnowflake>(&self, guild: S) -> Result<Vec<Invite>, Error> {}
 
     /// Retrieves all the invites in a channel.
-    pub async fn channel_invites<S: ExtractSnowflake>(&self, channel: S) -> Result<Vec<Invite>, Error> {
-        self.request(Method::GET, api!("/channels/", #channel, "/invites"), ()).await
-    }
+    #[endpoint(get, route = "/channels/{#channel}/invites", status = 200)]
+    pub async fn channel_invites<S: ExtractSnowflake>(&self, channel: S) -> Result<Vec<Invite>, Error> {}
 
     /// Create an invite for the specified channel.
-    pub async fn create_invite<S: ExtractSnowflake>(&self, channel: S, invite: NewInvite) -> Result<Invite, Error> {
-        self.request(Method::POST, api!("/channels/", #channel, "/invites"), invite).await
-    }
+    #[endpoint(post, route = "/channels/{#channel}/invites", body = "invite", status = 200)]
+    pub async fn create_invite<S: ExtractSnowflake>(&self, channel: S, invite: NewInvite) -> Result<Invite, Error> {}
 
     /// Create an invite for the specified channel.
-    pub async fn delete_invite(&self, code: &str) -> Result<Invite, Error> {
-        self.request(Method::DELETE, api!("/invites/", code), ()).await
-    }
+    #[endpoint(delete, route = "/invites/{code}", status = 200)]
+    pub async fn delete_invite(&self, code: &str) -> Result<Invite, Error> {}
 
-    pub async fn modify_channel_permissions<S: ExtractSnowflake>(&self, channel: S, overwrite: S, permissions: NewOverwrite) -> Result<(), Error> {
-        self.request_code(Method::POST, api!("/channels/", #channel, "/permissions/", #overwrite), permissions, 204).await
-    }
+    #[endpoint(post, route = "/channels/{#channel}/permissions/{#overwrite}", body = "permissions", status = 204, empty)]
+    pub async fn modify_channel_permissions<S: ExtractSnowflake>(&self, channel: S, overwrite: S, permissions: NewOverwrite) -> Result<(), Error> {}
 
-    pub async fn delete_channel_permission<S: ExtractSnowflake>(&self, channel: S, overwrite: S) -> Result<(), Error> {
-        self.request_code(Method::DELETE, api!("/channels/", #channel, "/permissions/", #overwrite), (), 204).await
-    }
+    #[endpoint(delete, route = "/channels/{#channel}/permissions/{#overwrite}", status = 204, empty)]
+    pub async fn delete_channel_permission<S: ExtractSnowflake>(&self, channel: S, overwrite: S) -> Result<(), Error> {}
 
-    pub async fn trigger_typing<S: ExtractSnowflake>(&self, channel: S) -> Result<(), Error> {
-        self.request_code(Method::POST, api!("/channels/", #channel, "/typing"), (), 204).await
-    }
+    #[endpoint(post, route = "/channels/{#channel}/typing", status = 204, empty)]
+    pub async fn trigger_typing<S: ExtractSnowflake>(&self, channel: S) -> Result<(), Error> {}
 
-    pub async fn pinned_messages<S: ExtractSnowflake>(&self, channel: S) -> Result<Vec<Message>, Error> {
-        self.request(Method::GET, api!("/channels/", #channel, "/pins"), ()).await
-    }
+    #[endpoint(get, route = "/channels/{#channel}/pins", status = 200)]
+    pub async fn pinned_messages<S: ExtractSnowflake>(&self, channel: S) -> Result<Vec<Message>, Error> {}
 
-    pub async fn pin_message<S: ExtractSnowflake>(&self, channel: S, message: S) -> Result<(), Error> {
-        self.request_code(Method::PUT, api!("/channels/", #channel, "/pins/", #message), (), 204).await
-    }
+    #[endpoint(put, route = "/channels/{#channel}/pins/{#message}", status = 204, empty)]
+    pub async fn pin_message<S: ExtractSnowflake>(&self, channel: S, message: S) -> Result<(), Error> {}
 
     //TODO: deletes the message or the pin?
-    pub async fn delete_pinned_message<S: ExtractSnowflake>(&self, channel: S, message: S) -> Result<(), Error> {
-        self.request_code(Method::DELETE, api!("/channels/", #channel, "/pins/", #message), (), 204).await
-    }
+    #[endpoint(delete, route = "/channels/{#channel}/pins/{#message}", status = 204, empty)]
+    pub async fn delete_pinned_message<S: ExtractSnowflake>(&self, channel: S, message: S) -> Result<(), Error> {}
 
     /// Returns the current user.
-    pub async fn curent_user(&self) -> Result<User, Error> {
-        self.request(Method::GET, api!("/users/@me"), ()).await
-    }
+    #[endpoint(get, route = "/users/@me", status = 200)]
+    pub async fn curent_user(&self) -> Result<User, Error> {}
+
+    #[endpoint(patch, route = "/users/@me", body = "bot", status = 200)]
+    pub async fn modify_current_user(&self, bot: ModifyBot) -> Result<User, Error> {}
 
     /// Retrieves the ids of the guilds this
     /// bot is in.
-    pub async fn bot_guilds(&self) -> Result<Vec<PartialGuild>, Error> {
-        self.request(Method::GET, api!("/users/@me/guilds"), ()).await
-    }
+    #[endpoint(get, route = "/users/@me/guilds", status = 200)]
+    pub async fn bot_guilds(&self) -> Result<Vec<PartialGuild>, Error> {}
 
-    pub async fn modify_bot(&self, bot: ModifyBot) -> Result<User, Error> {
-        self.request(Method::PATCH, api!("/users/@me"), bot).await
-    }
+    #[endpoint(delete, route = "/users/@me/guilds/{#guild}", status = 204, empty)]
+    pub async fn leave_guild<S: ExtractSnowflake>(&self, guild: S) -> Result<(), Error> {}
 
-    pub async fn leave_guild<S: ExtractSnowflake>(&self, guild: S) -> Result<(), Error> {
-        self.request_code(Method::DELETE, api!("/users/@me/guilds/", #guild), (), 204).await
-    }
-
-    pub async fn user<S: ExtractSnowflake>(&self, user: S) -> Result<User, Error> {
-        self.request(Method::GET, api!("/users/", #user), ()).await
-    }
+    #[endpoint(get, route = "/users/{#user}", status = 200)]
+    pub async fn user<S: ExtractSnowflake>(&self, user: S) -> Result<User, Error> {}
 
     //TODO: create a dm channel type
-    pub async fn create_dm<S: ExtractSnowflake>(&self, recipient: Recipient) -> Result<Channel, Error> {
-        self.request(Method::POST, api!("/users/@me/channels"), recipient).await
-    }
+    #[endpoint(post, route = "/users/@me/channels", body = "recipient", status = 200)]
+    pub async fn create_dm<S: ExtractSnowflake>(&self, recipient: Recipient) -> Result<Channel, Error> {}
 }

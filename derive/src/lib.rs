@@ -22,6 +22,7 @@ macro_rules! extract_token {
     };
 }
 
+mod attributes;
 mod json;
 mod discord;
 mod utils;
@@ -140,15 +141,12 @@ pub fn payload(metadata: TokenStream, item: TokenStream) -> TokenStream {
     let arguments = utils::parse_arguments_list(metadata);
 
     let opcode: u8 = if let Some(tokens) = arguments.get("op") {
-        if tokens.len() != 2 {
+        if tokens.len() != 1 {
             panic!(discord::PAYLOAD_ERROR);
         }
 
-        if tokens.get(0).unwrap() != "=" {
-            panic!(discord::PAYLOAD_ERROR);
-        }
-
-        tokens.get(1).unwrap()
+        tokens.get(0).unwrap()
+            .to_string()
             .parse::<u8>()
             .expect("Expected u8 argument for 'op'")
     } else {
@@ -158,20 +156,11 @@ pub fn payload(metadata: TokenStream, item: TokenStream) -> TokenStream {
 
     let event_name: Option<String> = match arguments.get("event") {
         Some(tokens) => {
-            if tokens.len() != 2 {
+            if tokens.len() != 1 {
                 panic!(discord::PAYLOAD_ERROR);
             }
 
-            if tokens.get(0).unwrap() != "=" {
-                panic!(discord::PAYLOAD_ERROR);
-            }
-
-            let name = tokens.get(1).unwrap();
-            if name.len() < 3 {
-                panic!(discord::PAYLOAD_ERROR);
-            }
-
-            Some((&name[1..name.len() - 1]).to_owned())
+            Some(tokens.get(0).unwrap().to_string().trim_matches('"').to_owned())
         }
         None => None
     };
@@ -397,4 +386,9 @@ pub fn stringify(metadata: TokenStream, item: TokenStream) -> TokenStream {
     convertible.extend(TokenStream::from(as_impl));
 
     convertible
+}
+
+#[proc_macro_attribute]
+pub fn endpoint(metadata: TokenStream, item: TokenStream) -> TokenStream {
+    attributes::endpoint(metadata, item)
 }
