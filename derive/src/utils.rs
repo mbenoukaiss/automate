@@ -3,37 +3,52 @@ use quote::quote;
 use syn::{DeriveInput, Data, Fields};
 use std::collections::HashMap;
 
-pub type Arguments = HashMap<String, Vec<String>>;
+pub type Arguments = HashMap<String, Vec<TokenTree>>;
 
 /// Parses the list of arguments.
 /// Returns a vector associating the name of an argument
-/// such as `op` to the tokens of this argument.
+/// such as `op` to the tokens of this argument, the equal
+/// sign is not included.
 pub fn parse_arguments_list(metadata: TokenStream) -> Arguments {
-    let mut arguments: HashMap<String, Vec<String>> = HashMap::new();
-    let mut current_arg: Option<String> = None;
+    let mut arguments = HashMap::new();
+    let mut current_name: Option<String> = None;
+    let mut current_args: Vec<TokenTree> = Vec::new();
 
     for token in metadata {
-        if let Some(arg) = current_arg.as_ref() {
+        if current_name.is_some() {
             match token {
-                TokenTree::Ident(ident) => arguments.get_mut(arg).unwrap().push(ident.to_string()),
-                TokenTree::Literal(lit) => arguments.get_mut(arg).unwrap().push(lit.to_string()),
-                TokenTree::Group(group) => arguments.get_mut(arg).unwrap().push(group.to_string()),
-                TokenTree::Punct(punct) => {
-                    if punct.as_char() == ',' {
-                        current_arg = None;
-                        continue;
-                    }
+                TokenTree::Punct(punct) => match punct.as_char() {
+                    '=' => (),
+                    ',' => {
+                        arguments.insert(current_name.unwrap(), current_args);
 
-                    arguments.get_mut(arg).unwrap().push(punct.to_string());
-                }
+                        current_name = None;
+                        current_args = Vec::new();
+                    }
+                    _ => current_args.push(TokenTree::Punct(punct))
+                },
+                any => current_args.push(any)
             }
         } else {
-            current_arg = Some(extract_token!(Ident in token));
-            arguments.insert(current_arg.clone().unwrap(), Vec::new());
+            current_name = Some(extract_token!(Ident in token));
         }
     }
 
+    if let Some(name) = current_name {
+        arguments.insert(name, current_args);
+    }
+
     arguments
+}
+
+pub fn extract_string(args: &Arguments, key: &str) -> String {
+    let args = args.get(key).unwrap();
+
+    if let Some(TokenTree::Literal(lit)) = args.first() {
+        lit.to_string()
+    } else {
+        panic!("Expected quoted string such as `route = \"/gateway\"`")
+    }
 }
 
 /// Extends [Deref](std::ops::Deref) and [DerefMut](std::ops::DerefMut)

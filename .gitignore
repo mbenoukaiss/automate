@@ -5,3 +5,5 @@
 **/*.rs.bk
 
 /.idea/
+
+/examples/all_endpoints.rs

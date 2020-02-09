@@ -35,7 +35,9 @@ macro_rules! dispatcher {
     ($name:ident: $type:ty) => {
         async fn $name(&self, payload: $type) -> Result<(), Error> {
             for listener in &mut *self.session.listeners.lock().await {
-                (*listener).$name(&self.session, &payload).await?
+                if let Err(error) = (*listener).$name(&self.session, &payload).await {
+                    error!("Listener {} failed with: {}", stringify!($name), error);
+                }
             }
 
             Ok(())
