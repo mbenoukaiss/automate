@@ -29,29 +29,37 @@ pub struct Invite {
     pub code: String,
     pub guild: Option<PartialGuild>,
     pub channel: Channel,
+    pub inviter: Option<User>,
     pub target_user: Option<PartialUser>,
     pub target_user_type: Option<i32>,
     pub approximate_presence_count: Option<i32>,
     pub approximate_member_count: Option<i32>,
+
+    //following variables are extra information
+    pub uses: Option<i32>,
+    pub max_uses: Option<i32>,
+    pub max_age: Option<i32>,
+    pub temporary: Option<bool>,
+    pub created_at: Option<String>
 }
 
 #[object(server)]
 pub struct PartialInvite {
     pub code: Option<String>,
-    pub uses: i32,
     pub guild: Option<PartialGuild>,
     pub channel: Option<Channel>,
+    pub inviter: Option<User>,
     pub target_user: Option<PartialUser>,
     pub target_user_type: Option<i32>,
     pub approximate_presence_count: Option<i32>,
     pub approximate_member_count: Option<i32>,
-}
 
-pub struct InviteMetadata {
-    pub max_age: i32,
-    pub max_uses: i32,
-    pub temporary: bool,
-    pub unique: bool
+    //following variables are extra information
+    pub uses: Option<i32>,
+    pub max_uses: Option<i32>,
+    pub max_age: Option<i32>,
+    pub temporary: Option<bool>,
+    pub created_at: Option<String>
 }
 
 #[convert(u8)]

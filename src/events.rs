@@ -138,6 +138,20 @@ pub trait GuildRoleDelete: Send + Sync + 'static {
 }
 
 #[async_trait]
+pub trait InviteCreate: Send + Sync + 'static {
+    async fn on_invite_create(&mut self, session: &Session, data: &InviteCreateDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+}
+
+#[async_trait]
+pub trait InviteDelete: Send + Sync + 'static {
+    async fn on_invite_delete(&mut self, session: &Session, data: &InviteDeleteDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+}
+
+#[async_trait]
 pub trait MessageCreate: Send + Sync + 'static {
     async fn on_message_create(&mut self, session: &Session, data: &MessageCreateDispatch) -> Result<(), Error> {
         Ok(())
@@ -303,6 +317,14 @@ pub trait Listener: Send + Sync + 'static {
     }
 
     async fn on_guild_role_delete(&mut self, session: &Session, data: &GuildRoleDeleteDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_invite_create(&mut self, session: &Session, data: &InviteCreateDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_invite_delete(&mut self, session: &Session, data: &InviteDeleteDispatch) -> Result<(), Error> {
         Ok(())
     }
 
