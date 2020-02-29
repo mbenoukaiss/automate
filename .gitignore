@@ -6,5 +6,4 @@
 
 /.idea/
 
-/examples/all_endpoints.rs
-/examples/empty.rs
+/examples/_*.rs

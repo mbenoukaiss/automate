@@ -46,10 +46,10 @@ async fn invite(session: &Session, data: &MessageCreateDispatch) -> Result<(), E
 }
 
 #[listener(event = "reaction_add")]
-async fn tell_reaction(session: &Session, data: &MessageReactionAddDispatch) -> Result<(), Error> {
-    let content = Some(format!("{}?!", data.emoji.name));
+async fn tell_reaction(session: &Session, reac: &MessageReactionAddDispatch) -> Result<(), Error> {
+    let content = Some(format!("{}?!", reac.emoji.name));
 
-    session.create_message(data.channel_id, CreateMessage {
+    session.create_message(reac.channel_id, CreateMessage {
         content,
         ..Default::default()
     }).await?;

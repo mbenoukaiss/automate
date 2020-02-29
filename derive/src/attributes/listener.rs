@@ -1,11 +1,11 @@
 use proc_macro::{TokenStream};
 use proc_macro2::{TokenStream as TokenStream2, Ident, Span};
-use syn::{ItemFn, AttributeArgs};
+use syn::{ItemFn, FnArg, Pat, AttributeArgs};
 use quote::ToTokens;
 use quote::quote;
 use darling::FromMeta;
 
-fn create_trait(fn_name: &Ident, event: String, item: TokenStream2) -> TokenStream {
+fn create_trait(names: (&Ident, Ident, Ident), event: String, item: TokenStream2) -> TokenStream {
     let (func, trt) = match event.as_str() {
         "ready" => ("on_ready", "Ready"),
         "channel_create" => ("on_channel_create", "ChannelCreate"),
@@ -42,6 +42,8 @@ fn create_trait(fn_name: &Ident, event: String, item: TokenStream2) -> TokenStre
         unknown => panic!("Unknown event type {}", unknown)
     };
 
+    let (fn_name, session_name, data_name) = names;
+
     let func = Ident::new(&func, Span::call_site());
     let trt = Ident::new(&trt, Span::call_site());
     let dispatch = Ident::new(&format!("{}Dispatch", trt), Span::call_site());
@@ -52,7 +54,7 @@ fn create_trait(fn_name: &Ident, event: String, item: TokenStream2) -> TokenStre
 
         #[::automate::async_trait]
         impl ::automate::events::#trt for #fn_name {
-            async fn #func(&mut self, session: &Session, data: &#dispatch) -> Result<(), Error> {
+            async fn #func(&mut self, #session_name: &Session, #data_name: &#dispatch) -> Result<(), Error> {
                 #item
             }
         }
@@ -80,8 +82,27 @@ pub fn listener(metadata: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     let input: ItemFn = parse_macro_input!(item as ItemFn);
-    let name = &input.sig.ident;
+    let fn_name = &input.sig.ident;
     let content = &input.block;
 
-    create_trait(name, args.event, content.to_token_stream())
+    let mut session_name = None;
+    let mut data_name = None;
+    for arg in input.sig.inputs {
+        if let FnArg::Typed(arg) = arg {
+            if let Pat::Ident(name) = *arg.pat {
+                if session_name.is_none() {
+                    session_name = Some(name.ident);
+                } else if data_name.is_none() {
+                    data_name = Some(name.ident);
+                } else {
+                    panic!("Expected 2 typed arguments but found 3");
+                }
+            }
+        }
+    }
+
+    let session_name = session_name.expect("Could not find session argument name");
+    let data_name = data_name.expect("Could not find data argument name");
+
+    create_trait((fn_name, session_name, data_name), args.event, content.to_token_stream())
 }
