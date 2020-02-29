@@ -1,4 +1,6 @@
-use automate_derive::listener;
+#[macro_use]
+extern crate automate;
+
 use automate::{Error, Discord, Session};
 use automate::gateway::{MessageReactionAddDispatch, MessageCreateDispatch};
 use automate::http::{CreateMessage, NewInvite};
