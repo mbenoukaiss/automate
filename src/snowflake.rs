@@ -7,6 +7,7 @@ use serde::de::Error as DeError;
 use core::fmt;
 
 #[derive(Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Hash)]
 #[derive(Copy, Clone)]
 pub struct Snowflake(pub u64);
 

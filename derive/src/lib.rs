@@ -1,5 +1,8 @@
 extern crate proc_macro;
 
+#[macro_use]
+extern crate syn;
+
 use proc_macro::{TokenStream, TokenTree};
 use proc_macro2::Ident;
 use syn::{parse_macro_input, DeriveInput, Data, Fields, Expr, Error};
@@ -391,4 +394,9 @@ pub fn stringify(metadata: TokenStream, item: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn endpoint(metadata: TokenStream, item: TokenStream) -> TokenStream {
     attributes::endpoint(metadata, item)
+}
+
+#[proc_macro_attribute]
+pub fn listener(metadata: TokenStream, item: TokenStream) -> TokenStream {
+    attributes::listener(metadata, item)
 }
