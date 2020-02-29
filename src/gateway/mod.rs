@@ -237,6 +237,8 @@ impl GatewayAPI {
             GuildRoleCreateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<GuildRoleCreateDispatch> => self.on_guild_role_create),
             GuildRoleUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<GuildRoleUpdateDispatch> => self.on_guild_role_update),
             GuildRoleDeleteDispatch::EVENT_NAME => call_dispatcher!(data as Payload<GuildRoleDeleteDispatch> => self.on_guild_role_delete),
+            InviteCreateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<InviteCreateDispatch> => self.on_invite_create),
+            InviteDeleteDispatch::EVENT_NAME => call_dispatcher!(data as Payload<InviteDeleteDispatch> => self.on_invite_delete),
             MessageCreateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageCreateDispatch> => self.on_message_create),
             MessageUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageUpdateDispatch> => self.on_message_update),
             MessageDeleteDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageDeleteDispatch> => self.on_message_delete),
@@ -275,6 +277,8 @@ impl GatewayAPI {
     dispatcher!(on_guild_role_create: GuildRoleCreateDispatch => guild_role_create);
     dispatcher!(on_guild_role_update: GuildRoleUpdateDispatch => guild_role_update);
     dispatcher!(on_guild_role_delete: GuildRoleDeleteDispatch => guild_role_delete);
+    dispatcher!(on_invite_create: InviteCreateDispatch => invite_create);
+    dispatcher!(on_invite_delete: InviteDeleteDispatch => invite_delete);
     dispatcher!(on_message_create: MessageCreateDispatch => message_create);
     dispatcher!(on_message_update: MessageUpdateDispatch => message_update);
     dispatcher!(on_message_delete: MessageDeleteDispatch => message_delete);

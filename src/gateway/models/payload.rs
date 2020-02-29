@@ -129,6 +129,26 @@ pub struct GuildRoleDeleteDispatch {
     pub role: Snowflake,
 }
 
+#[payload(op = 0, event = "INVITE_CREATE", server)]
+pub struct InviteCreateDispatch {
+    pub code: String,
+    pub guild_id: Snowflake,
+    pub channel_id: Snowflake,
+    pub inviter: Option<User>,
+    pub uses: i32,
+    pub max_uses: i32,
+    pub max_age: i32,
+    pub temporary: bool,
+    pub created_at: String
+}
+
+#[payload(op = 0, event = "INVITE_DELETE", server)]
+pub struct InviteDeleteDispatch {
+    pub code: String,
+    pub guild_id: Snowflake,
+    pub channel_id: Snowflake,
+}
+
 #[payload(op = 0, event = "MESSAGE_CREATE", server)]
 pub struct MessageCreateDispatch(pub Message);
 

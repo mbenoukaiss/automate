@@ -174,6 +174,16 @@ impl Discord {
         self
     }
 
+    pub fn on_invite_create(mut self, listener: impl InviteCreate) -> Self {
+        self.listeners.invite_create.push(Box::new(listener));
+        self
+    }
+
+    pub fn on_invite_delete(mut self, listener: impl InviteDelete) -> Self {
+        self.listeners.invite_delete.push(Box::new(listener));
+        self
+    }
+
     pub fn on_message_create(mut self, listener: impl MessageCreate) -> Self {
         self.listeners.message_create.push(Box::new(listener));
         self
@@ -278,6 +288,8 @@ pub(crate) struct ListenerStorage {
     pub(crate) guild_role_create: Vec<Box<dyn GuildRoleCreate>>,
     pub(crate) guild_role_update: Vec<Box<dyn GuildRoleUpdate>>,
     pub(crate) guild_role_delete: Vec<Box<dyn GuildRoleDelete>>,
+    pub(crate) invite_create: Vec<Box<dyn InviteCreate>>,
+    pub(crate) invite_delete: Vec<Box<dyn InviteDelete>>,
     pub(crate) message_create: Vec<Box<dyn MessageCreate>>,
     pub(crate) message_update: Vec<Box<dyn MessageUpdate>>,
     pub(crate) message_delete: Vec<Box<dyn MessageDelete>>,
