@@ -17,42 +17,40 @@ In order for this example to work, you need to define the `DISCORD_API_TOKEN` en
 bot and generate a token on [Discord's developers portal](https://discordapp.com/developers/applications/).
 
 ```rust
-#![allow(where_clauses_object_safety)]
+#[macro_use]
+extern crate automate;
 
-use automate::async_trait;
-use automate::{Error, Discord, Listener, Session};
+use automate::{Error, Discord, Session};
 use automate::gateway::MessageCreateDispatch;
 use automate::http::CreateMessage;
 use std::env;
 
-struct MessageListener;
+#[listener(event = "message_create")]
+async fn say_hello(session: &Session, data: &MessageCreateDispatch) -> Result<(), Error> {
+    let message = &data.0;
 
-#[async_trait]
-impl Listener for MessageListener {
-    async fn on_message_create(&mut self, session: &Session, message: &MessageCreateDispatch) -> Result<(), Error> {
-        let message = &message.0;
+    if message.author.id != session.bot().id {
+        let content = Some(format!("Hello {}!", message.author.username));
 
-        if message.author.id != session.bot().id {
-            let content = Some(format!("Hello {}!", message.author.username));
-
-            session.create_message(message.channel_id, CreateMessage {
-                content,
-                ..Default::default()
-            }).await?;
-        }
-
-        Ok(())
+        session.create_message(message.channel_id, CreateMessage {
+            content,
+            ..Default::default()
+        }).await?;
     }
+
+    Ok(())
 }
 
 fn main() {
     automate::setup_logging();
 
     Discord::new(&env::var("DISCORD_API_TOKEN").expect("API token not found"))
-        .with_listener(MessageListener)
+        .on_message_create(say_hello)
         .connect_blocking()
 }
 ```
+
+For examples with more details, see in the `examples` folder.
 
 # Contributing
 Any kind of contribution is welcome, from issues to pull requests. For major changes, please open an issue first to discuss what you would like to change.

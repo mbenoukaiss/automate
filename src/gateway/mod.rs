@@ -1,10 +1,8 @@
 mod models;
-mod events;
 
 pub use models::*;
-pub use events::Listener;
 
-use crate::{map, Error};
+use crate::{map, Error, ListenerStorage};
 use crate::http::HttpAPI;
 use crate::encode::json;
 use std::thread;
@@ -34,11 +32,17 @@ macro_rules! call_dispatcher {
 }
 
 macro_rules! dispatcher {
-    ($name:ident: $type:ty) => {
-        async fn $name(&self, payload: $type) -> Result<(), Error> {
-            for listener in &mut *self.session.listeners.lock().await {
-                if let Err(error) = (*listener).$name(&self.session, &payload).await {
-                    error!("Listener {} failed with: {}", stringify!($name), error);
+    ($fn_name:ident: $type:ty => $name:ident) => {
+        async fn $fn_name(&self, payload: $type) -> Result<(), Error> {
+            for listener in &mut *self.session.listeners.lock().await.trait_listeners {
+                if let Err(error) = (*listener).$fn_name(&self.session, &payload).await {
+                    error!("Listener to {} failed with: {}", stringify!($name), error);
+                }
+            }
+
+            for listener in &mut *self.session.listeners.lock().await.$name {
+                if let Err(error) = (*listener).$fn_name(&self.session, &payload).await {
+                    error!("Listener to {} failed with: {}", stringify!($name), error);
                 }
             }
 
@@ -54,13 +58,13 @@ struct Delayer {
 impl Delayer {
     const DELAYS: [u64; 10] = [5, 5, 5, 15, 30, 60, 120, 120, 300, 600];
 
-    pub fn new() -> Delayer {
+    fn new() -> Delayer {
         Delayer {
             delay: 0
         }
     }
 
-    pub fn delay(&mut self) {
+    fn delay(&mut self) {
         thread::sleep(Duration::from_secs(Delayer::DELAYS[self.delay]));
 
         if self.delay < 9 {
@@ -68,7 +72,7 @@ impl Delayer {
         }
     }
 
-    pub fn reset(&mut self) {
+    fn reset(&mut self) {
         self.delay = 0
     }
 }
@@ -77,7 +81,7 @@ pub struct Session {
     sender: UnboundedSender<tungstenite::Message>,
     http: HttpAPI,
     bot: Option<User>,
-    listeners: Arc<Mutex<Vec<Box<dyn Listener + Send>>>>,
+    listeners: Arc<Mutex<ListenerStorage>>,
 }
 
 impl Session {
@@ -112,7 +116,7 @@ enum Direction {
 }
 
 /// Communicates with Discord's gateway
-pub struct GatewayAPI {
+pub(crate) struct GatewayAPI {
     session: Session,
     session_id: Rc<RefCell<Option<String>>>,
     sequence_number: Arc<Mutex<Option<i32>>>,
@@ -123,7 +127,7 @@ impl GatewayAPI {
     /// Establishes a connection to Discord's
     /// gateway and calls the provided listeners
     /// when receiving an event.
-    pub async fn connect(http: HttpAPI, listeners: Vec<Box<dyn Listener + Send>>) {
+    pub(crate) async fn connect(http: HttpAPI, listeners: ListenerStorage) {
         let listeners = Arc::new(Mutex::new(listeners));
 
         let mut delayer = Delayer::new();
@@ -253,37 +257,37 @@ impl GatewayAPI {
         Ok(())
     }
 
-    dispatcher!(on_channel_create: ChannelCreateDispatch);
-    dispatcher!(on_channel_update: ChannelUpdateDispatch);
-    dispatcher!(on_channel_delete: ChannelDeleteDispatch);
-    dispatcher!(on_channel_pins_update: ChannelPinsUpdateDispatch);
-    dispatcher!(on_guild_create: GuildCreateDispatch);
-    dispatcher!(on_guild_update: GuildUpdateDispatch);
-    dispatcher!(on_guild_delete: GuildDeleteDispatch);
-    dispatcher!(on_guild_ban_add: GuildBanAddDispatch);
-    dispatcher!(on_guild_ban_remove: GuildBanRemoveDispatch);
-    dispatcher!(on_guild_emojis_update: GuildEmojisUpdateDispatch);
-    dispatcher!(on_guild_integrations_update: GuildIntegrationsUpdateDispatch);
-    dispatcher!(on_guild_member_add: GuildMemberAddDispatch);
-    dispatcher!(on_guild_member_remove: GuildMemberRemoveDispatch);
-    dispatcher!(on_guild_member_update: GuildMemberUpdateDispatch);
-    dispatcher!(on_guild_members_chunk: GuildMembersChunkDispatch);
-    dispatcher!(on_guild_role_create: GuildRoleCreateDispatch);
-    dispatcher!(on_guild_role_update: GuildRoleUpdateDispatch);
-    dispatcher!(on_guild_role_delete: GuildRoleDeleteDispatch);
-    dispatcher!(on_message_create: MessageCreateDispatch);
-    dispatcher!(on_message_update: MessageUpdateDispatch);
-    dispatcher!(on_message_delete: MessageDeleteDispatch);
-    dispatcher!(on_message_delete_bulk: MessageDeleteBulkDispatch);
-    dispatcher!(on_reaction_add: MessageReactionAddDispatch);
-    dispatcher!(on_reaction_remove: MessageReactionRemoveDispatch);
-    dispatcher!(on_reaction_remove_all: MessageReactionRemoveAllDispatch);
-    dispatcher!(on_presence_update: PresenceUpdateDispatch);
-    dispatcher!(on_typing_start: TypingStartDispatch);
-    dispatcher!(on_user_update: UserUpdateDispatch);
-    dispatcher!(on_voice_state_update: VoiceStateUpdateDispatch);
-    dispatcher!(on_voice_server_update: VoiceServerUpdateDispatch);
-    dispatcher!(on_webhooks_update: WebhooksUpdateDispatch);
+    dispatcher!(on_channel_create: ChannelCreateDispatch => channel_create);
+    dispatcher!(on_channel_update: ChannelUpdateDispatch => channel_update);
+    dispatcher!(on_channel_delete: ChannelDeleteDispatch => channel_delete);
+    dispatcher!(on_channel_pins_update: ChannelPinsUpdateDispatch => channel_pins_update);
+    dispatcher!(on_guild_create: GuildCreateDispatch => guild_create);
+    dispatcher!(on_guild_update: GuildUpdateDispatch => guild_update);
+    dispatcher!(on_guild_delete: GuildDeleteDispatch => guild_delete);
+    dispatcher!(on_guild_ban_add: GuildBanAddDispatch => guild_ban_add);
+    dispatcher!(on_guild_ban_remove: GuildBanRemoveDispatch => guild_ban_remove);
+    dispatcher!(on_guild_emojis_update: GuildEmojisUpdateDispatch => guild_emojis_update);
+    dispatcher!(on_guild_integrations_update: GuildIntegrationsUpdateDispatch => guild_integrations_update);
+    dispatcher!(on_guild_member_add: GuildMemberAddDispatch => guild_member_add);
+    dispatcher!(on_guild_member_remove: GuildMemberRemoveDispatch => guild_member_remove);
+    dispatcher!(on_guild_member_update: GuildMemberUpdateDispatch => guild_member_update);
+    dispatcher!(on_guild_members_chunk: GuildMembersChunkDispatch => guild_members_chunk);
+    dispatcher!(on_guild_role_create: GuildRoleCreateDispatch => guild_role_create);
+    dispatcher!(on_guild_role_update: GuildRoleUpdateDispatch => guild_role_update);
+    dispatcher!(on_guild_role_delete: GuildRoleDeleteDispatch => guild_role_delete);
+    dispatcher!(on_message_create: MessageCreateDispatch => message_create);
+    dispatcher!(on_message_update: MessageUpdateDispatch => message_update);
+    dispatcher!(on_message_delete: MessageDeleteDispatch => message_delete);
+    dispatcher!(on_message_delete_bulk: MessageDeleteBulkDispatch => message_delete_bulk);
+    dispatcher!(on_reaction_add: MessageReactionAddDispatch => reaction_add);
+    dispatcher!(on_reaction_remove: MessageReactionRemoveDispatch => reaction_remove);
+    dispatcher!(on_reaction_remove_all: MessageReactionRemoveAllDispatch => reaction_remove_all);
+    dispatcher!(on_presence_update: PresenceUpdateDispatch => presence_update);
+    dispatcher!(on_typing_start: TypingStartDispatch => typing_start);
+    dispatcher!(on_user_update: UserUpdateDispatch => user_update);
+    dispatcher!(on_voice_state_update: VoiceStateUpdateDispatch => voice_state_update);
+    dispatcher!(on_voice_server_update: VoiceServerUpdateDispatch => voice_server_update);
+    dispatcher!(on_webhooks_update: WebhooksUpdateDispatch => webhooks_update);
 
     async fn on_hello(&mut self, payload: Hello) -> Result<(), Error> {
         if let Some(sid) = &*self.session_id.borrow() {
@@ -348,11 +352,17 @@ impl GatewayAPI {
     }
 
     async fn on_ready(&mut self, payload: ReadyDispatch) -> Result<(), Error> {
-        for listener in &mut *self.session.listeners.lock().await {
+        for listener in &mut *self.session.listeners.lock().await.trait_listeners {
             if let Err(error) = (*listener).on_ready(&self.session, &payload).await {
                 error!("Listener on_ready failed with: {}", error);
             }
         }
+
+//        for listener in &mut *self.session.listeners.lock().await.ready {
+//            if let Err(error) = (*listener).call(&self.session, &payload).await {
+//                error!("Listener on_ready failed with: {}", error);
+//            }
+//        }
 
         self.session.bot = Some(payload.user);
         *self.session_id.borrow_mut() = Some(payload.session_id);
