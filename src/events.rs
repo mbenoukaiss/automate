@@ -4,6 +4,152 @@ use async_trait::async_trait;
 use crate::gateway::*;
 use crate::{Session, Error};
 
+#[macro_export]
+macro_rules! listeners {
+    ($($listener:expr),*) => {
+        vec![$(Box::new($listener)),*]
+    }
+}
+
+#[async_trait]
+pub trait Listener: Send + Sync + 'static {
+    async fn on_ready(&mut self, session: &Session, data: &ReadyDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_channel_create(&mut self, session: &Session, data: &ChannelCreateDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_channel_update(&mut self, session: &Session, data: &ChannelUpdateDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_channel_delete(&mut self, session: &Session, data: &ChannelDeleteDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_channel_pins_update(&mut self, session: &Session, data: &ChannelPinsUpdateDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_guild_create(&mut self, session: &Session, data: &GuildCreateDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_guild_update(&mut self, session: &Session, data: &GuildUpdateDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_guild_delete(&mut self, session: &Session, data: &GuildDeleteDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_guild_ban_add(&mut self, session: &Session, data: &GuildBanAddDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_guild_ban_remove(&mut self, session: &Session, data: &GuildBanRemoveDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_guild_emojis_update(&mut self, session: &Session, data: &GuildEmojisUpdateDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_guild_integrations_update(&mut self, session: &Session, data: &GuildIntegrationsUpdateDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_guild_member_add(&mut self, session: &Session, data: &GuildMemberAddDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_guild_member_remove(&mut self, session: &Session, data: &GuildMemberRemoveDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_guild_member_update(&mut self, session: &Session, data: &GuildMemberUpdateDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_guild_members_chunk(&mut self, session: &Session, data: &GuildMembersChunkDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_guild_role_create(&mut self, session: &Session, data: &GuildRoleCreateDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_guild_role_update(&mut self, session: &Session, data: &GuildRoleUpdateDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_guild_role_delete(&mut self, session: &Session, data: &GuildRoleDeleteDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_invite_create(&mut self, session: &Session, data: &InviteCreateDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_invite_delete(&mut self, session: &Session, data: &InviteDeleteDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_message_create(&mut self, session: &Session, data: &MessageCreateDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_message_update(&mut self, session: &Session, data: &MessageUpdateDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_message_delete(&mut self, session: &Session, data: &MessageDeleteDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_message_delete_bulk(&mut self, session: &Session, data: &MessageDeleteBulkDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_reaction_add(&mut self, session: &Session, data: &MessageReactionAddDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_reaction_remove(&mut self, session: &Session, data: &MessageReactionRemoveDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_reaction_remove_all(&mut self, session: &Session, data: &MessageReactionRemoveAllDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_presence_update(&mut self, session: &Session, data: &PresenceUpdateDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_typing_start(&mut self, session: &Session, data: &TypingStartDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_user_update(&mut self, session: &Session, data: &UserUpdateDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_voice_state_update(&mut self, session: &Session, data: &VoiceStateUpdateDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_voice_server_update(&mut self, session: &Session, data: &VoiceServerUpdateDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_webhooks_update(&mut self, session: &Session, data: &WebhooksUpdateDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+}
+
 #[async_trait]
 pub trait Ready: Send + Sync + 'static {
     async fn on_ready(&mut self, session: &Session, data: &ReadyDispatch) -> Result<(), Error> {
@@ -184,6 +330,10 @@ pub trait MessageReactionAdd: Send + Sync + 'static {
     async fn on_reaction_add(&mut self, session: &Session, data: &MessageReactionAddDispatch) -> Result<(), Error> {
         Ok(())
     }
+
+    async fn hi(&self) {
+        println!("Wow!");
+    }
 }
 
 #[async_trait]
@@ -242,141 +392,52 @@ pub trait WebhooksUpdate: Send + Sync + 'static {
     }
 }
 
-#[async_trait]
-pub trait Listener: Send + Sync + 'static {
-    async fn on_ready(&mut self, session: &Session, data: &ReadyDispatch) -> Result<(), Error> {
-        Ok(())
-    }
+pub enum ListenerType {
+    Impl(Box<dyn Listener>),
+    Ready(Box<dyn Ready>),
+    ChannelCreate(Box<dyn ChannelCreate>),
+    ChannelUpdate(Box<dyn ChannelUpdate>),
+    ChannelDelete(Box<dyn ChannelDelete>),
+    ChannelPinsUpdate(Box<dyn ChannelPinsUpdate>),
+    GuildCreate(Box<dyn GuildCreate>),
+    GuildUpdate(Box<dyn GuildUpdate>),
+    GuildDelete(Box<dyn GuildDelete>),
+    GuildBanAdd(Box<dyn GuildBanAdd>),
+    GuildBanRemove(Box<dyn GuildBanRemove>),
+    GuildEmojisUpdate(Box<dyn GuildEmojisUpdate>),
+    GuildIntegrationsUpdate(Box<dyn GuildIntegrationsUpdate>),
+    GuildMemberAdd(Box<dyn GuildMemberAdd>),
+    GuildMemberRemove(Box<dyn GuildMemberRemove>),
+    GuildMemberUpdate(Box<dyn GuildMemberUpdate>),
+    GuildMembersChunk(Box<dyn GuildMembersChunk>),
+    GuildRoleCreate(Box<dyn GuildRoleCreate>),
+    GuildRoleUpdate(Box<dyn GuildRoleUpdate>),
+    GuildRoleDelete(Box<dyn GuildRoleDelete>),
+    InviteCreate(Box<dyn InviteCreate>),
+    InviteDelete(Box<dyn InviteDelete>),
+    MessageCreate(Box<dyn MessageCreate>),
+    MessageUpdate(Box<dyn MessageUpdate>),
+    MessageDelete(Box<dyn MessageDelete>),
+    MessageDeleteBulk(Box<dyn MessageDeleteBulk>),
+    MessageReactionAdd(Box<dyn MessageReactionAdd>),
+    MessageReactionRemove(Box<dyn MessageReactionRemove>),
+    MessageReactionRemoveAll(Box<dyn MessageReactionRemoveAll>),
+    PresenceUpdate(Box<dyn PresenceUpdate>),
+    TypingStart(Box<dyn TypingStart>),
+    UserUpdate(Box<dyn UserUpdate>),
+    VoiceStateUpdate(Box<dyn VoiceStateUpdate>),
+    VoiceServerUpdate(Box<dyn VoiceServerUpdate>),
+    WebhooksUpdate(Box<dyn WebhooksUpdate>),
+}
 
-    async fn on_channel_create(&mut self, session: &Session, data: &ChannelCreateDispatch) -> Result<(), Error> {
-        Ok(())
-    }
+/// A trait implemented by all listeners to 
+/// allow downcasting to the right listener type.
+pub trait ListenerMarker {
+    fn downcast(self: Box<Self>) -> ListenerType;
+}
 
-    async fn on_channel_update(&mut self, session: &Session, data: &ChannelUpdateDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_channel_delete(&mut self, session: &Session, data: &ChannelDeleteDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_channel_pins_update(&mut self, session: &Session, data: &ChannelPinsUpdateDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_guild_create(&mut self, session: &Session, data: &GuildCreateDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_guild_update(&mut self, session: &Session, data: &GuildUpdateDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_guild_delete(&mut self, session: &Session, data: &GuildDeleteDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_guild_ban_add(&mut self, session: &Session, data: &GuildBanAddDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_guild_ban_remove(&mut self, session: &Session, data: &GuildBanRemoveDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_guild_emojis_update(&mut self, session: &Session, data: &GuildEmojisUpdateDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_guild_integrations_update(&mut self, session: &Session, data: &GuildIntegrationsUpdateDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_guild_member_add(&mut self, session: &Session, data: &GuildMemberAddDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_guild_member_remove(&mut self, session: &Session, data: &GuildMemberRemoveDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_guild_member_update(&mut self, session: &Session, data: &GuildMemberUpdateDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_guild_members_chunk(&mut self, session: &Session, data: &GuildMembersChunkDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_guild_role_create(&mut self, session: &Session, data: &GuildRoleCreateDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_guild_role_update(&mut self, session: &Session, data: &GuildRoleUpdateDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_guild_role_delete(&mut self, session: &Session, data: &GuildRoleDeleteDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_invite_create(&mut self, session: &Session, data: &InviteCreateDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_invite_delete(&mut self, session: &Session, data: &InviteDeleteDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_message_create(&mut self, session: &Session, data: &MessageCreateDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_message_update(&mut self, session: &Session, data: &MessageUpdateDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_message_delete(&mut self, session: &Session, data: &MessageDeleteDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_message_delete_bulk(&mut self, session: &Session, data: &MessageDeleteBulkDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_reaction_add(&mut self, session: &Session, data: &MessageReactionAddDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_reaction_remove(&mut self, session: &Session, data: &MessageReactionRemoveDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_reaction_remove_all(&mut self, session: &Session, data: &MessageReactionRemoveAllDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_presence_update(&mut self, session: &Session, data: &PresenceUpdateDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_typing_start(&mut self, session: &Session, data: &TypingStartDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_user_update(&mut self, session: &Session, data: &UserUpdateDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_voice_state_update(&mut self, session: &Session, data: &VoiceStateUpdateDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_voice_server_update(&mut self, session: &Session, data: &VoiceServerUpdateDispatch) -> Result<(), Error> {
-        Ok(())
-    }
-
-    async fn on_webhooks_update(&mut self, session: &Session, data: &WebhooksUpdateDispatch) -> Result<(), Error> {
-        Ok(())
+impl<T> ListenerMarker for T where T: Listener {
+    fn downcast(self: Box<Self>) -> ListenerType {
+        ListenerType::Impl(self)
     }
 }
