@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate automate;
+
 use automate::{async_trait, Session, Error, Discord, Snowflake};
 use automate::events::Listener;
 use automate::gateway::MessageCreateDispatch;
@@ -41,6 +44,6 @@ fn main() {
     automate::setup_logging();
 
     Discord::new(&env::var("DISCORD_API_TOKEN").expect("API token not found"))
-        .with(MessageCounter::default())
+        .with(listeners!(MessageCounter::default()))
         .connect_blocking()
 }

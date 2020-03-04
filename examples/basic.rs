@@ -6,7 +6,7 @@ use automate::gateway::{MessageReactionAddDispatch, MessageCreateDispatch};
 use automate::http::{CreateMessage, NewInvite};
 use std::env;
 
-#[listener(event = "message_create")]
+#[listener]
 async fn say_hello(session: &Session, data: &MessageCreateDispatch) -> Result<(), Error> {
     let message = &data.0;
 
@@ -22,7 +22,7 @@ async fn say_hello(session: &Session, data: &MessageCreateDispatch) -> Result<()
     Ok(())
 }
 
-#[listener(event = "message_create")]
+#[listener]
 async fn invite(session: &Session, data: &MessageCreateDispatch) -> Result<(), Error> {
     let message = &data.0;
 
@@ -45,7 +45,7 @@ async fn invite(session: &Session, data: &MessageCreateDispatch) -> Result<(), E
     Ok(())
 }
 
-#[listener(event = "reaction_add")]
+#[listener]
 async fn tell_reaction(session: &Session, reac: &MessageReactionAddDispatch) -> Result<(), Error> {
     let content = Some(format!("{}?!", reac.emoji.name));
 
@@ -61,8 +61,6 @@ fn main() {
     automate::setup_logging();
 
     Discord::new(&env::var("DISCORD_API_TOKEN").expect("API token not found"))
-        .on_message_create(say_hello)
-        .on_message_create(invite)
-        .on_reaction_add(tell_reaction)
+        .with(listeners!(say_hello, invite, tell_reaction))
         .connect_blocking()
 }
