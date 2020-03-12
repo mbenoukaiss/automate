@@ -1,11 +1,13 @@
 #![feature(test)]
 #![feature(try_blocks)]
-#![feature(async_closure)]
+#![feature(proc_macro_hygiene)]
 #![allow(where_clauses_object_safety)] //should be fixable when async traits are allowed
 #![allow(clippy::identity_op)] //because clippy forbides 1 << 0 in c-like enums
 
 extern crate self as automate;
 extern crate test;
+#[macro_use]
+extern crate proc_macro_hack;
 #[macro_use]
 extern crate automate_derive;
 #[macro_use]
@@ -24,6 +26,9 @@ mod errors;
 mod logger;
 
 pub use automate_derive::listener;
+#[proc_macro_hack]
+pub use automate_derive::functions;
+
 pub use async_trait::async_trait;
 pub use tokio;
 
@@ -64,7 +69,7 @@ impl Discord {
             listeners: ListenerStorage::default(),
         }
     }
-    
+
     /// Registers an event listener struct that implements
     /// the [Listener](automate::events::Listener) trait or
     /// a listener function with the `̀#[listener]` attribute. 

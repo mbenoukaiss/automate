@@ -25,6 +25,7 @@ fn read_function_arguments(signature: &Signature) -> Vec<(Ident, String)> {
     args
 }
 
+#[allow(clippy::cognitive_complexity)]
 fn infer_event_type(dispatch_type: &str) -> Option<&'static str> {
     match dispatch_type {
         t if t.contains("ReadyDispatch") => Some("ready"),
@@ -102,6 +103,7 @@ fn create_trait(names: (&Ident, &Ident, &Ident), event: String, item: TokenStrea
 
     let (fn_name, session_name, data_name) = names;
 
+    let fn_name = Ident::new(&format!("__listener_{}", fn_name), Span::call_site());
     let func = Ident::new(&func, Span::call_site());
     let trt = Ident::new(&trt, Span::call_site());
     let dispatch = Ident::new(&format!("{}Dispatch", trt), Span::call_site());
@@ -155,9 +157,7 @@ struct Args {
 /// receives an event of the type of the second argument.
 ///
 /// # Example
-/// ```
-/// use automate::Error;
-///
+/// ```ignore
 /// #[listener]
 /// async fn hello(_: &Session, _: &MessageCreateDispatch) -> Result<(), Error> {
 ///     println!("Hello!");
@@ -165,20 +165,20 @@ struct Args {
 /// }
 /// ```
 pub fn listener(metadata: TokenStream, item: TokenStream) -> TokenStream {
-    let args: AttributeArgs = parse_macro_input!(metadata as AttributeArgs);
+    let args: AttributeArgs = parse_macro_input!(metadata);
     let mut args: Args = match Args::from_list(&args) {
         Ok(v) => v,
         Err(e) => { return e.write_errors().into(); }
     };
 
-    let input: ItemFn = parse_macro_input!(item as ItemFn);
+    let input: ItemFn = parse_macro_input!(item);
     let fn_name = &input.sig.ident;
     let content = &input.block;
 
     let arguments = read_function_arguments(&input.sig);
 
     if let Some((ident, _)) = arguments.get(0) {
-        if ident.to_string() == "self" {
+        if *ident == "self" {
             return Error::new(input.sig.inputs.span(), "Listener methods in impl blocks are not yet supported.")
                 .to_compile_error()
                 .into();

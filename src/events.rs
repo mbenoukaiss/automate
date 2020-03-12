@@ -5,7 +5,7 @@ use crate::gateway::*;
 use crate::{Session, Error};
 
 #[macro_export]
-macro_rules! listeners {
+macro_rules! traits {
     ($($listener:expr),*) => {
         vec![$(Box::new($listener)),*]
     }
@@ -329,10 +329,6 @@ pub trait MessageDeleteBulk: Send + Sync + 'static {
 pub trait MessageReactionAdd: Send + Sync + 'static {
     async fn on_reaction_add(&mut self, session: &Session, data: &MessageReactionAddDispatch) -> Result<(), Error> {
         Ok(())
-    }
-
-    async fn hi(&self) {
-        println!("Wow!");
     }
 }
 
