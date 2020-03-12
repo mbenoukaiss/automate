@@ -1,8 +1,9 @@
-extern crate proc_macro;
+#![feature(proc_macro_diagnostic)]
 
 #[macro_use]
 extern crate syn;
 
+use proc_macro_hack::proc_macro_hack;
 use proc_macro::{TokenStream, TokenTree};
 use proc_macro2::Ident;
 use syn::{parse_macro_input, DeriveInput, Data, Fields, Expr, Error};
@@ -399,4 +400,9 @@ pub fn endpoint(metadata: TokenStream, item: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn listener(metadata: TokenStream, item: TokenStream) -> TokenStream {
     attributes::listener(metadata, item)
+}
+
+#[proc_macro_hack]
+pub fn functions(input: TokenStream) -> TokenStream {
+    attributes::functions(input)
 }

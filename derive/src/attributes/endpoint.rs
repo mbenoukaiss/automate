@@ -118,7 +118,7 @@ fn generate_request(uri: proc_macro2::TokenStream, method: Ident, body: proc_mac
 /// [write_fmt](std::fmt::Write) (no prefix).
 ///
 /// # Example
-/// ```
+/// ```ignore
 /// use automate::Error;
 /// use hyper::Client;
 /// use hyper_tls::HttpsConnector;

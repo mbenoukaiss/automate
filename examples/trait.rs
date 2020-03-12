@@ -44,6 +44,6 @@ fn main() {
     automate::setup_logging();
 
     Discord::new(&env::var("DISCORD_API_TOKEN").expect("API token not found"))
-        .with(listeners!(MessageCounter::default()))
+        .with(traits!(MessageCounter::default()))
         .connect_blocking()
 }
