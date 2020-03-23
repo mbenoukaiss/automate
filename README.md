@@ -26,7 +26,7 @@ use automate::gateway::MessageCreateDispatch;
 use automate::http::CreateMessage;
 use std::env;
 
-#[listener(event = "message_create")]
+#[listener]
 async fn say_hello(session: &Session, data: &MessageCreateDispatch) -> Result<(), Error> {
     let message = &data.0;
 

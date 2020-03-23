@@ -77,6 +77,9 @@ impl Delayer {
     }
 }
 
+/// Contains data about the current gateway session.
+/// Provides a way to interact with Discord HTTP API
+/// by differencing to [HttpAPI](automate::http::HttpAPI).
 pub struct Session {
     sender: UnboundedSender<tungstenite::Message>,
     http: HttpAPI,
@@ -246,6 +249,7 @@ impl GatewayAPI {
             MessageReactionAddDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageReactionAddDispatch> => self.on_reaction_add),
             MessageReactionRemoveDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageReactionRemoveDispatch> => self.on_reaction_remove),
             MessageReactionRemoveAllDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageReactionRemoveAllDispatch> => self.on_reaction_remove_all),
+            MessageReactionRemoveEmojiDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageReactionRemoveEmojiDispatch> => self.on_reaction_remove_emoji),
             PresencesReplaceDispatch::EVENT_NAME => info!("Ignoring presence replace event"),
             PresenceUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<PresenceUpdateDispatch> => self.on_presence_update),
             TypingStartDispatch::EVENT_NAME => call_dispatcher!(data as Payload<TypingStartDispatch> => self.on_typing_start),
@@ -286,6 +290,7 @@ impl GatewayAPI {
     dispatcher!(on_reaction_add: MessageReactionAddDispatch => reaction_add);
     dispatcher!(on_reaction_remove: MessageReactionRemoveDispatch => reaction_remove);
     dispatcher!(on_reaction_remove_all: MessageReactionRemoveAllDispatch => reaction_remove_all);
+    dispatcher!(on_reaction_remove_emoji: MessageReactionRemoveEmojiDispatch => reaction_remove_emoji);
     dispatcher!(on_presence_update: PresenceUpdateDispatch => presence_update);
     dispatcher!(on_typing_start: TypingStartDispatch => typing_start);
     dispatcher!(on_user_update: UserUpdateDispatch => user_update);
@@ -362,11 +367,11 @@ impl GatewayAPI {
             }
         }
 
-//        for listener in &mut *self.session.listeners.lock().await.ready {
-//            if let Err(error) = (*listener).call(&self.session, &payload).await {
-//                error!("Listener on_ready failed with: {}", error);
-//            }
-//        }
+        for listener in &mut *self.session.listeners.lock().await.ready {
+            if let Err(error) = (*listener).on_ready(&self.session, &payload).await {
+               error!("Listener to on_ready failed with: {}", error);
+           }
+        }
 
         self.session.bot = Some(payload.user);
         *self.session_id.borrow_mut() = Some(payload.session_id);

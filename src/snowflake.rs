@@ -6,6 +6,10 @@ use serde::de::Visitor;
 use serde::de::Error as DeError;
 use core::fmt;
 
+/// Twitter's [snowflake](https://github.com/twitter/snowflake/tree/snowflake-2010)
+/// used by discord API to provide unique IDs for guilds, channels, users, etc.
+/// Since a snowflake is 64bits in size, it is stored as a u64 in the
+/// `automate` library.
 #[derive(Eq, PartialEq, Ord, PartialOrd)]
 #[derive(Hash)]
 #[derive(Copy, Clone)]
@@ -22,7 +26,6 @@ impl AsJson for Snowflake {
         self.0.concat_json(dest)
     }
 }
-
 
 struct SnowflakeVisitor;
 

@@ -195,6 +195,14 @@ pub struct MessageReactionRemoveAllDispatch {
     pub message_id: Snowflake
 }
 
+#[payload(op = 0, event = "MESSAGE_REACTION_REMOVE_EMOJI", server)]
+pub struct MessageReactionRemoveEmojiDispatch {
+    pub guild_id: Option<Snowflake>,
+    pub channel_id: Snowflake,
+    pub message_id: Snowflake,
+    pub emoji: PartialEmoji
+}
+
 /// This payload should not be handled by bots
 /// as it will always be empty and does not mean
 /// anything.
