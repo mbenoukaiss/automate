@@ -1,29 +1,11 @@
 use proc_macro::TokenStream;
 use proc_macro2::{TokenStream as TokenStream2, Ident, Span};
-use syn::{ItemFn, FnArg, Signature, Pat, AttributeArgs, Error};
+use syn::{ItemFn, AttributeArgs, Error};
 use syn::spanned::Spanned;
 use quote::ToTokens;
 use quote::quote;
 use darling::FromMeta;
-
-fn read_function_arguments(signature: &Signature) -> Vec<(Ident, String)> {
-    let mut args = Vec::new();
-
-    for arg in &signature.inputs {
-        let arg = match arg {
-            FnArg::Receiver(rcv) => (Ident::new("self", rcv.span()), rcv.to_token_stream().to_string()),
-            FnArg::Typed(arg) => match &*arg.pat {
-                Pat::Ident(name) => (name.ident.clone(), arg.ty.to_token_stream().to_string()),
-                Pat::Wild(wild) => (Ident::new("_", wild.span()), arg.ty.to_token_stream().to_string()),
-                unknown => panic!("Received unknown argument name pattern: {:?}", unknown)
-            }
-        };
-
-        args.push(arg);
-    }
-
-    args
-}
+use crate::utils;
 
 #[allow(clippy::cognitive_complexity)]
 fn infer_event_type(dispatch_type: &str) -> Option<&'static str> {
@@ -130,10 +112,8 @@ fn create_trait(names: (&Ident, &Ident, &Ident), event: String, item: TokenStrea
     quote.into()
 }
 
-/// Parses a list of variable and their values separated by commas.
-///
-///   #[listener(event = "reaction_add", priority = 5)]
-///              ^^^^^^^^^^^^^^^^^^^^^^  ^^^^^^^^^^^^
+/// Parses the list of arguments for the listener attribute.
+///   `#[listener(event = "reaction_add", priority = 5)]`
 #[derive(FromMeta)]
 struct Args {
     /// The name of the event. It should be
@@ -175,7 +155,7 @@ pub fn listener(metadata: TokenStream, item: TokenStream) -> TokenStream {
     let fn_name = &input.sig.ident;
     let content = &input.block;
 
-    let arguments = read_function_arguments(&input.sig);
+    let arguments = utils::read_function_arguments(&input.sig);
 
     if let Some((ident, _)) = arguments.get(0) {
         if *ident == "self" {

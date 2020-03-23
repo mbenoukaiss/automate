@@ -14,7 +14,19 @@ async fn say_hello(session: &Session, data: &MessageCreateDispatch) -> Result<()
         let content = Some(format!("Hello {}!", message.author.username));
 
         session.create_message(message.channel_id, CreateMessage {
-            content,
+            content: content.clone(),
+            ..Default::default()
+        }).await?;
+        session.create_message(message.channel_id, CreateMessage {
+            content: content.clone(),
+            ..Default::default()
+        }).await?;
+        session.create_message(message.channel_id, CreateMessage {
+            content: content.clone(),
+            ..Default::default()
+        }).await?;
+        session.create_message(message.channel_id, CreateMessage {
+            content: content.clone(),
             ..Default::default()
         }).await?;
     }

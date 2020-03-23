@@ -1,48 +1,26 @@
-use proc_macro::{TokenStream, TokenTree};
-use proc_macro2::{Ident, Span};
-use syn::{parse_macro_input, ItemFn, Error};
+use proc_macro::TokenStream;
+use proc_macro2::{Span, TokenStream as TokenStream2};
+use syn::{parse_macro_input, Ident, AttributeArgs, ItemFn, Error};
 use quote::quote;
+use darling::FromMeta;
 use crate::utils;
-use syn::spanned::Spanned;
 
 /// Default user agent for automate bots
 const USER_AGENT: &str = concat!("DiscordBot (https://github.com/mbenoukaiss/automate, ", env!("CARGO_PKG_VERSION"), ")");
 
 /// Generates the code that should build
 /// the route URL based on the parameters.
-fn generate_route(route: String, span: Span) -> proc_macro2::TokenStream {
-    let mut quote = quote!(let mut route = String::from("https://discordapp.com/api/v6"););
-
-    for part in route.trim_matches('"').split(&['{', '}'][..]) {
-        if part.starts_with('#') {
-            let part = Ident::new(&part[1..].to_owned(), span);
-
-            quote = quote! {
-                #quote
-                let ext: Snowflake = ::automate::encode::ExtractSnowflake::extract_snowflake(&#part)?;
-                ::std::fmt::Write::write_fmt(&mut route, format_args!("{}", ext)).expect("Failed to write api string");
-            };
-        } else if part.starts_with('+') {
-            let part = Ident::new(&part[1..], span);
-
-            quote = quote! {
-                #quote
-                ::automate::encode::WriteUrl::write_url(#part, &mut route)?;
-            };
-        } else {
-            quote = quote! {
-                #quote
-                ::std::fmt::Write::write_fmt(&mut route, format_args!("{}", #part)).expect("Failed to write api string");
-            };
-        }
-    }
-
-    quote!({#quote route})
-}
 
 /// Generate the code that should send the request
 /// to Discord's servers.
-fn generate_request(uri: proc_macro2::TokenStream, method: Ident, body: proc_macro2::TokenStream, status: Vec<u16>, empty: bool) -> proc_macro2::TokenStream {
+fn generate_request(item: &ItemFn, args: Args, major_parameter: TokenStream2) -> Result<TokenStream2, TokenStream> {
+    let fn_name = &item.sig.ident;
+
+    let method = args.method()?;
+    let uri = args.route();
+    let body = args.body();
+    let status = args.status;
+
     // hyper does not set content-length to 0 when the body is
     // empty and method is POST, PUT or PATCH, but discord
     // requires a content-length
@@ -56,16 +34,33 @@ fn generate_request(uri: proc_macro2::TokenStream, method: Ident, body: proc_mac
         _ => None
     };
 
-    let return_value = if empty {
+    let return_value = if args.empty {
         quote!(Ok(()))
     } else {
-        quote! {
+        quote! {{
             let body = ::hyper::body::aggregate(response).await?;
             Ok(::serde_json::from_reader(::bytes::buf::ext::BufExt::reader(body))?)
-        }
+        }}
     };
 
-    quote! {
+    Ok(quote! {
+        use futures::lock::Mutex;
+        use rate_limit::{Key, Bucket, BUCKETS};
+
+        ::lazy_static::lazy_static! {
+            static ref BUCKET_ID: Mutex<Option<String>> = Mutex::default();
+        }
+
+        if let Some(bucket_id) = BUCKET_ID.lock().await.as_ref() {
+            if let Some(bucket) = BUCKETS.lock().await.get(&Key::lookup(&self.token, &bucket_id, #major_parameter)) {
+                trace!("Endpoint {}#{} allows for {} more calls (limit {})", stringify!(#fn_name), bucket.id, bucket.remaining, bucket.limit);
+
+                if bucket.remaining == 0 && ::chrono::Utc::now().naive_utc() < bucket.reset {
+                    return Error::err(format!("Cancelled to avoid reaching rate limit for endpoint {}", stringify!(#fn_name)));
+                }
+            }
+        }
+
         let uri = #uri;
 
         let mut request = ::hyper::Request::builder()
@@ -79,19 +74,102 @@ fn generate_request(uri: proc_macro2::TokenStream, method: Ident, body: proc_mac
 
         let response = self.client.request(request.body(#body).unwrap()).await?;
 
-        if self.bucket(response.headers()).is_err() {
-            trace!("Failed to retrieve bucket from {:#?} ({})", response.headers(), uri);
+        if let Some(bucket) = Bucket::new(response.headers())? {
+            BUCKET_ID.lock().await.replace(bucket.id.clone());
+            BUCKETS.lock().await.insert(Key::insert(self.token.clone(), bucket.id.clone(), #major_parameter), bucket);
         }
 
-        #(
-            let code = response.status().as_u16();
+        let code = response.status().as_u16();
 
-            if #status != code {
-                return Error::err(format!("Expected status code {}, got {} when requesting {}", #status, code, uri));
+        match code {
+            #status => #return_value,
+            429 => Error::err(format!("Reached rate limit for endpoint {}", stringify!(#fn_name))),
+            _ => Error::err(format!("Expected status code {}, got {} when requesting {}", #status, code, uri))
+        }
+    })
+}
+
+/// Parses the list of variables for a Discord API HTTP endpoint.
+///   `#[endpoint(get, route = "/gateway/bot", status = 200))]`
+///   `#[endpoint(patch, route = "/guilds/{#guild}", body = "modification", status = 200)]`
+#[derive(FromMeta)]
+struct Args {
+    #[darling(default)]
+    get: bool,
+    #[darling(default)]
+    post: bool,
+    #[darling(default)]
+    put: bool,
+    #[darling(default)]
+    patch: bool,
+    #[darling(default)]
+    delete: bool,
+    route: String,
+    #[darling(default)]
+    body: Option<String>,
+    status: u16,
+    #[darling(default)]
+    empty: bool
+}
+
+impl  Args {
+    fn method(&self) -> Result<Ident, TokenStream> {
+        if self.get {
+            Ok(Ident::new("GET", Span::call_site()))
+        } else if self.post {
+            Ok(Ident::new("POST", Span::call_site()))
+        } else if self.put {
+            Ok(Ident::new("PUT", Span::call_site()))
+        } else if self.patch {
+            Ok(Ident::new("PATCH", Span::call_site()))
+        } else if self.delete {
+            Ok(Ident::new("DELETE", Span::call_site()))
+        } else {
+            Err(Error::new(Span::call_site(), "Expected method in endpoint macro")
+                .to_compile_error()
+                .into())
+        }
+    }
+
+    fn route(&self) -> TokenStream2 {
+        let mut quote = quote!(let mut route = String::from("https://discordapp.com/api/v6"););
+
+        for part in self.route.split(&['{', '}'][..]) {
+            if part.starts_with('#') {
+                let part = Ident::new(&part[1..].to_owned(), Span::call_site());
+
+                quote = quote! {
+                    #quote
+                    let ext: Snowflake = ::automate::encode::ExtractSnowflake::extract_snowflake(&#part)?;
+                    ::std::fmt::Write::write_fmt(&mut route, format_args!("{}", ext)).expect("Failed to write api string");
+                };
+            } else if part.starts_with('+') {
+                let part = Ident::new(&part[1..], Span::call_site());
+
+                quote = quote! {
+                    #quote
+                    ::automate::encode::WriteUrl::write_url(#part, &mut route)?;
+                };
+            } else {
+                quote = quote! {
+                    #quote
+                    ::std::fmt::Write::write_fmt(&mut route, format_args!("{}", #part)).expect("Failed to write api string");
+                };
             }
-        )*
+        }
 
-        #return_value
+        quote!({#quote route})
+    }
+
+    fn body(&self) -> TokenStream2 {
+        match self.body.as_ref() {
+            Some(body) => {
+                let body = Ident::new(body, Span::call_site());
+
+                quote!(::hyper::Body::from(::automate::encode::AsJson::as_json(&#body)))
+            }
+            None => quote!(::hyper::Body::empty()),
+        }
     }
 }
 
@@ -153,66 +231,30 @@ fn generate_request(uri: proc_macro2::TokenStream, method: Ident, body: proc_mac
 ///    }
 /// ```
 pub fn endpoint(metadata: TokenStream, item: TokenStream) -> TokenStream {
-    let arguments = utils::parse_arguments_list(metadata);
+    let args: AttributeArgs = parse_macro_input!(metadata);
+    let args: Args = match Args::from_list(&args) {
+        Ok(v) => v,
+        Err(e) => { return e.write_errors().into(); }
+    };
 
-    let input = parse_macro_input!(item as ItemFn);
-    let span = input.span();
+    let input: ItemFn = parse_macro_input!(item);
     let visibility = &input.vis;
     let signature = &input.sig;
     let content = &input.block;
 
-    let method = if arguments.contains_key("get") {
-        Ident::new("GET", span)
-    } else if arguments.contains_key("post") {
-        Ident::new("POST", span)
-    } else if arguments.contains_key("put") {
-        Ident::new("PUT", span)
-    } else if arguments.contains_key("patch") {
-        Ident::new("PATCH", span)
-    } else if arguments.contains_key("delete") {
-        Ident::new("DELETE", span)
-    } else {
-        return Error::new(span, "Expected method in endpoint macro")
-            .to_compile_error()
-            .into();
-    };
+    let mut major_parameter = quote!(None);
+    for (name, _) in utils::read_function_arguments(&input.sig) {
+        let str_name = name.to_string();
 
-    let route = generate_route(utils::extract_string(&arguments, "route"), span);
-
-    let body = match arguments.get("body") {
-        Some(body) => {
-            let token = body.first().unwrap();
-            let body = Ident::new(token.to_string().trim_matches('"'), token.span().into());
-
-            quote!(::hyper::Body::from(::automate::encode::AsJson::as_json(&#body)))
+        if &str_name == "guild" || &str_name == "channel" || &str_name == "webhook"{
+            major_parameter = quote!(Some(::automate::encode::ExtractSnowflake::extract_snowflake(&#name)?));
         }
-        None => quote!(::hyper::Body::empty()),
+    }
+
+    let request = match generate_request(&input, args, major_parameter) {
+        Ok(ts) => ts,
+        Err(ts) => return ts
     };
-
-    let status = match arguments.get("status") {
-        Some(status) => {
-            let status = {
-                if let Some(TokenTree::Literal(status)) = status.first() {
-                    if let Ok(status) = status.to_string().parse::<u16>() {
-                        status
-                    } else {
-                        return Error::new(span, "Failed to parse status code as u16")
-                            .to_compile_error()
-                            .into();
-                    }
-                } else {
-                    return Error::new(span, "Expected u16 for status code")
-                        .to_compile_error()
-                        .into();
-                }
-            };
-
-            vec![status]
-        }
-        None => vec![],
-    };
-
-    let request = generate_request(route, method, body, status, arguments.get("empty").is_some());
 
     TokenStream::from(quote! {
         #[allow(unused_variables)]
