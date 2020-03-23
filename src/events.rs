@@ -4,8 +4,10 @@ use async_trait::async_trait;
 use crate::gateway::*;
 use crate::{Session, Error};
 
+/// Parses a list of struct listeners before sending them
+/// to the [Discord::with](automate::Discord::with) method.
 #[macro_export]
-macro_rules! traits {
+macro_rules! structs {
     ($($listener:expr),*) => {
         vec![$(Box::new($listener)),*]
     }
@@ -122,6 +124,10 @@ pub trait Listener: Send + Sync + 'static {
     }
 
     async fn on_reaction_remove_all(&mut self, session: &Session, data: &MessageReactionRemoveAllDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+
+    async fn on_reaction_remove_emoji(&mut self, session: &Session, data: &MessageReactionRemoveEmojiDispatch) -> Result<(), Error> {
         Ok(())
     }
 
@@ -347,6 +353,13 @@ pub trait MessageReactionRemoveAll: Send + Sync + 'static {
 }
 
 #[async_trait]
+pub trait MessageReactionRemoveEmoji: Send + Sync + 'static {
+    async fn on_reaction_remove_emoji(&mut self, session: &Session, data: &MessageReactionRemoveEmojiDispatch) -> Result<(), Error> {
+        Ok(())
+    }
+}
+
+#[async_trait]
 pub trait PresenceUpdate: Send + Sync + 'static {
     async fn on_presence_update(&mut self, session: &Session, data: &PresenceUpdateDispatch) -> Result<(), Error> {
         Ok(())
@@ -418,6 +431,7 @@ pub enum ListenerType {
     MessageReactionAdd(Box<dyn MessageReactionAdd>),
     MessageReactionRemove(Box<dyn MessageReactionRemove>),
     MessageReactionRemoveAll(Box<dyn MessageReactionRemoveAll>),
+    MessageReactionRemoveEmoji(Box<dyn MessageReactionRemoveEmoji>),
     PresenceUpdate(Box<dyn PresenceUpdate>),
     TypingStart(Box<dyn TypingStart>),
     UserUpdate(Box<dyn UserUpdate>),

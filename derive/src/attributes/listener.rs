@@ -36,6 +36,7 @@ fn infer_event_type(dispatch_type: &str) -> Option<&'static str> {
         t if t.contains("MessageReactionAddDispatch") => Some("reaction_add"),
         t if t.contains("MessageReactionRemoveDispatch") => Some("reaction_remove"),
         t if t.contains("MessageReactionRemoveAllDispatch") => Some("reaction_remove_all"),
+        t if t.contains("MessageReactionRemoveEmojiDispatch") => Some("reaction_remove_emoji"),
         t if t.contains("PresenceUpdateDispatch") => Some("presence_update"),
         t if t.contains("TypingStartDispatch") => Some("typing_start"),
         t if t.contains("UserUpdateDispatch") => Some("user_update"),
@@ -138,6 +139,9 @@ struct Args {
 ///
 /// # Example
 /// ```ignore
+/// use automate::{Session, Error, listener};
+/// use automate::gateway::MessageCreateDispatch;
+///
 /// #[listener]
 /// async fn hello(_: &Session, _: &MessageCreateDispatch) -> Result<(), Error> {
 ///     println!("Hello!");
