@@ -1,7 +1,9 @@
 use proc_macro::{TokenStream, TokenTree};
 use quote::quote;
-use syn::{DeriveInput, Data, Fields};
+use syn::{DeriveInput, Ident, Data, Fields, FnArg, Pat, Signature};
 use std::collections::HashMap;
+use syn::spanned::Spanned;
+use quote::ToTokens;
 
 pub type Arguments = HashMap<String, Vec<TokenTree>>;
 
@@ -41,14 +43,26 @@ pub fn parse_arguments_list(metadata: TokenStream) -> Arguments {
     arguments
 }
 
-pub fn extract_string(args: &Arguments, key: &str) -> String {
-    let args = args.get(key).unwrap();
+/// Read the arguments in a function's signature and
+/// returns a vec with tuples of the function name and
+/// the type as a string
+pub fn read_function_arguments(signature: &Signature) -> Vec<(Ident, String)> {
+    let mut args = Vec::new();
 
-    if let Some(TokenTree::Literal(lit)) = args.first() {
-        lit.to_string()
-    } else {
-        panic!("Expected quoted string such as `route = \"/gateway\"`")
+    for arg in &signature.inputs {
+        let arg = match arg {
+            FnArg::Receiver(rcv) => (Ident::new("self", rcv.span()), rcv.to_token_stream().to_string()),
+            FnArg::Typed(arg) => match &*arg.pat {
+                Pat::Ident(name) => (name.ident.clone(), arg.ty.to_token_stream().to_string()),
+                Pat::Wild(wild) => (Ident::new("_", wild.span()), arg.ty.to_token_stream().to_string()),
+                unknown => panic!("Received unknown argument name pattern: {:?}", unknown)
+            }
+        };
+
+        args.push(arg);
     }
+
+    args
 }
 
 /// Extends [Deref](std::ops::Deref) and [DerefMut](std::ops::DerefMut)

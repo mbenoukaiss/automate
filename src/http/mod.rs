@@ -7,12 +7,9 @@ use crate::gateway::*;
 use crate::encode::AsJson;
 use crate::{Error, Snowflake};
 use crate::encode::{ExtractSnowflake, WriteUrl};
-use crate::http::rate_limit::Bucket;
-use hyper::{Client, HeaderMap};
+use hyper::Client;
 use hyper::client::HttpConnector;
-use hyper::header::HeaderValue;
 use hyper_tls::HttpsConnector;
-use chrono::NaiveDateTime;
 
 /// Struct used to interact with the discord HTTP API.
 #[derive(Clone)]
@@ -39,27 +36,6 @@ impl HttpAPI {
         &self.token
     }
 
-    #[inline]
-    fn bucket(&self, headers: &HeaderMap<HeaderValue>) -> Result<Bucket, Error> {
-        let bucket: Option<&HeaderValue> = headers.get("x-ratelimit-bucket");
-        let limit: Option<&HeaderValue> = headers.get("x-ratelimit-limit");
-        let remaining: Option<&HeaderValue> = headers.get("x-ratelimit-remaining");
-        let reset: Option<&HeaderValue> = headers.get("x-ratelimit-reset");
-
-        if let (Some(bucket), Some(limit), Some(remaining), Some(reset)) = (bucket, limit, remaining, reset) {
-            let bucket = Bucket::new(
-                bucket.to_str()?.to_owned(),
-                limit.to_str()?.parse::<u16>()?,
-                remaining.to_str()?.parse::<u16>()?,
-                NaiveDateTime::parse_from_str(reset.to_str()?, "%s").unwrap(),
-            );
-
-            Ok(bucket)
-        } else {
-            Error::err("Bucket not found in header")
-        }
-    }
-
     #[endpoint(get, route = "/gateway", status = 200)]
     pub async fn gateway(&self) -> Result<Gateway, Error> {}
 
@@ -77,8 +53,8 @@ impl HttpAPI {
     /// be used to define the permissions for `@everyone`.
     //TODO: Check if the bot is in less than 10 guilds
     //TODO: Check that channels don't have a `parent_id`
-    #[endpoint(post, route = "/guilds", body = "guild", status = 201)]
-    pub async fn create_guild(&self, guild: NewGuild) -> Result<Guild, Error> {}
+    #[endpoint(post, route = "/guilds", body = "new_guild", status = 201)]
+    pub async fn create_guild(&self, new_guild: NewGuild) -> Result<Guild, Error> {}
 
     #[endpoint(patch, route = "/guilds/{#guild}", body = "modification", status = 200)]
     pub async fn modify_guild<S: ExtractSnowflake>(&self, guild: S, modification: ModifyGuild) -> Result<Guild, Error> {}
@@ -92,8 +68,8 @@ impl HttpAPI {
     #[endpoint(get, route = "/channels/{#channel}", status = 200)]
     pub async fn channel<S: ExtractSnowflake>(&self, channel: S) -> Result<Channel, Error> {}
 
-    #[endpoint(post, route = "/guilds/{#guild}/channels", body = "channel", status = 200)]
-    pub async fn create_channel<S: ExtractSnowflake>(&self, guild: S, channel: NewChannel) -> Result<Channel, Error> {}
+    #[endpoint(post, route = "/guilds/{#guild}/channels", body = "new_channel", status = 200)]
+    pub async fn create_channel<S: ExtractSnowflake>(&self, guild: S, new_channel: NewChannel) -> Result<Channel, Error> {}
 
     #[endpoint(patch, route = "/channels/{#channel}", body = "modification", status = 200)]
     pub async fn modify_channel<S: ExtractSnowflake>(&self, channel: S, modification: ModifyChannel) -> Result<Channel, Error> {}
