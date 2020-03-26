@@ -17,7 +17,7 @@ impl Listener for MessageCounter {
     async fn on_message_create(&mut self, session: &Session, data: &MessageCreateDispatch) -> Result<(), Error> {
         let message = &data.0;
 
-        if message.content.starts_with("/count") {
+        if message.content.starts_with("!count") {
             let count =  self.counts.get(&message.author.id)
                 .map(|i| i.to_owned())
                 .unwrap_or(0);

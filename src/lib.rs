@@ -1,6 +1,7 @@
 #![feature(test)]
 #![feature(try_blocks)]
 #![feature(proc_macro_hygiene)]
+#![feature(specialization)]
 #![allow(clippy::identity_op)] //because clippy forbides 1 << 0 in c-like enums
 #![allow(where_clauses_object_safety)] //should be fixable when async traits are allowed
 
@@ -270,9 +271,9 @@ impl Discord {
     /// Registers an event listener struct that implements
     /// the [Listener](automate::Listener) trait or
     /// a listener function with the `̀#[listener]` attribute. 
-    pub fn with(mut self, listener: Vec<Box<dyn ListenerMarker>>) -> Self {
+    pub fn with(mut self, listener: Vec<ListenerType>) -> Self {
         for l in listener {
-            match l.downcast() {
+            match l {
                 ListenerType::Impl(l) => self.listeners.trait_listeners.push(l),
                 ListenerType::Ready(l) => self.listeners.ready.push(l),
                 ListenerType::ChannelCreate(l) => self.listeners.channel_create.push(l),
@@ -322,206 +323,206 @@ impl Discord {
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_ready(mut self, listener: impl Ready) -> Self {
-        self.listeners.ready.push(Box::new(listener));
+    pub fn on_ready(mut self, listener: Ready) -> Self {
+        self.listeners.ready.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_channel_create(mut self, listener: impl ChannelCreate) -> Self {
-        self.listeners.channel_create.push(Box::new(listener));
+    pub fn on_channel_create(mut self, listener: ChannelCreate) -> Self {
+        self.listeners.channel_create.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_channel_update(mut self, listener: impl ChannelUpdate) -> Self {
-        self.listeners.channel_update.push(Box::new(listener));
+    pub fn on_channel_update(mut self, listener: ChannelUpdate) -> Self {
+        self.listeners.channel_update.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_channel_delete(mut self, listener: impl ChannelDelete) -> Self {
-        self.listeners.channel_delete.push(Box::new(listener));
+    pub fn on_channel_delete(mut self, listener: ChannelDelete) -> Self {
+        self.listeners.channel_delete.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_channel_pins_update(mut self, listener: impl ChannelPinsUpdate) -> Self {
-        self.listeners.channel_pins_update.push(Box::new(listener));
+    pub fn on_channel_pins_update(mut self, listener: ChannelPinsUpdate) -> Self {
+        self.listeners.channel_pins_update.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_guild_create(mut self, listener: impl GuildCreate) -> Self {
-        self.listeners.guild_create.push(Box::new(listener));
+    pub fn on_guild_create(mut self, listener: GuildCreate) -> Self {
+        self.listeners.guild_create.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_guild_update(mut self, listener: impl GuildUpdate) -> Self {
-        self.listeners.guild_update.push(Box::new(listener));
+    pub fn on_guild_update(mut self, listener: GuildUpdate) -> Self {
+        self.listeners.guild_update.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_guild_delete(mut self, listener: impl GuildDelete) -> Self {
-        self.listeners.guild_delete.push(Box::new(listener));
+    pub fn on_guild_delete(mut self, listener: GuildDelete) -> Self {
+        self.listeners.guild_delete.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_guild_ban_add(mut self, listener: impl GuildBanAdd) -> Self {
-        self.listeners.guild_ban_add.push(Box::new(listener));
+    pub fn on_guild_ban_add(mut self, listener: GuildBanAdd) -> Self {
+        self.listeners.guild_ban_add.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_guild_ban_remove(mut self, listener: impl GuildBanRemove) -> Self {
-        self.listeners.guild_ban_remove.push(Box::new(listener));
+    pub fn on_guild_ban_remove(mut self, listener: GuildBanRemove) -> Self {
+        self.listeners.guild_ban_remove.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_guild_emojis_update(mut self, listener: impl GuildEmojisUpdate) -> Self {
-        self.listeners.guild_emojis_update.push(Box::new(listener));
+    pub fn on_guild_emojis_update(mut self, listener: GuildEmojisUpdate) -> Self {
+        self.listeners.guild_emojis_update.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_guild_integrations_update(mut self, listener: impl GuildIntegrationsUpdate) -> Self {
-        self.listeners.guild_integrations_update.push(Box::new(listener));
+    pub fn on_guild_integrations_update(mut self, listener: GuildIntegrationsUpdate) -> Self {
+        self.listeners.guild_integrations_update.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_guild_member_add(mut self, listener: impl GuildMemberAdd) -> Self {
-        self.listeners.guild_member_add.push(Box::new(listener));
+    pub fn on_guild_member_add(mut self, listener: GuildMemberAdd) -> Self {
+        self.listeners.guild_member_add.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_guild_member_remove(mut self, listener: impl GuildMemberRemove) -> Self {
-        self.listeners.guild_member_remove.push(Box::new(listener));
+    pub fn on_guild_member_remove(mut self, listener: GuildMemberRemove) -> Self {
+        self.listeners.guild_member_remove.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_guild_member_update(mut self, listener: impl GuildMemberUpdate) -> Self {
-        self.listeners.guild_member_update.push(Box::new(listener));
+    pub fn on_guild_member_update(mut self, listener: GuildMemberUpdate) -> Self {
+        self.listeners.guild_member_update.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_guild_members_chunk(mut self, listener: impl GuildMembersChunk) -> Self {
-        self.listeners.guild_members_chunk.push(Box::new(listener));
+    pub fn on_guild_members_chunk(mut self, listener: GuildMembersChunk) -> Self {
+        self.listeners.guild_members_chunk.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_guild_role_create(mut self, listener: impl GuildRoleCreate) -> Self {
-        self.listeners.guild_role_create.push(Box::new(listener));
+    pub fn on_guild_role_create(mut self, listener: GuildRoleCreate) -> Self {
+        self.listeners.guild_role_create.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_guild_role_update(mut self, listener: impl GuildRoleUpdate) -> Self {
-        self.listeners.guild_role_update.push(Box::new(listener));
+    pub fn on_guild_role_update(mut self, listener: GuildRoleUpdate) -> Self {
+        self.listeners.guild_role_update.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_guild_role_delete(mut self, listener: impl GuildRoleDelete) -> Self {
-        self.listeners.guild_role_delete.push(Box::new(listener));
+    pub fn on_guild_role_delete(mut self, listener: GuildRoleDelete) -> Self {
+        self.listeners.guild_role_delete.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_invite_create(mut self, listener: impl InviteCreate) -> Self {
-        self.listeners.invite_create.push(Box::new(listener));
+    pub fn on_invite_create(mut self, listener: InviteCreate) -> Self {
+        self.listeners.invite_create.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_invite_delete(mut self, listener: impl InviteDelete) -> Self {
-        self.listeners.invite_delete.push(Box::new(listener));
+    pub fn on_invite_delete(mut self, listener: InviteDelete) -> Self {
+        self.listeners.invite_delete.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_message_create(mut self, listener: impl MessageCreate) -> Self {
-        self.listeners.message_create.push(Box::new(listener));
+    pub fn on_message_create(mut self, listener: MessageCreate) -> Self {
+        self.listeners.message_create.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_message_update(mut self, listener: impl MessageUpdate) -> Self {
-        self.listeners.message_update.push(Box::new(listener));
+    pub fn on_message_update(mut self, listener: MessageUpdate) -> Self {
+        self.listeners.message_update.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_message_delete(mut self, listener: impl MessageDelete) -> Self {
-        self.listeners.message_delete.push(Box::new(listener));
+    pub fn on_message_delete(mut self, listener: MessageDelete) -> Self {
+        self.listeners.message_delete.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_message_delete_bulk(mut self, listener: impl MessageDeleteBulk) -> Self {
-        self.listeners.message_delete_bulk.push(Box::new(listener));
+    pub fn on_message_delete_bulk(mut self, listener: MessageDeleteBulk) -> Self {
+        self.listeners.message_delete_bulk.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_reaction_add(mut self, listener: impl MessageReactionAdd) -> Self {
-        self.listeners.reaction_add.push(Box::new(listener));
+    pub fn on_reaction_add(mut self, listener: MessageReactionAdd) -> Self {
+        self.listeners.reaction_add.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_reaction_remove(mut self, listener: impl MessageReactionRemove) -> Self {
-        self.listeners.reaction_remove.push(Box::new(listener));
+    pub fn on_reaction_remove(mut self, listener: MessageReactionRemove) -> Self {
+        self.listeners.reaction_remove.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_reaction_remove_all(mut self, listener: impl MessageReactionRemoveAll) -> Self {
-        self.listeners.reaction_remove_all.push(Box::new(listener));
+    pub fn on_reaction_remove_all(mut self, listener: MessageReactionRemoveAll) -> Self {
+        self.listeners.reaction_remove_all.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_presence_update(mut self, listener: impl PresenceUpdate) -> Self {
-        self.listeners.presence_update.push(Box::new(listener));
+    pub fn on_presence_update(mut self, listener: PresenceUpdate) -> Self {
+        self.listeners.presence_update.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_typing_start(mut self, listener: impl TypingStart) -> Self {
-        self.listeners.typing_start.push(Box::new(listener));
+    pub fn on_typing_start(mut self, listener: TypingStart) -> Self {
+        self.listeners.typing_start.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_user_update(mut self, listener: impl UserUpdate) -> Self {
-        self.listeners.user_update.push(Box::new(listener));
+    pub fn on_user_update(mut self, listener: UserUpdate) -> Self {
+        self.listeners.user_update.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_voice_state_update(mut self, listener: impl VoiceStateUpdate) -> Self {
-        self.listeners.voice_state_update.push(Box::new(listener));
+    pub fn on_voice_state_update(mut self, listener: VoiceStateUpdate) -> Self {
+        self.listeners.voice_state_update.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_voice_server_update(mut self, listener: impl VoiceServerUpdate) -> Self {
-        self.listeners.voice_server_update.push(Box::new(listener));
+    pub fn on_voice_server_update(mut self, listener: VoiceServerUpdate) -> Self {
+        self.listeners.voice_server_update.push(listener);
         self
     }
 
     #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
-    pub fn on_webhooks_update(mut self, listener: impl WebhooksUpdate) -> Self {
-        self.listeners.webhooks_update.push(Box::new(listener));
+    pub fn on_webhooks_update(mut self, listener: WebhooksUpdate) -> Self {
+        self.listeners.webhooks_update.push(listener);
         self
     }
 
@@ -545,39 +546,39 @@ impl Discord {
 #[derive(Default)]
 pub(crate) struct ListenerStorage {
     pub(crate) trait_listeners: Vec<Box<dyn Listener>>,
-    pub(crate) ready: Vec<Box<dyn Ready>>,
-    pub(crate) channel_create: Vec<Box<dyn ChannelCreate>>,
-    pub(crate) channel_update: Vec<Box<dyn ChannelUpdate>>,
-    pub(crate) channel_delete: Vec<Box<dyn ChannelDelete>>,
-    pub(crate) channel_pins_update: Vec<Box<dyn ChannelPinsUpdate>>,
-    pub(crate) guild_create: Vec<Box<dyn GuildCreate>>,
-    pub(crate) guild_update: Vec<Box<dyn GuildUpdate>>,
-    pub(crate) guild_delete: Vec<Box<dyn GuildDelete>>,
-    pub(crate) guild_ban_add: Vec<Box<dyn GuildBanAdd>>,
-    pub(crate) guild_ban_remove: Vec<Box<dyn GuildBanRemove>>,
-    pub(crate) guild_emojis_update: Vec<Box<dyn GuildEmojisUpdate>>,
-    pub(crate) guild_integrations_update: Vec<Box<dyn GuildIntegrationsUpdate>>,
-    pub(crate) guild_member_add: Vec<Box<dyn GuildMemberAdd>>,
-    pub(crate) guild_member_remove: Vec<Box<dyn GuildMemberRemove>>,
-    pub(crate) guild_member_update: Vec<Box<dyn GuildMemberUpdate>>,
-    pub(crate) guild_members_chunk: Vec<Box<dyn GuildMembersChunk>>,
-    pub(crate) guild_role_create: Vec<Box<dyn GuildRoleCreate>>,
-    pub(crate) guild_role_update: Vec<Box<dyn GuildRoleUpdate>>,
-    pub(crate) guild_role_delete: Vec<Box<dyn GuildRoleDelete>>,
-    pub(crate) invite_create: Vec<Box<dyn InviteCreate>>,
-    pub(crate) invite_delete: Vec<Box<dyn InviteDelete>>,
-    pub(crate) message_create: Vec<Box<dyn MessageCreate>>,
-    pub(crate) message_update: Vec<Box<dyn MessageUpdate>>,
-    pub(crate) message_delete: Vec<Box<dyn MessageDelete>>,
-    pub(crate) message_delete_bulk: Vec<Box<dyn MessageDeleteBulk>>,
-    pub(crate) reaction_add: Vec<Box<dyn MessageReactionAdd>>,
-    pub(crate) reaction_remove: Vec<Box<dyn MessageReactionRemove>>,
-    pub(crate) reaction_remove_all: Vec<Box<dyn MessageReactionRemoveAll>>,
-    pub(crate) reaction_remove_emoji: Vec<Box<dyn MessageReactionRemoveEmoji>>,
-    pub(crate) presence_update: Vec<Box<dyn PresenceUpdate>>,
-    pub(crate) typing_start: Vec<Box<dyn TypingStart>>,
-    pub(crate) user_update: Vec<Box<dyn UserUpdate>>,
-    pub(crate) voice_state_update: Vec<Box<dyn VoiceStateUpdate>>,
-    pub(crate) voice_server_update: Vec<Box<dyn VoiceServerUpdate>>,
-    pub(crate) webhooks_update: Vec<Box<dyn WebhooksUpdate>>,
+    pub(crate) ready: Vec<Ready>,
+    pub(crate) channel_create: Vec<ChannelCreate>,
+    pub(crate) channel_update: Vec<ChannelUpdate>,
+    pub(crate) channel_delete: Vec<ChannelDelete>,
+    pub(crate) channel_pins_update: Vec<ChannelPinsUpdate>,
+    pub(crate) guild_create: Vec<GuildCreate>,
+    pub(crate) guild_update: Vec<GuildUpdate>,
+    pub(crate) guild_delete: Vec<GuildDelete>,
+    pub(crate) guild_ban_add: Vec<GuildBanAdd>,
+    pub(crate) guild_ban_remove: Vec<GuildBanRemove>,
+    pub(crate) guild_emojis_update: Vec<GuildEmojisUpdate>,
+    pub(crate) guild_integrations_update: Vec<GuildIntegrationsUpdate>,
+    pub(crate) guild_member_add: Vec<GuildMemberAdd>,
+    pub(crate) guild_member_remove: Vec<GuildMemberRemove>,
+    pub(crate) guild_member_update: Vec<GuildMemberUpdate>,
+    pub(crate) guild_members_chunk: Vec<GuildMembersChunk>,
+    pub(crate) guild_role_create: Vec<GuildRoleCreate>,
+    pub(crate) guild_role_update: Vec<GuildRoleUpdate>,
+    pub(crate) guild_role_delete: Vec<GuildRoleDelete>,
+    pub(crate) invite_create: Vec<InviteCreate>,
+    pub(crate) invite_delete: Vec<InviteDelete>,
+    pub(crate) message_create: Vec<MessageCreate>,
+    pub(crate) message_update: Vec<MessageUpdate>,
+    pub(crate) message_delete: Vec<MessageDelete>,
+    pub(crate) message_delete_bulk: Vec<MessageDeleteBulk>,
+    pub(crate) reaction_add: Vec<MessageReactionAdd>,
+    pub(crate) reaction_remove: Vec<MessageReactionRemove>,
+    pub(crate) reaction_remove_all: Vec<MessageReactionRemoveAll>,
+    pub(crate) reaction_remove_emoji: Vec<MessageReactionRemoveEmoji>,
+    pub(crate) presence_update: Vec<PresenceUpdate>,
+    pub(crate) typing_start: Vec<TypingStart>,
+    pub(crate) user_update: Vec<UserUpdate>,
+    pub(crate) voice_state_update: Vec<VoiceStateUpdate>,
+    pub(crate) voice_server_update: Vec<VoiceServerUpdate>,
+    pub(crate) webhooks_update: Vec<WebhooksUpdate>,
 }

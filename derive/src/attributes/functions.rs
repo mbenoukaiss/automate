@@ -21,7 +21,9 @@ impl Parse for Listeners {
             }
 
             let original = path.segments.pop().unwrap().into_value().ident;
-            path.segments.push(PathSegment::from(Ident::new(&format!("__listener_{}", original), original.span())));
+
+            //take the instance of ListenerType struct for registering
+            path.segments.push(PathSegment::from(Ident::new(&format!("__register_{}", original), original.span())));
 
             functions.push(path);
         }
@@ -34,7 +36,7 @@ pub fn functions(input: TokenStream) -> TokenStream {
     let functions = parse_macro_input!(input as Listeners).0;
 
     let expanded = quote! {
-        vec![#(Box::new(#functions)),*]
+        vec![#(#functions),*]
     };
 
     TokenStream::from(expanded)

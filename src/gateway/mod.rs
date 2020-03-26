@@ -41,7 +41,7 @@ macro_rules! dispatcher {
             }
 
             for listener in &mut *self.session.listeners.lock().await.$name {
-                if let Err(error) = (*listener).$fn_name(&self.session, &payload).await {
+                if let Err(error) = (*listener)(&self.session, &payload).await {
                     error!("Listener to {} failed with: {}", stringify!($name), error);
                 }
             }
@@ -368,7 +368,7 @@ impl GatewayAPI {
         }
 
         for listener in &mut *self.session.listeners.lock().await.ready {
-            if let Err(error) = (*listener).on_ready(&self.session, &payload).await {
+            if let Err(error) = (*listener)(&self.session, &payload).await {
                error!("Listener to on_ready failed with: {}", error);
            }
         }
