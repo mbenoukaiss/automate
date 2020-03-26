@@ -11,6 +11,29 @@ use quote::quote;
 use crate::discord::StructSide;
 use syn::spanned::Spanned;
 
+macro_rules! compile_error {
+    ($tokens:expr, $msg:literal) => {
+        return ::syn::Error::new_spanned($tokens, $msg)
+                .to_compile_error()
+                .into();
+    };
+    ($msg:literal) => {
+        return ::syn::Error::new_spanned(::proc_macro2::Span::call_site(), $msg)
+                .to_compile_error()
+                .into();
+    };
+    (err $tokens:expr, $msg:literal) => {
+        return Err(::syn::Error::new_spanned($tokens, $msg)
+                .to_compile_error()
+                .into());
+    };
+    (err $msg:literal) => {
+        return Err(::syn::Error::new_spanned(::proc_macro2::Span::call_site(), $msg)
+                .to_compile_error()
+                .into());
+    };
+}
+
 macro_rules! extract_token {
     ($type:ident in $token:ident) => {
         match $token {
