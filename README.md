@@ -3,13 +3,14 @@ Automate is a low level and asynchronous rust library for interacting with the D
 
 # Getting started
 Automate currently only works with Rust nightly. The tested version and the one used in CI is
-`nightly-2020-01-31`. Refer to [rust edition guide](https://doc.rust-lang.org/edition-guide/rust-2018/rustup-for-managing-rust-versions.html)
+`nightly-2020-01-31`, you can use more recent versions but please swich back to this version 
+if you get a compile error. Refer to [rust edition guide](https://doc.rust-lang.org/edition-guide/rust-2018/rustup-for-managing-rust-versions.html)
 to learn how to switch to rust nightly.
 
 In order to use Automate in your project, add the following line to your `Cargo.toml` :
 ```
 [dependencies]
-automate = "0.2.1"
+automate = "0.3"
 ```
 
 You can then write the following in your `main.rs`. This simple example will respond Hello <name of the user>! to any
