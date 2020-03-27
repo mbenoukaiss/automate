@@ -5,7 +5,7 @@
 #![allow(clippy::identity_op)] //because clippy forbides 1 << 0 in c-like enums
 #![allow(where_clauses_object_safety)] //should be fixable when async traits are allowed
 
-//! A low level and asynchronous rust library for interacting with the Discord API
+//! A low level and asynchronous rust library made for interacting with Discord's API.
 //!
 //! This library provides all the tools that will handle setting up and maintaining
 //! a connection to Discord's API in order to make a bot.
@@ -17,7 +17,7 @@
 //! Everything is handled through the [Discord](automate::Discord) struct :
 //! - [Discord::new](automate::Discord::new) : Takes the bot token as parameter. You can provide a
 //! hardcoded string, take it from the environment or retrieve it from a configuration file.
-//! - [Discord::with](automate::Discord::with) : Registers a listener struct or function
+//! - [Discord::register](automate::Discord::register) : Registers a listener struct or function
 //!
 //! # Listeners
 //! Discord sends various events through their API about messages, guild and
@@ -27,11 +27,11 @@
 //! ## Listener function
 //! The first and recommended way is to use the `#[listener]` attribute on a function.
 //! ```
-//! # use automate::{Session, Error, listener};
+//! # use automate::{Context, Error, listener};
 //! # use automate::gateway::MessageCreateDispatch;
 //! #
 //! #[listener]
-//! async fn print_hello(session: &Session, data: &MessageCreateDispatch) -> Result<(), Error> {
+//! async fn print_hello(ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
 //!     println!("Hello!");
 //!     Ok(())
 //! }
@@ -97,20 +97,20 @@
 //! was created, update, or deleted.
 //!
 //! A listener function can be registered in the library by sending the name of the function to the
-//! [Discord::with](automate::Discord::with) method using the `functions` macro :
+//! [Discord::register](automate::Discord::register) method using the `functions` macro :
 //! ```
-//! # use automate::{Discord, Session, Error, functions, listener};
+//! # use automate::{Discord, Context, Error, functions, listener};
 //! # use automate::gateway::MessageCreateDispatch;
 //! #
 //! # #[listener]
-//! # async fn print_hello(session: &Session, data: &MessageCreateDispatch) -> Result<(), Error> {
+//! # async fn print_hello(ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
 //! #     println!("Hello!");
 //! #     Ok(())
 //! # }
 //! #
 //! # let api_token = std::env::var("DISCORD_API_TOKEN").expect("API token not found");
 //! Discord::new(&api_token)
-//!         .with(functions!(print_hello))
+//!         .register(functions!(print_hello))
 //!         .connect();
 //! ```
 //!
@@ -124,17 +124,17 @@
 //! however they do not allow keeping variables between two events.
 //! 
 //! ```
-//! use automate::{Session, Error, Listener, async_trait};
+//! use automate::{Context, Error, Listener, async_trait};
 //! use automate::gateway::MessageCreateDispatch;
 //!
-//! #[derive(Default)]
+//! #[derive(Default, Clone)]
 //! struct MessageCounter {
 //!     messages: u32
 //! }
 //! 
 //! #[async_trait]
 //! impl Listener for MessageCounter {
-//!     async fn on_message_create(&mut self, session: &Session, data: &MessageCreateDispatch) -> Result<(), Error> {
+//!     async fn on_message_create(&mut self, ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
 //!         self.messages += 1;
 //!         println!("A total of {} messages have been sent!", self.messages);
 //!
@@ -144,11 +144,11 @@
 //! ```
 //!
 //! A listener struct can be registered in the library by sending an instance of the struct to the
-//! [Discord::with](automate::Discord::with) method using the `traits` macro :
+//! [Discord::register](automate::Discord::register) method using the `traits` macro :
 //! ```
 //! # use automate::{Discord, Listener, structs, async_trait};
 //! #
-//! # #[derive(Default)]
+//! # #[derive(Default, Clone)]
 //! # struct MessageCounter;
 //! #
 //! # #[async_trait]
@@ -156,7 +156,7 @@
 //! #
 //! # let api_token = std::env::var("DISCORD_API_TOKEN").expect("API token not found");
 //! Discord::new(&api_token)
-//!         .with(structs!(MessageCounter::default()))
+//!         .register(structs!(MessageCounter::default()))
 //!         .connect();
 //! ```
 //!
@@ -167,19 +167,19 @@
 //! #[macro_use]
 //! extern crate automate;
 //! 
-//! use automate::{Error, Discord, Session};
+//! use automate::{Error, Discord, Context};
 //! use automate::gateway::MessageCreateDispatch;
 //! use automate::http::CreateMessage;
 //! use std::env;
 //! 
 //! #[listener]
-//! async fn say_hello(session: &Session, data: &MessageCreateDispatch) -> Result<(), Error> {
+//! async fn say_hello(ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
 //!     let message = &data.0;
 //! 
-//!     if message.author.id != session.bot().id {
+//!     if message.author.id != ctx.bot().id {
 //!         let content = Some(format!("Hello {}!", message.author.username));
 //! 
-//!         session.create_message(message.channel_id, CreateMessage {
+//!         ctx.create_message(message.channel_id, CreateMessage {
 //!             content,
 //!             ..Default::default()
 //!         }).await?;
@@ -192,7 +192,7 @@
 //!     automate::setup_logging();
 //! 
 //!     Discord::new(&env::var("DISCORD_API_TOKEN").expect("API token not found"))
-//!         .with(functions!(say_hello))
+//!         .register(functions!(say_hello))
 //!         .connect_blocking()
 //! }
 //! ```
@@ -222,16 +222,22 @@ mod logger;
 pub use automate_derive::listener;
 
 /// Parses a list of function listeners before sending them
-/// to the [Discord::with](automate::Discord::with) method.
+/// to the [Discord::register](automate::Discord::register) method.
 #[proc_macro_hack]
 pub use automate_derive::functions;
 
+#[doc(no_inline)]
 pub use async_trait::async_trait;
+#[doc(no_inline)]
 pub use tokio;
 
+#[doc(inline)]
 pub use events::Listener;
+#[doc(inline)]
 pub use http::HttpAPI;
-pub use gateway::Session;
+#[doc(inline)]
+pub use gateway::Context;
+
 pub use logger::setup_logging;
 pub use snowflake::Snowflake;
 pub use errors::Error;
@@ -239,8 +245,6 @@ pub use errors::Error;
 use events::*;
 use gateway::GatewayAPI;
 use tokio::runtime::Runtime;
-use std::sync::Arc;
-use futures::lock::Mutex;
 
 /// The struct used to register listeners, setup
 /// configuration and establish connection with
@@ -273,291 +277,261 @@ impl Discord {
     /// Registers an event listener struct that implements
     /// the [Listener](automate::Listener) trait or
     /// a listener function with the `̀#[listener]` attribute. 
-    pub fn with(mut self, listener: Vec<ListenerType>) -> Self {
-        for l in listener {
-            match l {
-                ListenerType::Impl(l) => self.listeners.trait_listeners.push(l),
-                ListenerType::Ready(l) => self.listeners.ready.push(l),
-                ListenerType::ChannelCreate(l) => self.listeners.channel_create.push(l),
-                ListenerType::ChannelUpdate(l) => self.listeners.channel_update.push(l),
-                ListenerType::ChannelDelete(l) => self.listeners.channel_delete.push(l),
-                ListenerType::ChannelPinsUpdate(l) => self.listeners.channel_pins_update.push(l),
-                ListenerType::GuildCreate(l) => self.listeners.guild_create.push(l),
-                ListenerType::GuildUpdate(l) => self.listeners.guild_update.push(l),
-                ListenerType::GuildDelete(l) => self.listeners.guild_delete.push(l),
-                ListenerType::GuildBanAdd(l) => self.listeners.guild_ban_add.push(l),
-                ListenerType::GuildBanRemove(l) => self.listeners.guild_ban_remove.push(l),
-                ListenerType::GuildEmojisUpdate(l) => self.listeners.guild_emojis_update.push(l),
-                ListenerType::GuildIntegrationsUpdate(l) => self.listeners.guild_integrations_update.push(l),
-                ListenerType::GuildMemberAdd(l) => self.listeners.guild_member_add.push(l),
-                ListenerType::GuildMemberRemove(l) => self.listeners.guild_member_remove.push(l),
-                ListenerType::GuildMemberUpdate(l) => self.listeners.guild_member_update.push(l),
-                ListenerType::GuildMembersChunk(l) => self.listeners.guild_members_chunk.push(l),
-                ListenerType::GuildRoleCreate(l) => self.listeners.guild_role_create.push(l),
-                ListenerType::GuildRoleUpdate(l) => self.listeners.guild_role_update.push(l),
-                ListenerType::GuildRoleDelete(l) => self.listeners.guild_role_delete.push(l),
-                ListenerType::InviteCreate(l) => self.listeners.invite_create.push(l),
-                ListenerType::InviteDelete(l) => self.listeners.invite_delete.push(l),
-                ListenerType::MessageCreate(l) => self.listeners.message_create.push(l),
-                ListenerType::MessageUpdate(l) => self.listeners.message_update.push(l),
-                ListenerType::MessageDelete(l) => self.listeners.message_delete.push(l),
-                ListenerType::MessageDeleteBulk(l) => self.listeners.message_delete_bulk.push(l),
-                ListenerType::MessageReactionAdd(l) => self.listeners.reaction_add.push(l),
-                ListenerType::MessageReactionRemove(l) => self.listeners.reaction_remove.push(l),
-                ListenerType::MessageReactionRemoveAll(l) => self.listeners.reaction_remove_all.push(l),
-                ListenerType::MessageReactionRemoveEmoji(l) => self.listeners.reaction_remove_emoji.push(l),
-                ListenerType::PresenceUpdate(l) => self.listeners.presence_update.push(l),
-                ListenerType::TypingStart(l) => self.listeners.typing_start.push(l),
-                ListenerType::UserUpdate(l) => self.listeners.user_update.push(l),
-                ListenerType::VoiceStateUpdate(l) => self.listeners.voice_state_update.push(l),
-                ListenerType::VoiceServerUpdate(l) => self.listeners.voice_server_update.push(l),
-                ListenerType::WebhooksUpdate(l) => self.listeners.webhooks_update.push(l),
-            }
-        }
+    pub fn register(mut self, listeners: Vec<ListenerType>) -> Self {
+        self.listeners.register(listeners);
         self
     }
 
+    /// Registers an event listener struct that implements
+    /// the [Listener](automate::events::Listener) trait
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
+    pub fn with<L: Listener + Send + 'static>(mut self, listener: L) -> Self {
+        self.listeners.trait_listeners.push(Box::new(listener));
+        self
+    }
+
+
     /// Registers a struct event listener that implements
     /// the [Listener](automate::Listener) trait.
-    #[deprecated(since = "0.2.1", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.2.1", note = "Please use `Discord::register` instead")]
     pub fn with_listener<L: Listener + Send + 'static>(mut self, listener: L) -> Self {
         self.listeners.trait_listeners.push(Box::new(listener));
         self
     }
 
     /// Registers an event that listens to [Ready](automate::gateway::ReadyDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_ready(mut self, listener: Ready) -> Self {
         self.listeners.ready.push(listener);
         self
     }
 
     /// Registers an event that listens to [ChannelCreate](automate::gateway::ChannelCreateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_channel_create(mut self, listener: ChannelCreate) -> Self {
         self.listeners.channel_create.push(listener);
         self
     }
 
     /// Registers an event that listens to [ChannelUpdate](automate::gateway::ChannelUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_channel_update(mut self, listener: ChannelUpdate) -> Self {
         self.listeners.channel_update.push(listener);
         self
     }
 
     /// Registers an event that listens to [ChannelDelete](automate::gateway::ChannelDeleteDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_channel_delete(mut self, listener: ChannelDelete) -> Self {
         self.listeners.channel_delete.push(listener);
         self
     }
 
     /// Registers an event that listens to [ChannelPinsUpdate](automate::gateway::ChannelPinsUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_channel_pins_update(mut self, listener: ChannelPinsUpdate) -> Self {
         self.listeners.channel_pins_update.push(listener);
         self
     }
 
     /// Registers an event that listens to [GuildCreate](automate::gateway::GuildCreateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_guild_create(mut self, listener: GuildCreate) -> Self {
         self.listeners.guild_create.push(listener);
         self
     }
 
     /// Registers an event that listens to [GuildUpdate](automate::gateway::GuildUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_guild_update(mut self, listener: GuildUpdate) -> Self {
         self.listeners.guild_update.push(listener);
         self
     }
 
     /// Registers an event that listens to [GuildDelete](automate::gateway::GuildDeleteDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_guild_delete(mut self, listener: GuildDelete) -> Self {
         self.listeners.guild_delete.push(listener);
         self
     }
 
     /// Registers an event that listens to [GuildBanAdd](automate::gateway::GuildBanAddDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_guild_ban_add(mut self, listener: GuildBanAdd) -> Self {
         self.listeners.guild_ban_add.push(listener);
         self
     }
 
     /// Registers an event that listens to [GuildBanRemove](automate::gateway::GuildBanRemoveDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_guild_ban_remove(mut self, listener: GuildBanRemove) -> Self {
         self.listeners.guild_ban_remove.push(listener);
         self
     }
 
     /// Registers an event that listens to [GuildEmojisUpdate](automate::gateway::GuildEmojisUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_guild_emojis_update(mut self, listener: GuildEmojisUpdate) -> Self {
         self.listeners.guild_emojis_update.push(listener);
         self
     }
 
     /// Registers an event that listens to [GuildIntegrationsUpdate](automate::gateway::GuildIntegrationsUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_guild_integrations_update(mut self, listener: GuildIntegrationsUpdate) -> Self {
         self.listeners.guild_integrations_update.push(listener);
         self
     }
 
     /// Registers an event that listens to [GuildMemberAdd](automate::gateway::GuildMemberAddDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_guild_member_add(mut self, listener: GuildMemberAdd) -> Self {
         self.listeners.guild_member_add.push(listener);
         self
     }
 
     /// Registers an event that listens to [GuildMemberRemove](automate::gateway::GuildMemberRemoveDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_guild_member_remove(mut self, listener: GuildMemberRemove) -> Self {
         self.listeners.guild_member_remove.push(listener);
         self
     }
 
     /// Registers an event that listens to [GuildMemberUpdate](automate::gateway::GuildMemberUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_guild_member_update(mut self, listener: GuildMemberUpdate) -> Self {
         self.listeners.guild_member_update.push(listener);
         self
     }
 
     /// Registers an event that listens to [GuildMembersChunk](automate::gateway::GuildMembersChunkDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_guild_members_chunk(mut self, listener: GuildMembersChunk) -> Self {
         self.listeners.guild_members_chunk.push(listener);
         self
     }
 
     /// Registers an event that listens to [GuildRoleCreate](automate::gateway::GuildRoleCreateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_guild_role_create(mut self, listener: GuildRoleCreate) -> Self {
         self.listeners.guild_role_create.push(listener);
         self
     }
 
     /// Registers an event that listens to [GuildRoleUpdate](automate::gateway::GuildRoleUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_guild_role_update(mut self, listener: GuildRoleUpdate) -> Self {
         self.listeners.guild_role_update.push(listener);
         self
     }
 
     /// Registers an event that listens to [GuildRoleDelete](automate::gateway::GuildRoleDeleteDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_guild_role_delete(mut self, listener: GuildRoleDelete) -> Self {
         self.listeners.guild_role_delete.push(listener);
         self
     }
 
     /// Registers an event that listens to [InviteCreate](automate::gateway::InviteCreateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_invite_create(mut self, listener: InviteCreate) -> Self {
         self.listeners.invite_create.push(listener);
         self
     }
 
     /// Registers an event that listens to [InviteDelete](automate::gateway::InviteDeleteDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_invite_delete(mut self, listener: InviteDelete) -> Self {
         self.listeners.invite_delete.push(listener);
         self
     }
 
     /// Registers an event that listens to [MessageCreate](automate::gateway::MessageCreateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_message_create(mut self, listener: MessageCreate) -> Self {
         self.listeners.message_create.push(listener);
         self
     }
 
     /// Registers an event that listens to [MessageUpdate](automate::gateway::MessageUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_message_update(mut self, listener: MessageUpdate) -> Self {
         self.listeners.message_update.push(listener);
         self
     }
 
     /// Registers an event that listens to [MessageDelete](automate::gateway::MessageDeleteDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_message_delete(mut self, listener: MessageDelete) -> Self {
         self.listeners.message_delete.push(listener);
         self
     }
 
     /// Registers an event that listens to [MessageDeleteBulk](automate::gateway::MessageDeleteBulkDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_message_delete_bulk(mut self, listener: MessageDeleteBulk) -> Self {
         self.listeners.message_delete_bulk.push(listener);
         self
     }
 
     /// Registers an event that listens to [MessageReactionAdd](automate::gateway::MessageReactionAddDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_reaction_add(mut self, listener: MessageReactionAdd) -> Self {
         self.listeners.reaction_add.push(listener);
         self
     }
 
     /// Registers an event that listens to [MessageReactionRemove](automate::gateway::MessageReactionRemoveDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_reaction_remove(mut self, listener: MessageReactionRemove) -> Self {
         self.listeners.reaction_remove.push(listener);
         self
     }
 
     /// Registers an event that listens to [MessageReactionRemoveAll](automate::gateway::MessageReactionRemoveAllDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_reaction_remove_all(mut self, listener: MessageReactionRemoveAll) -> Self {
         self.listeners.reaction_remove_all.push(listener);
         self
     }
 
     /// Registers an event that listens to [PresenceUpdate](automate::gateway::PresenceUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_presence_update(mut self, listener: PresenceUpdate) -> Self {
         self.listeners.presence_update.push(listener);
         self
     }
 
     /// Registers an event that listens to [TypingStart](automate::gateway::TypingStartDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_typing_start(mut self, listener: TypingStart) -> Self {
         self.listeners.typing_start.push(listener);
         self
     }
 
     /// Registers an event that listens to [UserUpdate](automate::gateway::UserUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_user_update(mut self, listener: UserUpdate) -> Self {
         self.listeners.user_update.push(listener);
         self
     }
 
     /// Registers an event that listens to [VoiceStateUpdate](automate::gateway::VoiceStateUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_voice_state_update(mut self, listener: VoiceStateUpdate) -> Self {
         self.listeners.voice_state_update.push(listener);
         self
     }
 
     /// Registers an event that listens to [VoiceServerUpdate](automate::gateway::VoiceServerUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_voice_server_update(mut self, listener: VoiceServerUpdate) -> Self {
         self.listeners.voice_server_update.push(listener);
         self
     }
 
     /// Registers an event that listens to [WebhooksUpdate](automate::gateway::WebhooksUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Discord::with` instead")]
+    #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_webhooks_update(mut self, listener: WebhooksUpdate) -> Self {
         self.listeners.webhooks_update.push(listener);
         self
@@ -580,7 +554,7 @@ impl Discord {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub(crate) struct ListenerStorage {
     pub(crate) trait_listeners: Vec<Box<dyn Listener>>,
     pub(crate) ready: Vec<Ready>,
@@ -620,88 +594,47 @@ pub(crate) struct ListenerStorage {
     pub(crate) webhooks_update: Vec<WebhooksUpdate>,
 }
 
-#[derive(Default)]
-pub(crate) struct ListenerQueue {
-    pub(crate) updated: bool,
-    pub(crate) trait_listeners: Vec<Box<dyn Listener>>,
-    pub(crate) ready: Vec<Ready>,
-    pub(crate) channel_create: Vec<ChannelCreate>,
-    pub(crate) channel_update: Vec<ChannelUpdate>,
-    pub(crate) channel_delete: Vec<ChannelDelete>,
-    pub(crate) channel_pins_update: Vec<ChannelPinsUpdate>,
-    pub(crate) guild_create: Vec<GuildCreate>,
-    pub(crate) guild_update: Vec<GuildUpdate>,
-    pub(crate) guild_delete: Vec<GuildDelete>,
-    pub(crate) guild_ban_add: Vec<GuildBanAdd>,
-    pub(crate) guild_ban_remove: Vec<GuildBanRemove>,
-    pub(crate) guild_emojis_update: Vec<GuildEmojisUpdate>,
-    pub(crate) guild_integrations_update: Vec<GuildIntegrationsUpdate>,
-    pub(crate) guild_member_add: Vec<GuildMemberAdd>,
-    pub(crate) guild_member_remove: Vec<GuildMemberRemove>,
-    pub(crate) guild_member_update: Vec<GuildMemberUpdate>,
-    pub(crate) guild_members_chunk: Vec<GuildMembersChunk>,
-    pub(crate) guild_role_create: Vec<GuildRoleCreate>,
-    pub(crate) guild_role_update: Vec<GuildRoleUpdate>,
-    pub(crate) guild_role_delete: Vec<GuildRoleDelete>,
-    pub(crate) invite_create: Vec<InviteCreate>,
-    pub(crate) invite_delete: Vec<InviteDelete>,
-    pub(crate) message_create: Vec<MessageCreate>,
-    pub(crate) message_update: Vec<MessageUpdate>,
-    pub(crate) message_delete: Vec<MessageDelete>,
-    pub(crate) message_delete_bulk: Vec<MessageDeleteBulk>,
-    pub(crate) reaction_add: Vec<MessageReactionAdd>,
-    pub(crate) reaction_remove: Vec<MessageReactionRemove>,
-    pub(crate) reaction_remove_all: Vec<MessageReactionRemoveAll>,
-    pub(crate) reaction_remove_emoji: Vec<MessageReactionRemoveEmoji>,
-    pub(crate) presence_update: Vec<PresenceUpdate>,
-    pub(crate) typing_start: Vec<TypingStart>,
-    pub(crate) user_update: Vec<UserUpdate>,
-    pub(crate) voice_state_update: Vec<VoiceStateUpdate>,
-    pub(crate) voice_server_update: Vec<VoiceServerUpdate>,
-    pub(crate) webhooks_update: Vec<WebhooksUpdate>,
-}
-
-impl ListenerQueue {
-    pub async fn merge(&mut self, storage: Arc<Mutex<ListenerStorage>>) {
-        if self.updated {
-            let mut storage = storage.lock().await;
-
-            storage.trait_listeners.append(&mut self.trait_listeners);
-            storage.ready.append(&mut self.ready);
-            storage.channel_create.append(&mut self.channel_create);
-            storage.channel_update.append(&mut self.channel_update);
-            storage.channel_delete.append(&mut self.channel_delete);
-            storage.channel_pins_update.append(&mut self.channel_pins_update);
-            storage.guild_create.append(&mut self.guild_create);
-            storage.guild_update.append(&mut self.guild_update);
-            storage.guild_delete.append(&mut self.guild_delete);
-            storage.guild_ban_add.append(&mut self.guild_ban_add);
-            storage.guild_ban_remove.append(&mut self.guild_ban_remove);
-            storage.guild_emojis_update.append(&mut self.guild_emojis_update);
-            storage.guild_integrations_update.append(&mut self.guild_integrations_update);
-            storage.guild_member_add.append(&mut self.guild_member_add);
-            storage.guild_member_remove.append(&mut self.guild_member_remove);
-            storage.guild_member_update.append(&mut self.guild_member_update);
-            storage.guild_members_chunk.append(&mut self.guild_members_chunk);
-            storage.guild_role_create.append(&mut self.guild_role_create);
-            storage.guild_role_update.append(&mut self.guild_role_update);
-            storage.guild_role_delete.append(&mut self.guild_role_delete);
-            storage.invite_create.append(&mut self.invite_create);
-            storage.invite_delete.append(&mut self.invite_delete);
-            storage.message_create.append(&mut self.message_create);
-            storage.message_update.append(&mut self.message_update);
-            storage.message_delete.append(&mut self.message_delete);
-            storage.message_delete_bulk.append(&mut self.message_delete_bulk);
-            storage.reaction_add.append(&mut self.reaction_add);
-            storage.reaction_remove.append(&mut self.reaction_remove);
-            storage.reaction_remove_all.append(&mut self.reaction_remove_all);
-            storage.reaction_remove_emoji.append(&mut self.reaction_remove_emoji);
-            storage.presence_update.append(&mut self.presence_update);
-            storage.typing_start.append(&mut self.typing_start);
-            storage.user_update.append(&mut self.user_update);
-            storage.voice_state_update.append(&mut self.voice_state_update);
-            storage.voice_server_update.append(&mut self.voice_server_update);
-            storage.webhooks_update.append(&mut self.webhooks_update);
+impl ListenerStorage {
+    pub(crate) fn register(&mut self, listeners: Vec<ListenerType>) {
+        for l in listeners {
+            match l {
+                ListenerType::Impl(l) => self.trait_listeners.push(l),
+                ListenerType::Ready(l) => self.ready.push(l),
+                ListenerType::ChannelCreate(l) => self.channel_create.push(l),
+                ListenerType::ChannelUpdate(l) => self.channel_update.push(l),
+                ListenerType::ChannelDelete(l) => self.channel_delete.push(l),
+                ListenerType::ChannelPinsUpdate(l) => self.channel_pins_update.push(l),
+                ListenerType::GuildCreate(l) => self.guild_create.push(l),
+                ListenerType::GuildUpdate(l) => self.guild_update.push(l),
+                ListenerType::GuildDelete(l) => self.guild_delete.push(l),
+                ListenerType::GuildBanAdd(l) => self.guild_ban_add.push(l),
+                ListenerType::GuildBanRemove(l) => self.guild_ban_remove.push(l),
+                ListenerType::GuildEmojisUpdate(l) => self.guild_emojis_update.push(l),
+                ListenerType::GuildIntegrationsUpdate(l) => self.guild_integrations_update.push(l),
+                ListenerType::GuildMemberAdd(l) => self.guild_member_add.push(l),
+                ListenerType::GuildMemberRemove(l) => self.guild_member_remove.push(l),
+                ListenerType::GuildMemberUpdate(l) => self.guild_member_update.push(l),
+                ListenerType::GuildMembersChunk(l) => self.guild_members_chunk.push(l),
+                ListenerType::GuildRoleCreate(l) => self.guild_role_create.push(l),
+                ListenerType::GuildRoleUpdate(l) => self.guild_role_update.push(l),
+                ListenerType::GuildRoleDelete(l) => self.guild_role_delete.push(l),
+                ListenerType::InviteCreate(l) => self.invite_create.push(l),
+                ListenerType::InviteDelete(l) => self.invite_delete.push(l),
+                ListenerType::MessageCreate(l) => self.message_create.push(l),
+                ListenerType::MessageUpdate(l) => self.message_update.push(l),
+                ListenerType::MessageDelete(l) => self.message_delete.push(l),
+                ListenerType::MessageDeleteBulk(l) => self.message_delete_bulk.push(l),
+                ListenerType::MessageReactionAdd(l) => self.reaction_add.push(l),
+                ListenerType::MessageReactionRemove(l) => self.reaction_remove.push(l),
+                ListenerType::MessageReactionRemoveAll(l) => self.reaction_remove_all.push(l),
+                ListenerType::MessageReactionRemoveEmoji(l) => self.reaction_remove_emoji.push(l),
+                ListenerType::PresenceUpdate(l) => self.presence_update.push(l),
+                ListenerType::TypingStart(l) => self.typing_start.push(l),
+                ListenerType::UserUpdate(l) => self.user_update.push(l),
+                ListenerType::VoiceStateUpdate(l) => self.voice_state_update.push(l),
+                ListenerType::VoiceServerUpdate(l) => self.voice_server_update.push(l),
+                ListenerType::WebhooksUpdate(l) => self.webhooks_update.push(l),
+            }
         }
     }
 }

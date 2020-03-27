@@ -70,14 +70,14 @@ pub struct AuditEntryInfo {
     pub role_name: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Clone, Deserialize, Debug)]
 pub struct AuditLogChange {
     pub key: String,
     pub new_value: Option<AuditLogChangeValue>,
     pub old_value: Option<AuditLogChangeValue>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Clone, Deserialize, Debug)]
 pub enum AuditLogChangeValue {
     String(String),
     Snowflake(Snowflake),

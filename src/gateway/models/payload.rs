@@ -3,6 +3,9 @@ use crate::Snowflake;
 use std::collections::HashMap;
 use serde_json::Value;
 
+/// A Discord Gateway API Payload.
+/// Contains the event data and the sequence
+/// number used to resume sessions.
 #[object(server)]
 pub struct Payload<D> {
     pub op: u8,
@@ -11,6 +14,9 @@ pub struct Payload<D> {
     pub t: Option<String>,
 }
 
+/// Sent by Discord's Gateway API after connection
+/// was successfully established. Contains data about
+/// bot itself, the guils it is in and the DMs.
 #[payload(op = 0, event = "READY", server)]
 pub struct ReadyDispatch {
     pub v: u16,

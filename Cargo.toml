@@ -6,7 +6,7 @@ license = "MIT"
 repository = "https://github.com/mbenoukaiss/automate"
 keywords = ["discord", "api", "async"]
 categories = ["api-bindings"]
-description = "An asynchronous library to interact with Discord API"
+description = "An asynchronous library to interact with Discord API and make bots"
 readme = "README.md"
 edition = "2018"
 
