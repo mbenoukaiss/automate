@@ -1,6 +1,6 @@
 [package]
 name = "automate"
-version = "0.2.1"
+version = "0.3.0"
 authors = ["mbenoukaiss <marwane.benou-kaiss@etu.u-bordeaux.fr>"]
 license = "MIT"
 repository = "https://github.com/mbenoukaiss/automate"
@@ -12,7 +12,7 @@ edition = "2018"
 
 [dependencies]
 proc-macro-hack = "0.5"
-automate-derive = { version = "0.2.1", path = "derive" }
+automate-derive = { version = "0.3.0", path = "derive" }
 futures = "0.3"
 async-trait = "0.1"
 tokio = { version = "0.2", features = ["time"] }

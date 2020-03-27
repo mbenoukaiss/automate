@@ -335,15 +335,6 @@ impl Discord {
         self
     }
 
-
-    /// Registers a struct event listener that implements
-    /// the [Listener](automate::Listener) trait.
-    #[deprecated(since = "0.2.1", note = "Please use `Discord::register` instead")]
-    pub fn with_listener<L: Listener + Send + 'static>(mut self, listener: L) -> Self {
-        self.listeners.trait_listeners.push(Box::new(listener));
-        self
-    }
-
     /// Registers an event that listens to [Ready](automate::gateway::ReadyDispatch) events
     #[deprecated(since = "0.3.0", note = "Please use `Discord::register` instead")]
     pub fn on_ready(mut self, listener: Ready) -> Self {
