@@ -2,6 +2,7 @@ use crate::gateway::*;
 use crate::Snowflake;
 use std::collections::HashMap;
 use serde_json::Value;
+use std::ops::BitOr;
 
 /// A Discord Gateway API Payload.
 /// Contains the event data and the sequence
@@ -24,7 +25,7 @@ pub struct ReadyDispatch {
     pub private_channels: Vec<Channel>,
     pub guilds: Vec<UnavailableGuild>,
     pub session_id: String,
-    pub shard: Option<[u32; 2]>
+    pub shard: Option<[u32; 2]>,
 }
 
 #[payload(op = 0, event = "RESUMED", server)]
@@ -43,7 +44,7 @@ pub struct ChannelDeleteDispatch(pub Channel);
 pub struct ChannelPinsUpdateDispatch {
     pub guild_id: Option<Snowflake>,
     pub channel_id: Snowflake,
-    pub last_pin_timestamp: Option<String>
+    pub last_pin_timestamp: Option<String>,
 }
 
 #[payload(op = 0, event = "GUILD_CREATE", server)]
@@ -55,25 +56,25 @@ pub struct GuildUpdateDispatch(pub Guild);
 #[payload(op = 0, event = "GUILD_DELETE", server)]
 pub struct GuildDeleteDispatch {
     pub id: Snowflake,
-    pub unavailable: Option<bool>
+    pub unavailable: Option<bool>,
 }
 
 #[payload(op = 0, event = "GUILD_BAN_ADD", server)]
 pub struct GuildBanAddDispatch {
     pub guild_id: Snowflake,
-    pub user: User
+    pub user: User,
 }
 
 #[payload(op = 0, event = "GUILD_BAN_REMOVE", server)]
 pub struct GuildBanRemoveDispatch {
     pub guild_id: Snowflake,
-    pub user: User
+    pub user: User,
 }
 
 #[payload(op = 0, event = "GUILD_EMOJIS_UPDATE", server)]
 pub struct GuildEmojisUpdateDispatch {
     pub guild_id: Snowflake,
-    pub emojis: Vec<Emoji>
+    pub emojis: Vec<Emoji>,
 }
 
 #[payload(op = 0, event = "GUILD_INTEGRATIONS_UPDATE", server)]
@@ -91,13 +92,13 @@ pub struct GuildMemberAddDispatch {
     pub premium_since: Option<String>,
     pub hoisted_role: Option<Snowflake>,
     pub deaf: bool,
-    pub mute: bool
+    pub mute: bool,
 }
 
 #[payload(op = 0, event = "GUILD_MEMBER_REMOVE", server)]
 pub struct GuildMemberRemoveDispatch {
     pub guild_id: Snowflake,
-    pub user: User
+    pub user: User,
 }
 
 #[payload(op = 0, event = "GUILD_MEMBER_UPDATE", server)]
@@ -105,7 +106,7 @@ pub struct GuildMemberUpdateDispatch {
     pub guild_id: Snowflake,
     pub roles: Vec<Snowflake>,
     pub user: User,
-    pub nick: String
+    pub nick: String,
 }
 
 /// Sent in response to [RequestGuildMembers](RequestGuildMembers)
@@ -114,7 +115,7 @@ pub struct GuildMembersChunkDispatch {
     pub guild_id: Snowflake,
     pub members: Vec<GuildMember>,
     pub not_found: Option<Vec<Snowflake>>,
-    pub presences: Option<Vec<PresenceUpdate>>
+    pub presences: Option<Vec<PresenceUpdate>>,
 }
 
 #[payload(op = 0, event = "GUILD_ROLE_CREATE", server)]
@@ -145,7 +146,7 @@ pub struct InviteCreateDispatch {
     pub max_uses: i32,
     pub max_age: i32,
     pub temporary: bool,
-    pub created_at: String
+    pub created_at: String,
 }
 
 #[payload(op = 0, event = "INVITE_DELETE", server)]
@@ -165,14 +166,14 @@ pub struct MessageUpdateDispatch(pub PartialMessage);
 pub struct MessageDeleteDispatch {
     pub id: Snowflake,
     pub channel_id: Snowflake,
-    pub guild_id: Option<Snowflake>
+    pub guild_id: Option<Snowflake>,
 }
 
 #[payload(op = 0, event = "MESSAGE_DELETE_BULK", server)]
 pub struct MessageDeleteBulkDispatch {
     pub ids: Vec<Snowflake>,
     pub channel_id: Snowflake,
-    pub guild_id: Option<Snowflake>
+    pub guild_id: Option<Snowflake>,
 }
 
 #[payload(op = 0, event = "MESSAGE_REACTION_ADD", server)]
@@ -191,14 +192,14 @@ pub struct MessageReactionRemoveDispatch {
     pub channel_id: Snowflake,
     pub user_id: Snowflake,
     pub message_id: Snowflake,
-    pub emoji: PartialEmoji
+    pub emoji: PartialEmoji,
 }
 
 #[payload(op = 0, event = "MESSAGE_REACTION_REMOVE_ALL", server)]
 pub struct MessageReactionRemoveAllDispatch {
     pub guild_id: Option<Snowflake>,
     pub channel_id: Snowflake,
-    pub message_id: Snowflake
+    pub message_id: Snowflake,
 }
 
 #[payload(op = 0, event = "MESSAGE_REACTION_REMOVE_EMOJI", server)]
@@ -206,7 +207,7 @@ pub struct MessageReactionRemoveEmojiDispatch {
     pub guild_id: Option<Snowflake>,
     pub channel_id: Snowflake,
     pub message_id: Snowflake,
-    pub emoji: PartialEmoji
+    pub emoji: PartialEmoji,
 }
 
 /// This payload should not be handled by bots
@@ -226,7 +227,7 @@ pub struct TypingStartDispatch {
     pub channel_id: Snowflake,
     pub user_id: Snowflake,
     pub member: GuildMember,
-    pub timestamp: u32
+    pub timestamp: u32,
 }
 
 #[payload(op = 0, event = "USER_UPDATE", server)]
@@ -259,7 +260,8 @@ pub struct Identify {
     pub large_threshold: Option<u8>,
     pub shard: Option<[i32; 2]>,
     pub presence: Option<UpdateStatus>,
-    pub guild_subscriptions: Option<bool>
+    pub guild_subscriptions: Option<bool>,
+    pub intents: Option<u32>,
 }
 
 #[payload(op = 3, client)]
@@ -267,7 +269,7 @@ pub struct UpdateStatus {
     pub since: Option<i32>,
     pub game: Option<Activity>,
     pub status: StatusType,
-    pub afk: bool
+    pub afk: bool,
 }
 
 #[payload(op = 4, client)]
@@ -294,7 +296,7 @@ pub struct RequestGuildMembers {
     pub query: Option<String>,
     pub limit: Option<i32>,
     pub presences: Option<bool>,
-    pub user_ids: Vec<Snowflake>
+    pub user_ids: Vec<Snowflake>,
 }
 
 #[payload(op = 9, server)]
@@ -311,5 +313,101 @@ pub enum StatusType {
     Dnd,
     Idle,
     Invisible,
-    Offline
+    Offline,
+}
+
+#[convert(u32)]
+pub enum Intent {
+    /// Subscribe to the following events:
+    ///  - [GuildCreate](automate::gateway::GuildCreateDispatch)
+    ///  - [GuildDelete](automate::gateway::GuildDeleteDispatch)
+    ///  - [GuildRoleCreate](automate::gateway::GuildRoleCreateDispatch)
+    ///  - [GuildRoleUpdate](automate::gateway::GuildRoleUpdateDispatch)
+    ///  - [GuildRoleDelete](automate::gateway::GuildRoleDeleteDispatch)
+    ///  - [ChannelCreate](automate::gateway::ChannelCreateDispatch)
+    ///  - [ChannelUpdate](automate::gateway::ChannelUpdateDispatch)
+    ///  - [ChannelDelete](automate::gateway::ChannelDeleteDispatch)
+    ///  - [ChannelPinsUpdate](automate::gateway::ChannelPinsUpdateDispatch)
+    Guilds = 1 << 0,
+
+    /// Subscribe to the following events:
+    ///  - [GuildMemberAdd](automate::gateway::GuildMemberAddDispatch)
+     ///  - [GuildMemberUpdate](automate::gateway::GuildMemberUpdateDispatch)
+     ///  - [GuildMemberRemove](automate::gateway::GuildMemberRemoveDispatch)
+    GuildMembers = 1 << 1,
+
+    /// Subscribe to the following events:
+    ///  - [GuildBanAdd](automate::gateway::GuildBanAddDispatch)
+    ///  - [GuildBanRemove](automate::gateway::GuildBanRemoveDispatch)
+    GuildBans = 1 << 2,
+
+    /// Subscribe to the [GuildEmojisUpdate](automate::gateway::GuildEmojisUpdateDispatch) event.
+    GuildEmojis = 1 << 3,
+
+    /// Subscribe to the [GuildIntegrationsUpdate](automate::gateway::GuildIntegrationsUpdateDispatch) event.
+    GuildIntegrations = 1 << 4,
+
+    /// Subscribe to the [WebhooksUpdate](automate::gateway::WebhooksUpdateDispatch) event.
+    GuildWebhooks = 1 << 5,
+
+    /// Subscribe to the following events:
+    ///  - [InviteCreate](automate::gateway::InviteCreateDispatch)
+    ///  - [InviteDelete](automate::gateway::InviteDeleteDispatch)
+    GuildInvites = 1 << 6,
+
+    /// Subscribe to the [VoiceStateUpdate](automate::gateway::VoiceStateUpdateDispatch) event.
+    GuildVoiceStates = 1 << 7,
+
+    /// Subscribe to the [PresenceUpdate](automate::gateway::PresenceUpdateDispatch) event.
+    GuildPresences = 1 << 8,
+
+    /// Subscribe to the following events:
+    ///  - [MessageCreate](automate::gateway::MessageCreateDispatch)
+    ///  - [MessageUpdate](automate::gateway::MessageUpdateDispatch)
+    ///  - [MessageDelete](automate::gateway::MessageDeleteDispatch)
+    GuildMessages = 1 << 9,
+
+    /// Subscribe to the following events:
+    ///  - [MessageReactionAdd](automate::gateway::MessageReactionAddDispatch)
+    ///  - [MessageReactionRemove](automate::gateway::MessageReactionRemoveDispatch)
+    ///  - [MessageReactionRemoveAll](automate::gateway::MessageReactionRemoveAllDispatch)
+    ///  - [MessageReactionRemoveEmoji](automate::gateway::MessageReactionRemoveEmojiDispatch)
+    GuildMessageReactions = 1 << 10,
+
+    /// Subscribe to the [TypingStart](automate::gateway::TypingStartDispatch) event.
+    GuildMessageTyping = 1 << 11,
+
+    /// Subscribe to the following events:
+    ///  - [ChannelCreate](automate::gateway::ChannelCreateDispatch)
+    ///  - [MessageCreate](automate::gateway::MessageCreateDispatch)
+    ///  - [MessageUpdate](automate::gateway::MessageUpdateDispatch)
+    ///  - [MessageDelete](automate::gateway::MessageDeleteDispatch)
+    ///  - [ChannelPinsUpdate](automate::gateway::ChannelPinsUpdateDispatch)
+    DirectMessages = 1 << 12,
+
+    /// Subscribe to the following events:
+    ///  - [MessageReactionAdd](automate::gateway::MessageReactionAddDispatch)
+    ///  - [MessageReactionRemove](automate::gateway::MessageReactionRemoveDispatch)
+    ///  - [MessageReactionRemoveAll](automate::gateway::MessageReactionRemoveAllDispatch)
+    ///  - [MessageReactionRemoveEmoji](automate::gateway::MessageReactionRemoveEmojiDispatch)
+    DirectMessageReactions = 1 << 13,
+
+    /// Subscribe to the [TypingStart](automate::gateway::TypingStartDispatch) event.
+    DirectMessageTyping = 1 << 14,
+}
+
+impl BitOr for Intent {
+    type Output = u32;
+
+    fn bitor(self, rhs: Self) -> u32 {
+        self.as_u32() | rhs.as_u32()
+    }
+}
+
+impl BitOr<u32> for Intent {
+    type Output = u32;
+
+    fn bitor(self, rhs: u32) -> u32 {
+        self.as_u32() | rhs
+    }
 }

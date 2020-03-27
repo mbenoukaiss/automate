@@ -145,6 +145,7 @@ pub(crate) struct GatewayAPI {
     sequence_number: Arc<Mutex<Option<i32>>>,
     heartbeat_confirmed: Arc<AtomicBool>,
     listeners: ListenerStorage,
+    intents: Option<u32>,
     msg_sender: UnboundedSender<tungstenite::Message>,
     http: Arc<HttpAPI>,
     bot: Option<Arc<User>>,
@@ -154,7 +155,7 @@ impl GatewayAPI {
     /// Establishes a connection to Discord's
     /// gateway and calls the provided listeners
     /// when receiving an event.
-    pub(crate) async fn connect(http: HttpAPI, listeners: ListenerStorage) {
+    pub(crate) async fn connect(http: HttpAPI, listeners: ListenerStorage, intents: Option<u32>) {
         let mut delayer = Delayer::new();
         let http = Arc::new(http);
         let mut session_id = None;
@@ -172,6 +173,7 @@ impl GatewayAPI {
                     sequence_number: Arc::clone(&sequence_number),
                     heartbeat_confirmed: Arc::new(AtomicBool::new(true)),
                     listeners: listeners.clone(),
+                    intents,
                     msg_sender: tx,
                     http: http.clone(),
                     bot: None,
@@ -353,6 +355,7 @@ impl GatewayAPI {
                 shard: None,
                 presence: None,
                 guild_subscriptions: Some(true),
+                intents: self.intents
             };
 
             self.send(identify).await?;
