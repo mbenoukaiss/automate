@@ -237,6 +237,8 @@ pub use events::Listener;
 pub use http::HttpAPI;
 #[doc(inline)]
 pub use gateway::Context;
+#[doc(inline)]
+pub use gateway::Intent;
 
 pub use logger::setup_logging;
 pub use snowflake::Snowflake;
@@ -260,6 +262,7 @@ use tokio::runtime::Runtime;
 pub struct Discord {
     http: HttpAPI,
     listeners: ListenerStorage,
+    intents: Option<u32>
 }
 
 impl Discord {
@@ -271,6 +274,7 @@ impl Discord {
         Discord {
             http: HttpAPI::new(token),
             listeners: ListenerStorage::default(),
+            intents: None
         }
     }
 
@@ -279,6 +283,47 @@ impl Discord {
     /// a listener function with the `̀#[listener]` attribute. 
     pub fn register(mut self, listeners: Vec<ListenerType>) -> Self {
         self.listeners.register(listeners);
+        self
+    }
+
+    /// [Intents](automate::Intent) are a system to help you
+    /// lower the amount of data you need to process by
+    /// specifying the events Discord should relay to the library.
+    ///
+    /// An [Intents](automate::Intent) concerns one or more
+    /// event. By default, intents are not specified thus the bot
+    /// is subscribed to all events.
+    ///
+    /// When specifying a single [], you must explicitly cast
+    /// the intent to u32. When specifying multiple intents,
+    /// you can aggregate them using the bitwise or operator.
+    ///
+    /// # Example
+    /// The bot in the following example will only receive events
+    /// about message creation, update and deletion and when a
+    /// user starts typing in a guild channel:
+    /// ```
+    /// # let api_token = std::env::var("DISCORD_API_TOKEN").expect("API token not found");
+    /// use automate::{Discord, Intent::*};
+    ///
+    /// Discord::new(&api_token)
+    ///         .set_intents(GuildMessages | GuildMessageTyping)
+    ///         .connect();
+    /// ```
+    ///
+    /// If you want to only listen to one intent type, you must
+    /// explicitly cast the intent to u32 like the following example
+    /// which only listens to events about guild members:
+    /// ```
+    /// # let api_token = std::env::var("DISCORD_API_TOKEN").expect("API token not found");
+    /// use automate::{Discord, Intent::*};
+    ///
+    /// Discord::new(&api_token)
+    ///         .set_intents(GuildMembers as u32)
+    ///         .connect();
+    /// ```
+    pub fn set_intents(mut self, intents: u32) -> Self {
+        self.intents = Some(intents);
         self
     }
 
@@ -541,7 +586,7 @@ impl Discord {
     /// with Discord.
     /// Will block forever unless the bot crashes.
     pub async fn connect(self) {
-        GatewayAPI::connect(self.http, self.listeners).await
+        GatewayAPI::connect(self.http, self.listeners, self.intents).await
     }
 
     /// Non asynchronous equivalent for the connect
