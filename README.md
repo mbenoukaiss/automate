@@ -1,4 +1,4 @@
-# Automate &nbsp; [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/mbenoukaiss/automate/Checks?style=for-the-badge)](https://github.com/mbenoukaiss/automate/actions) [![GitHub issues](https://img.shields.io/github/issues/mbenoukaiss/automate?style=for-the-badge)](https://github.com/mbenoukaiss/automate/issues) [![Crates.io](https://img.shields.io/crates/v/automate?style=for-the-badge)](https://crates.io/crates/automate) [![Crates.io](https://img.shields.io/crates/l/automate?style=for-the-badge)](https://github.com/mbenoukaiss/automate/blob/master/LICENSE)
+# Automate &nbsp; [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/mbenoukaiss/automate/Checks?style=for-the-badge)](https://github.com/mbenoukaiss/automate/actions) [![Crates.io](https://img.shields.io/crates/v/automate?style=for-the-badge)](https://crates.io/crates/automate) [![GitHub issues](https://img.shields.io/badge/docs-latest-blue?style=for-the-badge)](https://docs.rs/automate) [![License](https://img.shields.io/crates/l/automate?style=for-the-badge)](https://github.com/mbenoukaiss/automate/blob/master/LICENSE)
 Automate is a low level and asynchronous rust library for interacting with the Discord API
 
 # Getting started
@@ -52,7 +52,7 @@ fn main() {
 }
 ```
 
-For examples with more details, see in the `examples` folder.
+For examples with more details, see in the `examples` folder. You can also refer to the [documentation](https://docs.rs/automate).
 
 # Contributing
 Any kind of contribution is welcome, from issues to pull requests. For major changes, please open an issue first to discuss what you would like to change.
