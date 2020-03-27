@@ -24,9 +24,9 @@ impl StructSide {
         }
 
         match self {
-            StructSide::Client => quote!(#[derive(#(#default_traits),*, AsJson)]),
-            StructSide::Server => quote!(#[derive(#(#default_traits),*, ::serde::Deserialize)]),
-            StructSide::Both => quote!(#[derive(#(#default_traits),*, AsJson, ::serde::Deserialize)])
+            StructSide::Client => quote!(#[derive(#(#default_traits),*, Clone, AsJson)]),
+            StructSide::Server => quote!(#[derive(#(#default_traits),*, Clone, ::serde::Deserialize)]),
+            StructSide::Both => quote!(#[derive(#(#default_traits),*, Clone, AsJson, ::serde::Deserialize)])
         }.into()
     }
 

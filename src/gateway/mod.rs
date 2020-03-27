@@ -1,17 +1,16 @@
+//! Tools to interact with Discord's gateway API
+
 mod models;
 
 pub use models::*;
 
-use crate::{map, Error, ListenerStorage, Listener, ListenerQueue};
+use crate::{map, Error, ListenerStorage};
 use crate::http::HttpAPI;
-use crate::events;
 use crate::encode::json;
 use std::thread;
 use std::time::Duration;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::ops::Deref;
 use futures::{SinkExt, StreamExt};
 use futures::lock::Mutex;
@@ -19,6 +18,7 @@ use futures::stream;
 use futures::channel::mpsc;
 use futures::channel::mpsc::SendError;
 use futures::channel::mpsc::UnboundedSender;
+use crate::events::ListenerType;
 
 macro_rules! call_dispatcher {
     ($data:ident as $payload:ty => $self:ident.$method:ident) => {{
@@ -34,20 +34,22 @@ macro_rules! call_dispatcher {
 
 macro_rules! dispatcher {
     ($fn_name:ident: $type:ty => $name:ident) => {
-        async fn $fn_name(&self, payload: $type) -> Result<(), Error> {
-            for listener in &mut *self.session.listeners.lock().await.trait_listeners {
-                if let Err(error) = (*listener).$fn_name(&self.session, &payload).await {
+        async fn $fn_name(&mut self, payload: $type) -> Result<(), Error> {
+            let mut context = Context::new(&self);
+
+            for listener in &mut *self.listeners.trait_listeners {
+                if let Err(error) = (*listener).$fn_name(&mut context, &payload).await {
                     error!("Listener to {} failed with: {}", stringify!($name), error);
                 }
             }
 
-            for listener in &mut *self.session.listeners.lock().await.$name {
-                if let Err(error) = (*listener)(&self.session, &payload).await {
+            for listener in &mut *self.listeners.$name {
+                if let Err(error) = (*listener)(&mut context, &payload).await {
                     error!("Listener to {} failed with: {}", stringify!($name), error);
                 }
             }
 
-            self.session.new_listeners.lock().await.merge(self.session.listeners.clone()).await;
+            self.listeners.register(context.new_listeners);
 
             Ok(())
         }
@@ -80,302 +82,36 @@ impl Delayer {
     }
 }
 
-/// Contains data about the current gateway session.
+/// Context about the current gateway session.
 /// Provides a way to interact with Discord HTTP API
-/// by differencing to [HttpAPI](automate::http::HttpAPI).
-pub struct Session {
+/// by dereferencing to [HttpAPI](automate::http::HttpAPI).
+pub struct Context {
     sender: UnboundedSender<tungstenite::Message>,
-    http: HttpAPI,
-    bot: Option<User>,
-    listeners: Arc<Mutex<ListenerStorage>>,
-    new_listeners: Mutex<ListenerQueue>,
+    http: Arc<HttpAPI>,
+    bot: Option<Arc<User>>,
+    new_listeners: Vec<ListenerType>,
 }
 
-impl Session {
+impl Context {
+    fn new(gateway: &GatewayAPI) -> Context {
+        Context {
+            sender: gateway.msg_sender.clone(),
+            http: Arc::clone(&gateway.http),
+            bot: gateway.bot.clone(),
+            new_listeners: Vec::new()
+        }    
+    }
+    
     #[inline]
     pub async fn send<M: Into<tungstenite::Message>>(&mut self, msg: M) -> Result<(), Error> {
         Ok(self.sender.send(msg.into()).await?)
     }
 
-    /// Registers a struct event listener that implements
-    /// the [Listener](automate::Listener) trait.
-    pub async fn add_listener<L: Listener + Send + 'static>(&self, listener: L) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.trait_listeners.push(Box::new(listener));
-    }
-
-    /// Registers an event that listens to [Ready](automate::gateway::ReadyDispatch) events
-    pub async fn on_ready(&self, listener: events::Ready) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.ready.push(listener);
-    }
-
-    /// Registers an event that listens to [ChannelCreate](automate::gateway::ChannelCreateDispatch) events
-    pub async fn on_channel_create(&self, listener: events::ChannelCreate) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.channel_create.push(listener);
-    }
-
-    /// Registers an event that listens to [ChannelUpdate](automate::gateway::ChannelUpdateDispatch) events
-    pub async fn on_channel_update(&self, listener: events::ChannelUpdate) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.channel_update.push(listener);
-    }
-
-    /// Registers an event that listens to [ChannelDelete](automate::gateway::ChannelDeleteDispatch) events
-    pub async fn on_channel_delete(&self, listener: events::ChannelDelete) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.channel_delete.push(listener);
-    }
-
-    /// Registers an event that listens to [ChannelPinsUpdate](automate::gateway::ChannelPinsUpdateDispatch) events
-    pub async fn on_channel_pins_update(&self, listener: events::ChannelPinsUpdate) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.channel_pins_update.push(listener);
-    }
-
-    /// Registers an event that listens to [GuildCreate](automate::gateway::GuildCreateDispatch) events
-    pub async fn on_guild_create(&self, listener: events::GuildCreate) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.guild_create.push(listener);
-    }
-
-    /// Registers an event that listens to [GuildUpdate](automate::gateway::GuildUpdateDispatch) events
-    pub async fn on_guild_update(&self, listener: events::GuildUpdate) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.guild_update.push(listener);
-    }
-
-    /// Registers an event that listens to [GuildDelete](automate::gateway::GuildDeleteDispatch) events
-    pub async fn on_guild_delete(&self, listener: events::GuildDelete) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.guild_delete.push(listener);
-    }
-
-    /// Registers an event that listens to [GuildBanAdd](automate::gateway::GuildBanAddDispatch) events
-    pub async fn on_guild_ban_add(&self, listener: events::GuildBanAdd) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.guild_ban_add.push(listener);
-    }
-
-    /// Registers an event that listens to [GuildBanRemove](automate::gateway::GuildBanRemoveDispatch) events
-    pub async fn on_guild_ban_remove(&self, listener: events::GuildBanRemove) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.guild_ban_remove.push(listener);
-    }
-
-    /// Registers an event that listens to [GuildEmojisUpdate](automate::gateway::GuildEmojisUpdateDispatch) events
-    pub async fn on_guild_emojis_update(&self, listener: events::GuildEmojisUpdate) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.guild_emojis_update.push(listener);
-    }
-
-    /// Registers an event that listens to [GuildIntegrationsUpdate](automate::gateway::GuildIntegrationsUpdateDispatch) events
-    pub async fn on_guild_integrations_update(&self, listener: events::GuildIntegrationsUpdate) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.guild_integrations_update.push(listener);
-    }
-
-    /// Registers an event that listens to [GuildMemberAdd](automate::gateway::GuildMemberAddDispatch) events
-    pub async fn on_guild_member_add(&self, listener: events::GuildMemberAdd) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.guild_member_add.push(listener);
-    }
-
-    /// Registers an event that listens to [GuildMemberRemove](automate::gateway::GuildMemberRemoveDispatch) events
-    pub async fn on_guild_member_remove(&self, listener: events::GuildMemberRemove) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.guild_member_remove.push(listener);
-    }
-
-    /// Registers an event that listens to [GuildMemberUpdate](automate::gateway::GuildMemberUpdateDispatch) events
-    pub async fn on_guild_member_update(&self, listener: events::GuildMemberUpdate) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.guild_member_update.push(listener);
-    }
-
-    /// Registers an event that listens to [GuildMembersChunk](automate::gateway::GuildMembersChunkDispatch) events
-    pub async fn on_guild_members_chunk(&self, listener: events::GuildMembersChunk) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.guild_members_chunk.push(listener);
-    }
-
-    /// Registers an event that listens to [GuildRoleCreate](automate::gateway::GuildRoleCreateDispatch) events
-    pub async fn on_guild_role_create(&self, listener: events::GuildRoleCreate) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.guild_role_create.push(listener);
-    }
-
-    /// Registers an event that listens to [GuildRoleUpdate](automate::gateway::GuildRoleUpdateDispatch) events
-    pub async fn on_guild_role_update(&self, listener: events::GuildRoleUpdate) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.guild_role_update.push(listener);
-    }
-
-    /// Registers an event that listens to [GuildRoleDelete](automate::gateway::GuildRoleDeleteDispatch) events
-    pub async fn on_guild_role_delete(&self, listener: events::GuildRoleDelete) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.guild_role_delete.push(listener);
-    }
-
-    /// Registers an event that listens to [InviteCreate](automate::gateway::InviteCreateDispatch) events
-    pub async fn on_invite_create(&self, listener: events::InviteCreate) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.invite_create.push(listener);
-    }
-
-    /// Registers an event that listens to [InviteDelete](automate::gateway::InviteDeleteDispatch) events
-    pub async fn on_invite_delete(&self, listener: events::InviteDelete) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.invite_delete.push(listener);
-    }
-
-    /// Registers an event that listens to [MessageCreate](automate::gateway::MessageCreateDispatch) events
-    pub async fn on_message_create(&self, listener: events::MessageCreate) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.message_create.push(listener);
-    }
-
-    /// Registers an event that listens to [MessageUpdate](automate::gateway::MessageUpdateDispatch) events
-    pub async fn on_message_update(&self, listener: events::MessageUpdate) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.message_update.push(listener);
-    }
-
-    /// Registers an event that listens to [MessageDelete](automate::gateway::MessageDeleteDispatch) events
-    pub async fn on_message_delete(&self, listener: events::MessageDelete) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.message_delete.push(listener);
-    }
-
-    /// Registers an event that listens to [MessageDeleteBulk](automate::gateway::MessageDeleteBulkDispatch) events
-    pub async fn on_message_delete_bulk(&self, listener: events::MessageDeleteBulk) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.message_delete_bulk.push(listener);
-    }
-
-    /// Registers an event that listens to [MessageReactionAdd](automate::gateway::MessageReactionAddDispatch) events
-    pub async fn on_reaction_add(&self, listener: events::MessageReactionAdd) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.reaction_add.push(listener);
-    }
-
-    /// Registers an event that listens to [MessageReactionRemove](automate::gateway::MessageReactionRemoveDispatch) events
-    pub async fn on_reaction_remove(&self, listener: events::MessageReactionRemove) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.reaction_remove.push(listener);
-    }
-
-    /// Registers an event that listens to [MessageReactionRemoveAll](automate::gateway::MessageReactionRemoveAllDispatch) events
-    pub async fn on_reaction_remove_all(&self, listener: events::MessageReactionRemoveAll) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.reaction_remove_all.push(listener);
-    }
-
-    /// Registers an event that listens to [PresenceUpdate](automate::gateway::PresenceUpdateDispatch) events
-    pub async fn on_presence_update(&self, listener: events::PresenceUpdate) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.presence_update.push(listener);
-    }
-
-    /// Registers an event that listens to [TypingStart](automate::gateway::TypingStartDispatch) events
-    pub async fn on_typing_start(&self, listener: events::TypingStart) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.typing_start.push(listener);
-    }
-
-    /// Registers an event that listens to [UserUpdate](automate::gateway::UserUpdateDispatch) events
-    pub async fn on_user_update(&self, listener: events::UserUpdate) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.user_update.push(listener);
-    }
-
-    /// Registers an event that listens to [VoiceStateUpdate](automate::gateway::VoiceStateUpdateDispatch) events
-    pub async fn on_voice_state_update(&self, listener: events::VoiceStateUpdate) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.voice_state_update.push(listener);
-    }
-
-    /// Registers an event that listens to [VoiceServerUpdate](automate::gateway::VoiceServerUpdateDispatch) events
-    pub async fn on_voice_server_update(&self, listener: events::VoiceServerUpdate) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.voice_server_update.push(listener);
-    }
-
-    /// Registers an event that listens to [WebhooksUpdate](automate::gateway::WebhooksUpdateDispatch) events
-    pub async fn on_webhooks_update(&self, listener: events::WebhooksUpdate) {
-        let mut queue = self.new_listeners.lock().await;
-
-queue.updated = true;
-queue.webhooks_update.push(listener);
+    /// Registers an event listener struct that implements
+    /// the [Listener](automate::Listener) trait or
+    /// a listener function with the `̀#[listener]` attribute.
+    pub async fn register(&mut self, mut listeners: Vec<ListenerType>) {
+        self.new_listeners.append(&mut listeners);
     }
 
     #[inline]
@@ -389,10 +125,10 @@ queue.webhooks_update.push(listener);
     }
 }
 
-impl Deref for Session {
-    type Target = HttpAPI;
+impl Deref for Context {
+    type Target = Arc<HttpAPI>;
 
-    fn deref(&self) -> &Self::Target {
+    fn deref(&self) -> &Arc<HttpAPI> {
         &self.http
     }
 }
@@ -405,10 +141,13 @@ enum Direction {
 
 /// Communicates with Discord's gateway
 pub(crate) struct GatewayAPI {
-    session: Session,
-    session_id: Rc<RefCell<Option<String>>>,
+    session_id: Option<String>,
     sequence_number: Arc<Mutex<Option<i32>>>,
     heartbeat_confirmed: Arc<AtomicBool>,
+    listeners: ListenerStorage,
+    msg_sender: UnboundedSender<tungstenite::Message>,
+    http: Arc<HttpAPI>,
+    bot: Option<Arc<User>>,
 }
 
 impl GatewayAPI {
@@ -416,10 +155,9 @@ impl GatewayAPI {
     /// gateway and calls the provided listeners
     /// when receiving an event.
     pub(crate) async fn connect(http: HttpAPI, listeners: ListenerStorage) {
-        let listeners = Arc::new(Mutex::new(listeners));
-
         let mut delayer = Delayer::new();
-        let session_id = Rc::new(RefCell::new(None));
+        let http = Arc::new(http);
+        let mut session_id = None;
         let sequence_number = Arc::new(Mutex::new(None));
 
         loop {
@@ -430,16 +168,13 @@ impl GatewayAPI {
                 let (socket, _) = tktungstenite::connect_async(&gateway_bot.url).await?;
 
                 let mut gateway = GatewayAPI {
-                    session: Session {
-                        sender: tx,
-                        http: http.clone(),
-                        bot: None,
-                        listeners: listeners.clone(),
-                        new_listeners: Mutex::default()
-                    },
-                    session_id: Rc::clone(&session_id),
+                    session_id: None,
                     sequence_number: Arc::clone(&sequence_number),
                     heartbeat_confirmed: Arc::new(AtomicBool::new(true)),
+                    listeners: listeners.clone(),
+                    msg_sender: tx,
+                    http: http.clone(),
+                    bot: None,
                 };
 
                 let mut select = stream::select(
@@ -456,6 +191,7 @@ impl GatewayAPI {
 
                 select.get_mut().0.close().await?;
 
+                session_id = gateway.session_id;
                 delayer.reset();
             };
 
@@ -467,12 +203,22 @@ impl GatewayAPI {
 
             delayer.delay();
 
-            if let Some(sid) = &*session_id.borrow() {
+            if let Some(sid) = session_id.as_ref() {
                 info!("Attempting to resume session {} with sequence_number: {}", sid, sequence_number.lock().await.unwrap());
             } else {
                 info!("Attempting to reconnect");
             }
         }
+    }
+
+    #[inline]
+    async fn send<M: Into<tungstenite::Message>>(&mut self, msg: M) -> Result<(), Error> {
+        Ok(self.msg_sender.send(msg.into()).await?)
+    }
+
+    #[inline]
+    pub fn invite_bot(&self, permission: u32) -> String {
+        format!("https://discordapp.com/oauth2/authorize?client_id={}&scope=bot&permissions={}", self.bot.as_ref().unwrap().id, permission)
     }
 
     async fn on_message(&mut self, msg: tungstenite::Message) {
@@ -585,18 +331,18 @@ impl GatewayAPI {
     dispatcher!(on_webhooks_update: WebhooksUpdateDispatch => webhooks_update);
 
     async fn on_hello(&mut self, payload: Hello) -> Result<(), Error> {
-        if let Some(sid) = &*self.session_id.borrow() {
+        if self.session_id.is_some() {
             let resume = Resume {
-                token: self.session.http.token().clone(),
-                session_id: sid.to_owned(),
+                token: self.http.token().clone(),
+                session_id: self.session_id.as_ref().unwrap().clone(),
                 seq: self.sequence_number.lock().await.unwrap(),
             };
 
-            self.session.send(resume).await?;
+            self.send(resume).await?;
             info!("Requested to resume session");
         } else {
             let identify = Identify {
-                token: self.session.http.token().clone(),
+                token: self.http.token().clone(),
                 properties: map! {
                     "$os" => "linux",
                     "$browser" => "automate",
@@ -609,10 +355,10 @@ impl GatewayAPI {
                 guild_subscriptions: Some(true),
             };
 
-            self.session.send(identify).await?;
+            self.send(identify).await?;
         }
 
-        let mut sender = self.session.sender.clone();
+        let mut sender = self.msg_sender.clone();
         let sequence_number = self.sequence_number.clone();
         let heartbeat_confirmed = self.heartbeat_confirmed.clone();
 
@@ -647,22 +393,26 @@ impl GatewayAPI {
     }
 
     async fn on_ready(&mut self, payload: ReadyDispatch) -> Result<(), Error> {
-        for listener in &mut *self.session.listeners.lock().await.trait_listeners {
-            if let Err(error) = (*listener).on_ready(&self.session, &payload).await {
+        self.bot = Some(Arc::new(payload.user.clone()));
+        self.session_id.replace(payload.session_id.clone());
+
+        let mut context = Context::new(&self);
+
+        for listener in &mut self.listeners.trait_listeners {
+            if let Err(error) = (*listener).on_ready(&mut context, &payload).await {
                 error!("Listener on_ready failed with: {}", error);
             }
         }
 
-        for listener in &mut *self.session.listeners.lock().await.ready {
-            if let Err(error) = (*listener)(&self.session, &payload).await {
+        for listener in &mut *self.listeners.ready {
+            if let Err(error) = (*listener)(&mut context, &payload).await {
                 error!("Listener to on_ready failed with: {}", error);
             }
         }
 
-        self.session.bot = Some(payload.user);
-        *self.session_id.borrow_mut() = Some(payload.session_id);
+        self.listeners.register(context.new_listeners);
 
-        info!("Successfully established connection with Discord. Invite the bot in your guild using this link {}", self.session.invite_bot(8));
+        info!("Successfully established connection with Discord. Invite the bot in your guild using this link {}", self.invite_bot(8));
 
         Ok(())
     }
@@ -674,17 +424,17 @@ impl GatewayAPI {
 
     async fn on_reconnect(&mut self) -> Result<(), Error> {
         warn!("Received reconnect payload, disconnecting");
-        self.session.sender.close().await?;
+        self.msg_sender.close().await?;
 
         Ok(())
     }
 
     async fn on_invalid_session(&mut self, payload: InvalidSession) -> Result<(), Error> {
         if !payload.0 {
-            *self.session_id.borrow_mut() = None;
+            self.session_id = None;
 
             warn!("Invalid session, shutting down connection");
-            self.session.sender.close().await?;
+            self.msg_sender.close().await?;
         }
 
         Ok(())

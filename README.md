@@ -21,19 +21,19 @@ bot and generate a token on [Discord's developers portal](https://discordapp.com
 #[macro_use]
 extern crate automate;
 
-use automate::{Error, Discord, Session};
+use automate::{Error, Discord, Context};
 use automate::gateway::MessageCreateDispatch;
 use automate::http::CreateMessage;
 use std::env;
 
 #[listener]
-async fn say_hello(session: &Session, data: &MessageCreateDispatch) -> Result<(), Error> {
+async fn say_hello(ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
     let message = &data.0;
 
-    if message.author.id != session.bot().id {
+    if message.author.id != ctx.bot().id {
         let content = Some(format!("Hello {}!", message.author.username));
 
-        session.create_message(message.channel_id, CreateMessage {
+        ctx.create_message(message.channel_id, CreateMessage {
             content,
             ..Default::default()
         }).await?;
@@ -46,7 +46,7 @@ fn main() {
     automate::setup_logging();
 
     Discord::new(&env::var("DISCORD_API_TOKEN").expect("API token not found"))
-        .with(functions!(say_hello))
+        .register(functions!(say_hello))
         .connect_blocking()
 }
 ```

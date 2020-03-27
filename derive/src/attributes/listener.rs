@@ -46,7 +46,7 @@ fn infer_event_type(dispatch_type: &str) -> Option<&'static str> {
 }
 
 fn create_trait(item: ItemFn, arguments: (&Ident, &Ident), event: String) -> TokenStream {
-    let (session_name, data_name) = arguments;
+    let (ctx_name, data_name) = arguments;
 
     let func = &item.sig.ident;
     let reg_name = Ident::new(&format!("__register_{}", item.sig.ident), Span::call_site());
@@ -59,7 +59,7 @@ fn create_trait(item: ItemFn, arguments: (&Ident, &Ident), event: String) -> Tok
         const #reg_name: ::automate::events::ListenerType = ::automate::events::ListenerType::#event(#func);
 
         //wrapping the function to remove the async and make it compatible with fn pointer by returning a pin
-        fn #func<'a>(#session_name: &'a Session, #data_name: &'a #dispatch) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<(), Error>> + Send + 'a>> {
+        fn #func<'a>(#ctx_name: &'a mut Context, #data_name: &'a #dispatch) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<(), Error>> + Send + 'a>> {
             Box::pin(async move {
                 #content
             })
@@ -82,26 +82,6 @@ struct Args {
     _priority: Option<u8>,
 }
 
-/// An event listener function.
-/// The function takes two arguments, the first being the
-/// session which contains data about the bot and methods
-/// to send instructions to discord. The second argument
-/// is the event dispatch which contains data about the
-/// event.
-/// The library will call this function each time it
-/// receives an event of the type of the second argument.
-///
-/// # Example
-/// ```ignore
-/// use automate::{Session, Error, listener};
-/// use automate::gateway::MessageCreateDispatch;
-///
-/// #[listener]
-/// async fn hello(_: &Session, _: &MessageCreateDispatch) -> Result<(), Error> {
-///     println!("Hello!");
-///     Ok(())
-/// }
-/// ```
 pub fn listener(metadata: TokenStream, item: TokenStream) -> TokenStream {
     let metadata_error = metadata.clone();
 
@@ -138,8 +118,12 @@ pub fn listener(metadata: TokenStream, item: TokenStream) -> TokenStream {
         compile_error!(input.sig.inputs, "Listener functions must take 2 arguments: the first argument should be the session and the second the event dispatch object")
     }
 
-    let session_name = &arguments.get(0).unwrap().0;
+    let (ctx_name, ctx_ty) = &arguments.get(0).unwrap();
     let data_name = &arguments.get(1).unwrap().0;
+
+    if ctx_ty.to_lowercase().contains("session") {
+        compile_error!(input.sig.inputs, "&Session argument was replaced by &mut Context, see README.md for examples")
+    }
 
     let event = arguments.get(1).and_then(|(_, ty)| infer_event_type(ty).map(String::from));
 
@@ -148,5 +132,5 @@ pub fn listener(metadata: TokenStream, item: TokenStream) -> TokenStream {
         compile_error!(input.sig.inputs, "Could not infer event type: the first argument should be the session and the second the event dispatch object. Make sure you use a correct event dispatch type")
     }
 
-    create_trait(input, (session_name, data_name), event.unwrap())
+    create_trait(input, (ctx_name, data_name), event.unwrap())
 }

@@ -1,20 +1,20 @@
 #[macro_use]
 extern crate automate;
 
-use automate::{async_trait, Session, Listener, Error, Discord, Snowflake};
+use automate::{async_trait, Context, Listener, Error, Discord, Snowflake};
 use automate::gateway::MessageCreateDispatch;
 use automate::http::CreateMessage;
 use std::env;
 use std::collections::HashMap;
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct MessageCounter {
     counts: HashMap<Snowflake, i32>
 }
 
 #[async_trait]
 impl Listener for MessageCounter {
-    async fn on_message_create(&mut self, session: &Session, data: &MessageCreateDispatch) -> Result<(), Error> {
+    async fn on_message_create(&mut self, ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
         let message = &data.0;
 
         if message.content.starts_with("!count") {
@@ -22,7 +22,7 @@ impl Listener for MessageCounter {
                 .map(|i| i.to_owned())
                 .unwrap_or(0);
 
-            session.create_message(message.channel_id, CreateMessage {
+            ctx.create_message(message.channel_id, CreateMessage {
                 content: Some(format!("You posted a total of {} messages!", count)),
                 nonce: None,
                 tts: None,
@@ -43,6 +43,6 @@ fn main() {
     automate::setup_logging();
 
     Discord::new(&env::var("DISCORD_API_TOKEN").expect("API token not found"))
-        .with(structs!(MessageCounter::default()))
+        .register(structs!(MessageCounter::default()))
         .connect_blocking()
 }

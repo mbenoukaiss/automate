@@ -265,7 +265,7 @@ pub fn convert(metadata: TokenStream, item: TokenStream) -> TokenStream {
             .into();
     }
 
-    let mut convertible: TokenStream = quote!(#[derive(Debug, ::serde_repr::Deserialize_repr)]#[repr(#convertion_type)]).into();
+    let mut convertible: TokenStream = quote!(#[derive(Clone, Debug, ::serde_repr::Deserialize_repr)]#[repr(#convertion_type)]).into();
     convertible.extend(cloned_item);
 
     let as_impl = quote! {
@@ -381,7 +381,7 @@ pub fn stringify(metadata: TokenStream, item: TokenStream) -> TokenStream {
             .into();
     }
 
-    let mut convertible: TokenStream = quote!(#[derive(Debug, Deserialize)]).into();
+    let mut convertible: TokenStream = quote!(#[derive(Clone, Debug, Deserialize)]).into();
     convertible.extend(TokenStream::from(quote!(#[serde(rename_all(deserialize = #serde_case))])));
     convertible.extend(cloned_item);
 
@@ -420,6 +420,26 @@ pub fn endpoint(metadata: TokenStream, item: TokenStream) -> TokenStream {
     attributes::endpoint(metadata, item)
 }
 
+/// An event listener function.
+/// The function takes two arguments, the first being the
+/// session which contains data about the bot and methods
+/// to send instructions to discord. The second argument
+/// is the event dispatch which contains data about the
+/// event.
+/// The library will call this function each time it
+/// receives an event of the type of the second argument.
+///
+/// # Example
+/// ```ignore
+/// use automate::{Session, Error, listener};
+/// use automate::gateway::MessageCreateDispatch;
+///
+/// #[listener]
+/// async fn hello(_: &mut Context, _: &MessageCreateDispatch) -> Result<(), Error> {
+///     println!("Hello!");
+///     Ok(())
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn listener(metadata: TokenStream, item: TokenStream) -> TokenStream {
     attributes::listener(metadata, item)

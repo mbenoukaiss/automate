@@ -1,3 +1,5 @@
+//! Tools to interact with Discord's HTTP API
+
 mod models;
 mod rate_limit;
 
