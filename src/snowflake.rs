@@ -16,12 +16,12 @@ use core::fmt;
 pub struct Snowflake(pub u64);
 
 impl AsJson for Snowflake {
-    #[inline]
+    #[cfg_attr(feature = "aggressive-inlining", inline)]
     fn as_json(&self) -> String {
         self.0.as_json()
     }
 
-    #[inline]
+    #[cfg_attr(feature = "aggressive-inlining", inline)]
     fn concat_json(&self, dest: &mut String) {
         self.0.concat_json(dest)
     }
