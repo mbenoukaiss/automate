@@ -86,12 +86,12 @@ macro_rules! impl_for_num {
     ($($ty:ty),*) => (
         $(
             impl AsJson for $ty {
-                #[inline]
+                #[cfg_attr(feature = "aggressive-inlining", inline)]
                 fn as_json(&self) -> String {
                     self.to_string()
                 }
 
-                #[inline]
+                #[cfg_attr(feature = "aggressive-inlining", inline)]
                 fn concat_json(&self, dest: &mut String) {
                     dest.write_fmt(format_args!("{}", self)).expect("A Display implementation returned an error unexpectedly");
                 }
@@ -105,7 +105,7 @@ macro_rules! impl_for_single_collection {
     ($($ty:ident:$insert_method:ident <$($rq_trait:ident),*> ),*) => {
         $(
             impl<J> AsJson for $ty<J> where J: AsJson {
-                #[inline]
+                #[cfg_attr(feature = "aggressive-inlining", inline)]
                 fn as_json(&self) -> String {
                     let mut json = String::with_capacity(self.len() * 5 + 2);
                     json.push('[');
@@ -124,7 +124,7 @@ macro_rules! impl_for_single_collection {
                     json
                 }
 
-                #[inline]
+                #[cfg_attr(feature = "aggressive-inlining", inline)]
                 fn concat_json(&self, dest: &mut String) {
                     dest.reserve(self.len() * 5 + 2);
                     dest.push('[');
@@ -150,7 +150,7 @@ macro_rules! impl_for_associative_collection {
     ($($ty:ident <$($rq_first_trait:ident),*> ),*) => {
         $(
             impl<J> AsJson for $ty<String, J> where J: AsJson {
-                #[inline]
+                #[cfg_attr(feature = "aggressive-inlining", inline)]
                 fn as_json(&self) -> String {
                     let mut json = String::with_capacity(self.len() * 10 + 2);
                     json.push('{');
@@ -171,7 +171,7 @@ macro_rules! impl_for_associative_collection {
                     json
                 }
 
-                #[inline]
+                #[cfg_attr(feature = "aggressive-inlining", inline)]
                 fn concat_json(&self, dest: &mut String) {
                     dest.reserve(self.len() * 10 + 2);
                     dest.push('{');
@@ -198,7 +198,7 @@ macro_rules! impl_for_arrays {
     ($($size:tt),*) => (
         $(
             impl<T> AsJson for [T; $size] where T: AsJson {
-                #[inline]
+                #[cfg_attr(feature = "aggressive-inlining", inline)]
                 fn as_json(&self) -> String {
                     let mut json = String::with_capacity($size * 2 + 2);
                     json.push('[');
@@ -217,7 +217,7 @@ macro_rules! impl_for_arrays {
                     json
                 }
 
-                #[inline]
+                #[cfg_attr(feature = "aggressive-inlining", inline)]
                 fn concat_json(&self, dest: &mut String) {
                     dest.reserve($size * 2 + 2);
                     dest.push('[');
@@ -262,12 +262,12 @@ impl_for_arrays! {
 }
 
 impl AsJson for () {
-    #[inline]
+    #[cfg_attr(feature = "aggressive-inlining", inline)]
     fn as_json(&self) -> String {
         String::from("")
     }
 
-    #[inline]
+    #[cfg_attr(feature = "aggressive-inlining", inline)]
     fn concat_json(&self, _: &mut String) {
 
     }
@@ -290,7 +290,7 @@ impl<T> AsJson for Option<T> where T: AsJson {
 }
 
 impl AsJson for String {
-    #[inline]
+    #[cfg_attr(feature = "aggressive-inlining", inline)]
     fn as_json(&self) -> String {
         let mut string = String::with_capacity(self.len() + 2);
         string.push('"');
@@ -300,7 +300,7 @@ impl AsJson for String {
         string
     }
 
-    #[inline]
+    #[cfg_attr(feature = "aggressive-inlining", inline)]
     fn concat_json(&self, dest: &mut String) {
         dest.reserve(self.len() + 2);
         dest.push('"');
@@ -310,7 +310,7 @@ impl AsJson for String {
 }
 
 impl AsJson for &str {
-    #[inline]
+    #[cfg_attr(feature = "aggressive-inlining", inline)]
     fn as_json(&self) -> String {
         let mut string = String::with_capacity(self.len() + 3);
         string.push('"');
@@ -320,7 +320,7 @@ impl AsJson for &str {
         string
     }
 
-    #[inline]
+    #[cfg_attr(feature = "aggressive-inlining", inline)]
     fn concat_json(&self, dest: &mut String) {
         dest.reserve(self.len() + 3);
         dest.push('"');
@@ -330,7 +330,7 @@ impl AsJson for &str {
 }
 
 impl<J, S: BuildHasher> AsJson for HashSet<J, S> where J: AsJson {
-    #[inline]
+    #[cfg_attr(feature = "aggressive-inlining", inline)]
     fn as_json(&self) -> String {
         let mut json = String::with_capacity(self.len() * 5 + 2);
         json.push('[');
@@ -349,7 +349,7 @@ impl<J, S: BuildHasher> AsJson for HashSet<J, S> where J: AsJson {
         json
     }
 
-    #[inline]
+    #[cfg_attr(feature = "aggressive-inlining", inline)]
     fn concat_json(&self, dest: &mut String) {
         dest.reserve(self.len() * 5 + 2);
         dest.push('[');
@@ -368,7 +368,7 @@ impl<J, S: BuildHasher> AsJson for HashSet<J, S> where J: AsJson {
 }
 
 impl<J, S: BuildHasher> AsJson for HashMap<String, J, S> where J: AsJson {
-    #[inline]
+    #[cfg_attr(feature = "aggressive-inlining", inline)]
     fn as_json(&self) -> String {
         let mut json = String::with_capacity(self.len() * 10 + 2);
         json.push('{');
@@ -389,7 +389,7 @@ impl<J, S: BuildHasher> AsJson for HashMap<String, J, S> where J: AsJson {
         json
     }
 
-    #[inline]
+    #[cfg_attr(feature = "aggressive-inlining", inline)]
     fn concat_json(&self, dest: &mut String) {
         dest.reserve(self.len() * 10 + 2);
         dest.push('{');

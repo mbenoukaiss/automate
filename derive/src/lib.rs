@@ -66,12 +66,12 @@ pub fn as_json(item: TokenStream) -> TokenStream {
             if unnamed.unnamed.len() == 1 {
                 let quote = quote! {
                     impl #impl_generics ::automate::encode::AsJson for #name #ty_generics #where_clause {
-                        #[inline]
+                        #[cfg_attr(feature = "aggressive-inlining", inline)]
                         fn as_json(&self) -> String {
                             ::automate::encode::AsJson::as_json(&self.0)
                         }
 
-                        #[inline]
+                        #[cfg_attr(feature = "aggressive-inlining", inline)]
                         fn concat_json(&self, dest: &mut String) {
                             ::automate::encode::AsJson::concat_json(&self.0, dest)
                         }
@@ -88,7 +88,7 @@ pub fn as_json(item: TokenStream) -> TokenStream {
 
         let quote = quote! {
             impl #impl_generics ::automate::encode::AsJson for #name #ty_generics #where_clause {
-                #[inline]
+                #[cfg_attr(feature = "aggressive-inlining", inline)]
                 fn as_json(&self) -> String {
                     let mut json = String::with_capacity(#recommended_size);
                     json.push('{');
@@ -116,7 +116,7 @@ pub fn as_json(item: TokenStream) -> TokenStream {
                     json
                 }
 
-                #[inline]
+                #[cfg_attr(feature = "aggressive-inlining", inline)]
                 fn concat_json(&self, dest: &mut String) {
                     let original_len = dest.len();
                     dest.push('{');
@@ -280,12 +280,12 @@ pub fn convert(metadata: TokenStream, item: TokenStream) -> TokenStream {
         }
 
         impl #impl_generics ::automate::encode::AsJson for #struct_name #ty_generics #where_clause {
-            #[inline]
+            #[cfg_attr(feature = "aggressive-inlining", inline)]
             fn as_json(&self) -> String {
                 self.#as_method_name().to_string()
             }
 
-            #[inline]
+            #[cfg_attr(feature = "aggressive-inlining", inline)]
             fn concat_json(&self, dest: &mut String) {
                 ::std::fmt::Write::write_fmt(dest, format_args!("{}", self.#as_method_name())).expect("A Display implementation returned an error unexpectedly");
             }
@@ -387,7 +387,7 @@ pub fn stringify(metadata: TokenStream, item: TokenStream) -> TokenStream {
 
     let as_impl = quote! {
         impl #impl_generics #struct_name #ty_generics #where_clause {
-            #[inline]
+            #[cfg_attr(feature = "aggressive-inlining", inline)]
             fn as_string(&self) -> &'static str {
                 match self {
                     #(
@@ -398,12 +398,12 @@ pub fn stringify(metadata: TokenStream, item: TokenStream) -> TokenStream {
         }
 
         impl #impl_generics ::automate::encode::AsJson for #struct_name #ty_generics #where_clause {
-            #[inline]
+            #[cfg_attr(feature = "aggressive-inlining", inline)]
             fn as_json(&self) -> String {
                 self.as_string().to_owned()
             }
 
-            #[inline]
+            #[cfg_attr(feature = "aggressive-inlining", inline)]
             fn concat_json(&self, dest: &mut String) {
                 dest.push_str(self.as_string());
             }

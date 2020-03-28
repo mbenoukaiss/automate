@@ -32,3 +32,11 @@ lazy_static = "1.0"
 [dependencies.backtrace]
 version = "0.3"
 optional = true
+
+[features]
+default = []
+
+# Enables aggressive inlining on the JSON
+# serializer for speed improvement at the
+# cost of binary size and compile time.
+aggressive-inlining = []
