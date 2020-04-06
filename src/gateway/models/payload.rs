@@ -316,6 +316,9 @@ pub enum StatusType {
     Offline,
 }
 
+/// System to help define which events discord will
+/// send to your bot. An intent is a single or a
+/// group of event types.
 #[convert(u32)]
 pub enum Intent {
     /// Subscribe to the following events:
