@@ -43,8 +43,15 @@ macro_rules! dispatcher {
                 }
             }
 
-            for listener in &mut *self.listeners.$name {
+            for listener in &*self.listeners.$name {
                 if let Err(error) = (*listener)(&mut context, &payload).await {
+                    error!("Listener to {} failed with: {}", stringify!($name), error);
+                }
+            }
+
+            //TODO: can be improved by splitting calls to mutable and immutable versions?
+            for listener in &mut *self.listeners.stateful_listeners {
+                if let Err(error) = (*listener).$fn_name(&mut context, &payload).await {
                     error!("Listener to {} failed with: {}", stringify!($name), error);
                 }
             }

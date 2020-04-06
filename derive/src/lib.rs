@@ -50,6 +50,7 @@ macro_rules! extract_token {
 }
 
 mod attributes;
+mod derive;
 mod json;
 mod discord;
 mod utils;
@@ -444,8 +445,22 @@ pub fn endpoint(metadata: TokenStream, item: TokenStream) -> TokenStream {
 pub fn listener(metadata: TokenStream, item: TokenStream) -> TokenStream {
     attributes::listener(metadata, item)
 }
+//doc in export
 
+//doc in automate's lib.rs
 #[proc_macro_hack]
 pub fn functions(input: TokenStream) -> TokenStream {
     attributes::functions(input)
+}
+
+//doc in automate's lib.rs
+#[proc_macro_hack]
+pub fn methods(input: TokenStream) -> TokenStream {
+    attributes::methods(input)
+}
+
+//doc in automae's lib.rs
+#[proc_macro_derive(State)]
+pub fn state(input: TokenStream) -> TokenStream {
+    derive::state(input)
 }

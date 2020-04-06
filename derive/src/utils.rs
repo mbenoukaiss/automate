@@ -51,7 +51,7 @@ pub fn read_function_arguments(signature: &Signature) -> Vec<(Ident, String)> {
 
     for arg in &signature.inputs {
         let arg = match arg {
-            FnArg::Receiver(rcv) => (Ident::new("self", rcv.span()), rcv.to_token_stream().to_string()),
+            FnArg::Receiver(_) => continue,
             FnArg::Typed(arg) => match &*arg.pat {
                 Pat::Ident(name) => (name.ident.clone(), arg.ty.to_token_stream().to_string()),
                 Pat::Wild(wild) => (Ident::new("_", wild.span()), arg.ty.to_token_stream().to_string()),

@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use proc_macro2::{TokenStream as TokenStream2, Ident, Span};
-use syn::{ItemFn, AttributeArgs};
+use syn::{ItemFn, AttributeArgs, FnArg, Receiver};
 use quote::quote;
 use darling::FromMeta;
 use crate::utils;
@@ -45,14 +45,50 @@ fn infer_event_type(dispatch_type: &str) -> Option<&'static str> {
     }
 }
 
-fn create_trait(item: ItemFn, arguments: (&Ident, &Ident), event: String) -> TokenStream {
+fn adapt_method(item: &ItemFn, rcv: &Receiver, arguments: (&Ident, &Ident), event: String) -> TokenStream {
+    let (ctx_name, data_name) = arguments;
+
+    //TODO: don't hardcode this
+    let self_tokens = if rcv.mutability.is_some() {
+        quote!(&'a mut self)
+    } else {
+        quote!(&'q self)
+    };
+
+    let func = &item.sig.ident;
+    let reg_name = Ident::new(&format!("__register_{}", item.sig.ident), Span::call_site());
+    let dispatch = Ident::new(&format!("{}Dispatch", event), Span::call_site());
+    let content = &item.block;
+
+    let event = if rcv.mutability.is_some() {
+        Ident::new(&format!("{}Mut", event), Span::call_site())
+    } else {
+        Ident::new(&event, Span::call_site())
+    };
+
+    let quote = quote! {
+        //generate an instance of ListenerType struct for registering
+        const #reg_name: ::automate::events::StatefulListener<Self> = ::automate::events::StatefulListener::#event(Self::#func);
+
+        //wrapping the function to remove the async and make it compatible with fn pointer by returning a pin
+        fn #func<'a>(#self_tokens, #ctx_name: &'a mut Context, #data_name: &'a #dispatch) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<(), Error>> + Send + 'a>> {
+            Box::pin(async move {
+                #content
+            })
+        }
+    };
+
+    quote.into()
+}
+
+fn adapt_function(item: &ItemFn, arguments: (&Ident, &Ident), event: String) -> TokenStream {
     let (ctx_name, data_name) = arguments;
 
     let func = &item.sig.ident;
     let reg_name = Ident::new(&format!("__register_{}", item.sig.ident), Span::call_site());
     let dispatch = Ident::new(&format!("{}Dispatch", event), Span::call_site());
     let event = Ident::new(&event, Span::call_site());
-    let content = item.block;
+    let content = &item.block;
 
     let quote = quote! {
         //generate an instance of ListenerType struct for registering
@@ -92,27 +128,20 @@ pub fn listener(metadata: TokenStream, item: TokenStream) -> TokenStream {
     };
 
     let mut input: ItemFn = parse_macro_input!(item);
-    let signature = &mut input.sig;
 
     if args.event.is_some() {
         compile_error!(TokenStream2::from(metadata_error), "The event type is now automatically inferred for listener functions, please cut down the attribute to `#[listener]`")
     }
 
-    if signature.asyncness.is_none() {
+    if input.sig.asyncness.is_none() {
         compile_error!(input.sig, "Listener functions must be asynchronous")
     } else {
         //remove the async keyword since the real function won't be async, it will just
         //return a pinned future
-        signature.asyncness.take();
+        input.sig.asyncness.take();
     }
 
-    let arguments = utils::read_function_arguments(signature);
-
-    if let Some((ident, _)) = arguments.get(0) {
-        if *ident == "self" {
-            compile_error!(input.sig.inputs, "Listener methods in impl blocks are not yet supported")
-        }
-    }
+    let arguments = utils::read_function_arguments(&input.sig);
 
     if arguments.len() != 2 {
         compile_error!(input.sig.inputs, "Listener functions must take 2 arguments: the first argument should be the session and the second the event dispatch object")
@@ -132,5 +161,13 @@ pub fn listener(metadata: TokenStream, item: TokenStream) -> TokenStream {
         compile_error!(input.sig.inputs, "Could not infer event type: the first argument should be the session and the second the event dispatch object. Make sure you use a correct event dispatch type")
     }
 
-    create_trait(input, (ctx_name, data_name), event.unwrap())
+    if let Some(FnArg::Receiver(rcv)) = input.sig.receiver() {
+        if rcv.reference.is_none() {
+            compile_error!(rcv, "Listener methods must take self by reference")
+        }
+
+        adapt_method(&input, rcv, (ctx_name, data_name), event.unwrap())
+    } else {
+        adapt_function(&input, (ctx_name, data_name), event.unwrap())
+    }
 }
