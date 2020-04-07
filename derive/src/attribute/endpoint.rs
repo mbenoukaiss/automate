@@ -104,6 +104,7 @@ struct Args {
     patch: bool,
     #[darling(default)]
     delete: bool,
+
     route: String,
     #[darling(default)]
     body: Option<String>,

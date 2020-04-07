@@ -1,47 +1,8 @@
-use proc_macro::{TokenStream, TokenTree};
+use proc_macro::TokenStream;
 use quote::quote;
 use syn::{DeriveInput, Ident, Data, Fields, FnArg, Pat, Signature};
-use std::collections::HashMap;
 use syn::spanned::Spanned;
 use quote::ToTokens;
-
-pub type Arguments = HashMap<String, Vec<TokenTree>>;
-
-/// Parses the list of arguments.
-/// Returns a vector associating the name of an argument
-/// such as `op` to the tokens of this argument, the equal
-/// sign is not included.
-pub fn parse_arguments_list(metadata: TokenStream) -> Arguments {
-    let mut arguments = HashMap::new();
-    let mut current_name: Option<String> = None;
-    let mut current_args: Vec<TokenTree> = Vec::new();
-
-    for token in metadata {
-        if current_name.is_some() {
-            match token {
-                TokenTree::Punct(punct) => match punct.as_char() {
-                    '=' => (),
-                    ',' => {
-                        arguments.insert(current_name.unwrap(), current_args);
-
-                        current_name = None;
-                        current_args = Vec::new();
-                    }
-                    _ => current_args.push(TokenTree::Punct(punct))
-                },
-                any => current_args.push(any)
-            }
-        } else {
-            current_name = Some(extract_token!(Ident in token));
-        }
-    }
-
-    if let Some(name) = current_name {
-        arguments.insert(name, current_args);
-    }
-
-    arguments
-}
 
 /// Read the arguments in a function's signature and
 /// returns a vec with tuples of the function name and
@@ -81,6 +42,7 @@ pub fn extend_with_deref(input: &DeriveInput, quote: &mut TokenStream) {
                     impl #impl_generics ::std::ops::Deref for #name #ty_generics #where_clause {
                         type Target = #underlying;
 
+                        #[inline]
                         fn deref(&self) -> &Self::Target {
                             &self.0
                         }
@@ -88,6 +50,7 @@ pub fn extend_with_deref(input: &DeriveInput, quote: &mut TokenStream) {
 
                     impl #impl_generics ::std::ops::DerefMut for #name #ty_generics #where_clause {
 
+                        #[inline]
                         fn deref_mut(&mut self) -> &mut Self::Target {
                             &mut self.0
                         }

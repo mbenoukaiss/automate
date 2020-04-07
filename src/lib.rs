@@ -199,7 +199,7 @@ extern crate proc_macro_hack;
 #[macro_use]
 extern crate automate_derive;
 #[macro_use]
-extern crate log;
+pub extern crate log;
 #[macro_use]
 extern crate serde;
 extern crate tokio_tungstenite as tktungstenite;
@@ -246,18 +246,20 @@ pub use automate_derive::functions;
 ///
 /// impl Initializable for MessageCounter {
 ///     fn initialize() -> Vec<StatefulListener<Self>> {
-///         methods!(MessageCounter: count, tell_count)
+///         methods!(MessageCounter: say_hello, say_bye)
 ///     }
 /// }
 ///
 /// impl MessageCounter {
 ///     #[listener]
-///     async fn tell_count(&mut self, ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
+///     async fn say_hello(&mut self, ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
+///         println!("Hello!");
 ///         Ok(())
 ///     }
 ///
 ///     #[listener]
-///     async fn count(&mut self, _: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
+///     async fn say_bye(&mut self, ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
+///         println!("Bye");
 ///         Ok(())
 ///     }
 /// }

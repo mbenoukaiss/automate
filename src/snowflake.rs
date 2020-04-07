@@ -83,12 +83,14 @@ impl Debug for Snowflake {
 impl Deref for Snowflake {
     type Target = u64;
 
+    #[inline]
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
 impl DerefMut for Snowflake {
+    #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
