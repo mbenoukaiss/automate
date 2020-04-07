@@ -1,10 +1,6 @@
 use proc_macro::TokenStream;
 use syn::DeriveInput;
 use quote::quote;
-use crate::utils::Arguments;
-
-pub const OBJECT_ERROR: &str = "Expected arguments under the format: ([client|server|both])";
-pub const PAYLOAD_ERROR: &str = "Expected arguments under the format: (op = <u8>, [client|server|both])";
 
 /// Which side is creating and sending this struct
 /// mostly useful to avoid implementing `AsJson` or
@@ -16,10 +12,10 @@ pub enum StructSide {
 }
 
 impl StructSide {
-    pub fn appropriate_derive(&self, args: &Arguments) -> TokenStream {
+    pub fn appropriate_derive(&self, default: bool) -> TokenStream {
         let mut default_traits = vec![quote!(Debug)];
 
-        if args.contains_key("default") {
+        if default {
             default_traits.push(quote!(Default));
         }
 
@@ -28,19 +24,6 @@ impl StructSide {
             StructSide::Server => quote!(#[derive(#(#default_traits),*, Clone, ::serde::Deserialize)]),
             StructSide::Both => quote!(#[derive(#(#default_traits),*, Clone, AsJson, ::serde::Deserialize)])
         }.into()
-    }
-
-
-    pub fn from_args(arguments: &Arguments) -> Self {
-        if arguments.contains_key("client") {
-            StructSide::Client
-        } else if arguments.contains_key("server") {
-            StructSide::Server
-        } else if arguments.contains_key("both") {
-            StructSide::Both
-        } else {
-            panic!(OBJECT_ERROR);
-        }
     }
 }
 

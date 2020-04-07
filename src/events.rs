@@ -42,41 +42,41 @@ pub trait Initializable {
 /// Struct relaying events to its listeners.
 #[async_trait]
 pub trait State: StateClone + Send + 'static {
-    async fn on_ready(&mut self, ctx: &mut Context, event: &ReadyDispatch) -> Result<(), Error>;
-    async fn on_channel_create(&mut self, ctx: &mut Context, event: &ChannelCreateDispatch) -> Result<(), Error>;
-    async fn on_channel_update(&mut self, ctx: &mut Context, event: &ChannelUpdateDispatch) -> Result<(), Error>;
-    async fn on_channel_delete(&mut self, ctx: &mut Context, event: &ChannelDeleteDispatch) -> Result<(), Error>;
-    async fn on_channel_pins_update(&mut self, ctx: &mut Context, event: &ChannelPinsUpdateDispatch) -> Result<(), Error>;
-    async fn on_guild_create(&mut self, ctx: &mut Context, event: &GuildCreateDispatch) -> Result<(), Error>;
-    async fn on_guild_update(&mut self, ctx: &mut Context, event: &GuildUpdateDispatch) -> Result<(), Error>;
-    async fn on_guild_delete(&mut self, ctx: &mut Context, event: &GuildDeleteDispatch) -> Result<(), Error>;
-    async fn on_guild_ban_add(&mut self, ctx: &mut Context, event: &GuildBanAddDispatch) -> Result<(), Error>;
-    async fn on_guild_ban_remove(&mut self, ctx: &mut Context, event: &GuildBanRemoveDispatch) -> Result<(), Error>;
-    async fn on_guild_emojis_update(&mut self, ctx: &mut Context, event: &GuildEmojisUpdateDispatch) -> Result<(), Error>;
-    async fn on_guild_integrations_update(&mut self, ctx: &mut Context, event: &GuildIntegrationsUpdateDispatch) -> Result<(), Error>;
-    async fn on_guild_member_add(&mut self, ctx: &mut Context, event: &GuildMemberAddDispatch) -> Result<(), Error>;
-    async fn on_guild_member_remove(&mut self, ctx: &mut Context, event: &GuildMemberRemoveDispatch) -> Result<(), Error>;
-    async fn on_guild_member_update(&mut self, ctx: &mut Context, event: &GuildMemberUpdateDispatch) -> Result<(), Error>;
-    async fn on_guild_members_chunk(&mut self, ctx: &mut Context, event: &GuildMembersChunkDispatch) -> Result<(), Error>;
-    async fn on_guild_role_create(&mut self, ctx: &mut Context, event: &GuildRoleCreateDispatch) -> Result<(), Error>;
-    async fn on_guild_role_update(&mut self, ctx: &mut Context, event: &GuildRoleUpdateDispatch) -> Result<(), Error>;
-    async fn on_guild_role_delete(&mut self, ctx: &mut Context, event: &GuildRoleDeleteDispatch) -> Result<(), Error>;
-    async fn on_invite_create(&mut self, ctx: &mut Context, event: &InviteCreateDispatch) -> Result<(), Error>;
-    async fn on_invite_delete(&mut self, ctx: &mut Context, event: &InviteDeleteDispatch) -> Result<(), Error>;
-    async fn on_message_create(&mut self, ctx: &mut Context, event: &MessageCreateDispatch) -> Result<(), Error>;
-    async fn on_message_update(&mut self, ctx: &mut Context, event: &MessageUpdateDispatch) -> Result<(), Error>;
-    async fn on_message_delete(&mut self, ctx: &mut Context, event: &MessageDeleteDispatch) -> Result<(), Error>;
-    async fn on_message_delete_bulk(&mut self, ctx: &mut Context, event: &MessageDeleteBulkDispatch) -> Result<(), Error>;
-    async fn on_reaction_add(&mut self, ctx: &mut Context, event: &MessageReactionAddDispatch) -> Result<(), Error>;
-    async fn on_reaction_remove(&mut self, ctx: &mut Context, event: &MessageReactionRemoveDispatch) -> Result<(), Error>;
-    async fn on_reaction_remove_all(&mut self, ctx: &mut Context, event: &MessageReactionRemoveAllDispatch) -> Result<(), Error>;
-    async fn on_reaction_remove_emoji(&mut self, ctx: &mut Context, event: &MessageReactionRemoveEmojiDispatch) -> Result<(), Error>;
-    async fn on_presence_update(&mut self, ctx: &mut Context, event: &PresenceUpdateDispatch) -> Result<(), Error>;
-    async fn on_typing_start(&mut self, ctx: &mut Context, event: &TypingStartDispatch) -> Result<(), Error>;
-    async fn on_user_update(&mut self, ctx: &mut Context, event: &UserUpdateDispatch) -> Result<(), Error>;
-    async fn on_voice_state_update(&mut self, ctx: &mut Context, event: &VoiceStateUpdateDispatch) -> Result<(), Error>;
-    async fn on_voice_server_update(&mut self, ctx: &mut Context, event: &VoiceServerUpdateDispatch) -> Result<(), Error>;
-    async fn on_webhooks_update(&mut self, ctx: &mut Context, event: &WebhooksUpdateDispatch) -> Result<(), Error>;
+    async fn on_ready(&mut self, ctx: &mut Context, event: &ReadyDispatch);
+    async fn on_channel_create(&mut self, ctx: &mut Context, event: &ChannelCreateDispatch);
+    async fn on_channel_update(&mut self, ctx: &mut Context, event: &ChannelUpdateDispatch);
+    async fn on_channel_delete(&mut self, ctx: &mut Context, event: &ChannelDeleteDispatch);
+    async fn on_channel_pins_update(&mut self, ctx: &mut Context, event: &ChannelPinsUpdateDispatch);
+    async fn on_guild_create(&mut self, ctx: &mut Context, event: &GuildCreateDispatch);
+    async fn on_guild_update(&mut self, ctx: &mut Context, event: &GuildUpdateDispatch);
+    async fn on_guild_delete(&mut self, ctx: &mut Context, event: &GuildDeleteDispatch);
+    async fn on_guild_ban_add(&mut self, ctx: &mut Context, event: &GuildBanAddDispatch);
+    async fn on_guild_ban_remove(&mut self, ctx: &mut Context, event: &GuildBanRemoveDispatch);
+    async fn on_guild_emojis_update(&mut self, ctx: &mut Context, event: &GuildEmojisUpdateDispatch);
+    async fn on_guild_integrations_update(&mut self, ctx: &mut Context, event: &GuildIntegrationsUpdateDispatch);
+    async fn on_guild_member_add(&mut self, ctx: &mut Context, event: &GuildMemberAddDispatch);
+    async fn on_guild_member_remove(&mut self, ctx: &mut Context, event: &GuildMemberRemoveDispatch);
+    async fn on_guild_member_update(&mut self, ctx: &mut Context, event: &GuildMemberUpdateDispatch);
+    async fn on_guild_members_chunk(&mut self, ctx: &mut Context, event: &GuildMembersChunkDispatch);
+    async fn on_guild_role_create(&mut self, ctx: &mut Context, event: &GuildRoleCreateDispatch);
+    async fn on_guild_role_update(&mut self, ctx: &mut Context, event: &GuildRoleUpdateDispatch);
+    async fn on_guild_role_delete(&mut self, ctx: &mut Context, event: &GuildRoleDeleteDispatch);
+    async fn on_invite_create(&mut self, ctx: &mut Context, event: &InviteCreateDispatch);
+    async fn on_invite_delete(&mut self, ctx: &mut Context, event: &InviteDeleteDispatch);
+    async fn on_message_create(&mut self, ctx: &mut Context, event: &MessageCreateDispatch);
+    async fn on_message_update(&mut self, ctx: &mut Context, event: &MessageUpdateDispatch);
+    async fn on_message_delete(&mut self, ctx: &mut Context, event: &MessageDeleteDispatch);
+    async fn on_message_delete_bulk(&mut self, ctx: &mut Context, event: &MessageDeleteBulkDispatch);
+    async fn on_reaction_add(&mut self, ctx: &mut Context, event: &MessageReactionAddDispatch);
+    async fn on_reaction_remove(&mut self, ctx: &mut Context, event: &MessageReactionRemoveDispatch);
+    async fn on_reaction_remove_all(&mut self, ctx: &mut Context, event: &MessageReactionRemoveAllDispatch);
+    async fn on_reaction_remove_emoji(&mut self, ctx: &mut Context, event: &MessageReactionRemoveEmojiDispatch);
+    async fn on_presence_update(&mut self, ctx: &mut Context, event: &PresenceUpdateDispatch);
+    async fn on_typing_start(&mut self, ctx: &mut Context, event: &TypingStartDispatch);
+    async fn on_user_update(&mut self, ctx: &mut Context, event: &UserUpdateDispatch);
+    async fn on_voice_state_update(&mut self, ctx: &mut Context, event: &VoiceStateUpdateDispatch);
+    async fn on_voice_server_update(&mut self, ctx: &mut Context, event: &VoiceServerUpdateDispatch);
+    async fn on_webhooks_update(&mut self, ctx: &mut Context, event: &WebhooksUpdateDispatch);
 }
 
 /// Internal type used to allow cloning the

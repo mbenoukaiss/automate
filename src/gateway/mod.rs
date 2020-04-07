@@ -7,6 +7,7 @@ pub use models::*;
 use crate::{map, Error, ListenerStorage};
 use crate::http::HttpAPI;
 use crate::encode::json;
+use crate::events::ListenerType;
 use std::thread;
 use std::time::Duration;
 use std::sync::Arc;
@@ -18,7 +19,7 @@ use futures::stream;
 use futures::channel::mpsc;
 use futures::channel::mpsc::SendError;
 use futures::channel::mpsc::UnboundedSender;
-use crate::events::ListenerType;
+use tungstenite::Message as TkMessage;
 
 macro_rules! call_dispatcher {
     ($data:ident as $payload:ty => $self:ident.$method:ident) => {{
@@ -51,9 +52,7 @@ macro_rules! dispatcher {
 
             //TODO: can be improved by splitting calls to mutable and immutable versions?
             for listener in &mut *self.listeners.stateful_listeners {
-                if let Err(error) = (*listener).$fn_name(&mut context, &payload).await {
-                    error!("Listener to {} failed with: {}", stringify!($name), error);
-                }
+                (*listener).$fn_name(&mut context, &payload).await;
             }
 
             self.listeners.register(context.new_listeners);
@@ -93,7 +92,7 @@ impl Delayer {
 /// Provides a way to interact with Discord HTTP API
 /// by dereferencing to [HttpAPI](automate::http::HttpAPI).
 pub struct Context {
-    sender: UnboundedSender<tungstenite::Message>,
+    sender: UnboundedSender<TkMessage>,
     http: Arc<HttpAPI>,
     bot: Option<Arc<User>>,
     new_listeners: Vec<ListenerType>,
@@ -110,7 +109,7 @@ impl Context {
     }
     
     #[inline]
-    pub async fn send<M: Into<tungstenite::Message>>(&mut self, msg: M) -> Result<(), Error> {
+    pub async fn send<M: Into<TkMessage>>(&mut self, msg: M) -> Result<(), Error> {
         Ok(self.sender.send(msg.into()).await?)
     }
 
@@ -135,6 +134,7 @@ impl Context {
 impl Deref for Context {
     type Target = Arc<HttpAPI>;
 
+    #[inline]
     fn deref(&self) -> &Arc<HttpAPI> {
         &self.http
     }
@@ -142,8 +142,8 @@ impl Deref for Context {
 
 #[derive(Debug)]
 enum Direction {
-    Receive(Result<tungstenite::Message, tungstenite::Error>),
-    Send(tungstenite::Message),
+    Receive(Result<TkMessage, tungstenite::Error>),
+    Send(TkMessage),
 }
 
 /// Communicates with Discord's gateway
@@ -153,7 +153,7 @@ pub(crate) struct GatewayAPI {
     heartbeat_confirmed: Arc<AtomicBool>,
     listeners: ListenerStorage,
     intents: Option<u32>,
-    msg_sender: UnboundedSender<tungstenite::Message>,
+    msg_sender: UnboundedSender<TkMessage>,
     http: Arc<HttpAPI>,
     bot: Option<Arc<User>>,
 }
@@ -193,7 +193,7 @@ impl GatewayAPI {
 
                 while let Some(message) = select.next().await {
                     match message {
-                        Direction::Receive(message) => gateway.on_message(message?).await,
+                        Direction::Receive(message) => gateway.on_message(message?).await?,
                         Direction::Send(message) => select.get_mut().0.send(message).await?
                     }
                 }
@@ -221,7 +221,7 @@ impl GatewayAPI {
     }
 
     #[inline]
-    async fn send<M: Into<tungstenite::Message>>(&mut self, msg: M) -> Result<(), Error> {
+    async fn send<M: Into<TkMessage>>(&mut self, msg: M) -> Result<(), Error> {
         Ok(self.msg_sender.send(msg.into()).await?)
     }
 
@@ -230,14 +230,18 @@ impl GatewayAPI {
         format!("https://discordapp.com/oauth2/authorize?client_id={}&scope=bot&permissions={}", self.bot.as_ref().unwrap().id, permission)
     }
 
-    async fn on_message(&mut self, msg: tungstenite::Message) {
-        if let tungstenite::Message::Text(data) = msg {
-            if let Err(err) = self.dispatch_payload(&data).await {
-                error!("An error occurred while reading message: {}\n{}", err.msg, data);
-            }
-        } else {
-            error!("Unknown message type received");
-        }
+    async fn on_message(&mut self, msg: TkMessage) -> Result<(), Error> {
+        match msg {
+            TkMessage::Text(data) => {
+                if let Err(err) = self.dispatch_payload(&data).await {
+                    error!("An error occurred while reading message: {}\n{}", err.msg, data);
+                }
+            },
+            TkMessage::Close(_close) => return Error::err("Websocket connection closed"),
+            _ => error!("Unknown message type received")
+        };
+
+        Ok(())
     }
 
     async fn dispatch_payload(&mut self, data: &str) -> Result<(), Error> {
@@ -414,10 +418,14 @@ impl GatewayAPI {
             }
         }
 
-        for listener in &mut *self.listeners.ready {
+        for listener in &*self.listeners.ready {
             if let Err(error) = (*listener)(&mut context, &payload).await {
                 error!("Listener to on_ready failed with: {}", error);
             }
+        }
+
+        for listener in &mut *self.listeners.stateful_listeners {
+            (*listener).on_ready(&mut context, &payload).await
         }
 
         self.listeners.register(context.new_listeners);
