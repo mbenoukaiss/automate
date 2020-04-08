@@ -4,7 +4,7 @@ mod models;
 
 pub use models::*;
 
-use crate::{map, Error, ListenerStorage};
+use crate::{map, Error, Configuration};
 use crate::http::HttpAPI;
 use crate::encode::json;
 use crate::events::ListenerType;
@@ -38,24 +38,24 @@ macro_rules! dispatcher {
         async fn $fn_name(&mut self, payload: $type) -> Result<(), Error> {
             let mut context = Context::new(&self);
 
-            for listener in &mut *self.listeners.trait_listeners {
+            for listener in &mut *self.config.listeners.trait_listeners {
                 if let Err(error) = (*listener).$fn_name(&mut context, &payload).await {
                     error!("Listener to {} failed with: {}", stringify!($name), error);
                 }
             }
 
-            for listener in &*self.listeners.$name {
+            for listener in &*self.config.listeners.$name {
                 if let Err(error) = (*listener)(&mut context, &payload).await {
                     error!("Listener to {} failed with: {}", stringify!($name), error);
                 }
             }
 
             //TODO: can be improved by splitting calls to mutable and immutable versions?
-            for listener in &mut *self.listeners.stateful_listeners {
+            for listener in &mut *self.config.listeners.stateful_listeners {
                 (*listener).$fn_name(&mut context, &payload).await;
             }
 
-            self.listeners.register(context.new_listeners);
+            self.config.listeners.register(context.new_listeners);
 
             Ok(())
         }
@@ -148,11 +148,10 @@ enum Direction {
 
 /// Communicates with Discord's gateway
 pub(crate) struct GatewayAPI {
+    config: Configuration,
     session_id: Option<String>,
     sequence_number: Arc<Mutex<Option<i32>>>,
     heartbeat_confirmed: Arc<AtomicBool>,
-    listeners: ListenerStorage,
-    intents: Option<u32>,
     msg_sender: UnboundedSender<TkMessage>,
     http: Arc<HttpAPI>,
     bot: Option<Arc<User>>,
@@ -162,25 +161,23 @@ impl GatewayAPI {
     /// Establishes a connection to Discord's
     /// gateway and calls the provided listeners
     /// when receiving an event.
-    pub(crate) async fn connect(http: HttpAPI, listeners: ListenerStorage, intents: Option<u32>) {
+    pub(crate) async fn connect(config: Configuration, url: String) {
         let mut delayer = Delayer::new();
-        let http = Arc::new(http);
-        let mut session_id = None;
+
+        let http = Arc::new(HttpAPI::new(&config.token));
         let sequence_number = Arc::new(Mutex::new(None));
+        let mut session_id = None;
 
         loop {
             let execution: Result<(), Error> = try {
-                let gateway_bot = http.gateway_bot().await?;
-
                 let (tx, rx) = mpsc::unbounded();
-                let (socket, _) = tktungstenite::connect_async(&gateway_bot.url).await?;
+                let (socket, _) = tktungstenite::connect_async(&url).await?;
 
                 let mut gateway = GatewayAPI {
+                    config: config.clone(),
                     session_id: None,
                     sequence_number: Arc::clone(&sequence_number),
                     heartbeat_confirmed: Arc::new(AtomicBool::new(true)),
-                    listeners: listeners.clone(),
-                    intents,
                     msg_sender: tx,
                     http: http.clone(),
                     bot: None,
@@ -361,12 +358,12 @@ impl GatewayAPI {
                     "$browser" => "automate",
                     "$device" => "automate"
                 },
-                compress: None,
+                compress: false,
+                shard: [self.config.shard_id.unwrap(), self.config.total_shards.unwrap()],
                 large_threshold: None,
-                shard: None,
                 presence: None,
                 guild_subscriptions: Some(true),
-                intents: self.intents
+                intents: self.config.intents
             };
 
             self.send(identify).await?;
@@ -412,23 +409,23 @@ impl GatewayAPI {
 
         let mut context = Context::new(&self);
 
-        for listener in &mut self.listeners.trait_listeners {
+        for listener in &mut self.config.listeners.trait_listeners {
             if let Err(error) = (*listener).on_ready(&mut context, &payload).await {
                 error!("Listener on_ready failed with: {}", error);
             }
         }
 
-        for listener in &*self.listeners.ready {
+        for listener in &*self.config.listeners.ready {
             if let Err(error) = (*listener)(&mut context, &payload).await {
                 error!("Listener to on_ready failed with: {}", error);
             }
         }
 
-        for listener in &mut *self.listeners.stateful_listeners {
+        for listener in &mut *self.config.listeners.stateful_listeners {
             (*listener).on_ready(&mut context, &payload).await
         }
 
-        self.listeners.register(context.new_listeners);
+        self.config.listeners.register(context.new_listeners);
 
         info!("Successfully established connection with Discord. Invite the bot in your guild using this link {}", self.invite_bot(8));
 

@@ -256,9 +256,9 @@ pub struct Heartbeat(pub Option<i32>);
 pub struct Identify {
     pub token: String,
     pub properties: HashMap<String, String>,
-    pub compress: Option<bool>,
+    pub compress: bool,
+    pub shard: [i32; 2],
     pub large_threshold: Option<u8>,
-    pub shard: Option<[i32; 2]>,
     pub presence: Option<UpdateStatus>,
     pub guild_subscriptions: Option<bool>,
     pub intents: Option<u32>,
