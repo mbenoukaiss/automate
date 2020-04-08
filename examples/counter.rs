@@ -5,11 +5,11 @@
 #[macro_use]
 extern crate automate;
 
-use automate::{Context, Error, Discord, Snowflake};
+use automate::{Context, Error, Snowflake, Configuration, Automate};
 use automate::gateway::MessageCreateDispatch;
 use automate::http::CreateMessage;
 use automate::events::{Initializable, StatefulListener};
-use std::env;
+use automate::log::LevelFilter;
 use std::collections::HashMap;
 
 #[derive(State, Default, Clone)]
@@ -58,9 +58,10 @@ impl MessageCounter {
 }
 
 fn main() {
-    automate::setup_logging();
+    let config = Configuration::from_env("DISCORD_API_TOKEN")
+        .enable_logging()
+        .log_level(LevelFilter::Trace)
+        .register(instances!(MessageCounter::default()));
 
-    Discord::new(&env::var("DISCORD_API_TOKEN").expect("API token not found"))
-        .register(instances!(MessageCounter::default()))
-        .connect_blocking()
+    Automate::launch(config);
 }

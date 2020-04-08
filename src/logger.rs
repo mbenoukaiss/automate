@@ -35,7 +35,15 @@ static QUICK_LOGGER: QuickLogger = QuickLogger;
 
 /// Sets up a very basic logger that prints
 /// logs to stdout.
+#[deprecated(since = "0.3.1", note = "Logger is automatically set up, use `Configuration::log_level` and `Configuration::disable_logging` to configure it. Using this function may cause crashes.")]
 pub fn setup_logging() {
     log::set_logger(&QUICK_LOGGER).unwrap();
     log::set_max_level(LevelFilter::Info);
+}
+
+/// Sets up a very basic logger that prints
+/// logs to stdout.
+pub fn __internal_setup_logging(level: LevelFilter) {
+    log::set_logger(&QUICK_LOGGER).unwrap();
+    log::set_max_level(level);
 }

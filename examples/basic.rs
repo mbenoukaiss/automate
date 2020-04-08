@@ -1,10 +1,9 @@
 #[macro_use]
 extern crate automate;
 
-use automate::{Error, Discord, Context};
+use automate::{Error, Context, Configuration, Automate};
 use automate::gateway::{MessageReactionAddDispatch, MessageCreateDispatch};
 use automate::http::{CreateMessage, NewInvite};
-use std::env;
 
 #[listener]
 async fn say_hello(ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
@@ -62,9 +61,8 @@ async fn tell_reaction(ctx: &mut Context, reac: &MessageReactionAddDispatch) -> 
 }
 
 fn main() {
-    automate::setup_logging();
+    let config = Configuration::from_env("DISCORD_API_TOKEN")
+        .register(functions!(say_hello, invite, tell_reaction));
 
-    Discord::new(&env::var("DISCORD_API_TOKEN").expect("API token not found"))
-        .register(functions!(say_hello, invite, tell_reaction))
-        .connect_blocking()
+    Automate::launch(config);
 }
