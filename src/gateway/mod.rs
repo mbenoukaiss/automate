@@ -427,7 +427,13 @@ impl GatewayAPI {
 
         self.config.listeners.register(context.new_listeners);
 
-        info!("Established connection for shard {}. Invite the bot in your guild using this link {}", self.config.shard_id.unwrap(), self.invite_bot(8));
+        let shard_id = self.config.shard_id.unwrap();
+
+        if shard_id == 0 {
+            info!("You can invite the bot in your guild using this link: {}", self.invite_bot(8));
+        }
+
+        info!("Established connection for shard {}", self.config.shard_id.unwrap());
 
         Ok(())
     }

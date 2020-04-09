@@ -509,21 +509,16 @@ impl Automate {
         Automate::block_on(async move {
             config.shard(0, 1);
 
-            let mut sm = ShardManager::with_config(config).await;
-
-            if sm.recommended_shards() > 1 {
-                warn!("Discord's recommended shards is {}, you should use the ShardManager instead of Automate::launch", sm.recommended_shards());
-            }
-
-            sm.setup(0);
-            sm.launch().await;
+            ShardManager::with_config(config).await
+                .setup(0)
+                .launch().await;
         });
     }
 
     /// Creates a tokio runtime and runs the
     /// given future inside.
     pub fn block_on<F: Future>(future: F) -> F::Output {
-        Runtime::new().unwrap().block_on(future)
+        Runtime::new().unwrap().block_on(logger::setup_for_task("main", future))
     }
 }
 

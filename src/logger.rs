@@ -1,13 +1,20 @@
-use log::{Log, Metadata, Record, LevelFilter, Level};
-use chrono::{Local, Timelike};
+use log::{Log, Metadata, Record, LevelFilter};
+use chrono::Local;
+use std::future::Future;
+
+tokio::task_local! {
+    static TASK_NAME: String;
+}
+
+pub(crate) async fn setup_for_task<S: Into<String>, F: Future>(name: S, future: F) -> F::Output {
+    TASK_NAME.scope(name.into(), future).await
+}
 
 struct QuickLogger;
 
 impl Log for QuickLogger {
-    fn enabled(&self, metadata: &Metadata) -> bool {
-        metadata.level() == Level::Error ||
-            metadata.target().starts_with("automate") ||
-            metadata.target().starts_with(env!("CARGO_PKG_NAME"))
+    fn enabled(&self, _: &Metadata) -> bool {
+        true
     }
 
     fn log(&self, record: &Record) {
@@ -15,17 +22,18 @@ impl Log for QuickLogger {
             return;
         }
 
-        let time = Local::now();
+        let time = Local::now().format("%Y-%m-%d %H:%M:%S");
 
-        println!(
-            "{:02}:{:02}:{:02} in {} [{}]: {}",
-            time.hour(),
-            time.minute(),
-            time.second(),
-            record.target(),
-            record.level(),
-            record.args()
-        );
+        TASK_NAME.with(|task_name| {
+            println!(
+                "{} in {}({}) [{}]: {}",
+                time,
+                record.target(),
+                task_name,
+                record.level(),
+                record.args()
+            );
+        });
     }
 
     fn flush(&self) {}
