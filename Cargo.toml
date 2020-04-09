@@ -15,7 +15,7 @@ proc-macro-hack = "0.5"
 automate-derive = { version = "0.3.0", path = "derive" }
 futures = "0.3"
 async-trait = "0.1"
-tokio = { version = "0.2", features = ["time", "rt-threaded"] }
+tokio = { version = "0.2.10", features = ["time", "rt-threaded", "rt-util"] }
 hyper = { version = "0.13", default-features = false }
 hyper-tls = "0.4"
 bytes = "0.5"

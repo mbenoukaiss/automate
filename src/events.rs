@@ -13,8 +13,8 @@ use crate::{Context, Error};
 use std::pin::Pin;
 use std::future::Future;
 
-/// Parses a list of struct listeners before sending them
-/// to the [Discord::with](automate::Discord::with) method.
+/// Parses a list of struct listeners before sending them to the
+/// [Configuration::register](automate::Configuration::register) method.
 #[macro_export]
 macro_rules! structs {
     ($($listener:expr),*) => {
@@ -22,10 +22,10 @@ macro_rules! structs {
     }
 }
 
-/// Parses a list of state structs before sending them
-/// to the [Discord::with](automate::Discord::with) method.
+/// Parses a list of state structs before sending them to the
+/// [Configuration::register](automate::Configuration::register) method.
 #[macro_export]
-macro_rules! instances {
+macro_rules! stateful {
     ($($listener:expr),*) => {
         vec![$(::automate::events::ListenerType::Stateful(Box::new($listener))),*]
     }

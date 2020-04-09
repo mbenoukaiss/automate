@@ -64,7 +64,7 @@ pub fn payload(metadata: TokenStream, item: TokenStream) -> TokenStream {
         output.extend(TokenStream::from(constant_impl));
     }
 
-    utils::extend_with_deref(&input, &mut output);
+    unwrap!(utils::extend_with_deref(&input, &mut output));
 
     if let StructSide::Client = side {
         discord::append_client_quote(&input, args.op, &mut output);

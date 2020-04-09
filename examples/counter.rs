@@ -61,7 +61,7 @@ fn main() {
     let config = Configuration::from_env("DISCORD_API_TOKEN")
         .enable_logging()
         .log_level(LevelFilter::Trace)
-        .register(instances!(MessageCounter::default()));
+        .register(stateful!(MessageCounter::default()));
 
     Automate::launch(config);
 }

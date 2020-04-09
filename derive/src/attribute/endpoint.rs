@@ -56,7 +56,7 @@ fn generate_request(item: &ItemFn, args: Args, major_parameter: TokenStream2) ->
                 trace!("Endpoint {}#{} allows for {} more calls (limit {})", stringify!(#fn_name), bucket.id, bucket.remaining, bucket.limit);
 
                 if bucket.remaining == 0 && ::chrono::Utc::now().naive_utc() < bucket.reset {
-                    return Error::err(format!("Cancelled to avoid reaching rate limit for endpoint {}", stringify!(#fn_name)));
+                    return Error::err(format!("Cancelled to avoid reaching rate limit for endpoint `{}`", stringify!(#fn_name)));
                 }
             }
         }
@@ -83,7 +83,7 @@ fn generate_request(item: &ItemFn, args: Args, major_parameter: TokenStream2) ->
 
         match code {
             #status => #return_value,
-            429 => Error::err(format!("Reached rate limit for endpoint {}", stringify!(#fn_name))),
+            429 => Error::err(format!("Reached rate limit for endpoint `{}`", stringify!(#fn_name))),
             _ => Error::err(format!("Expected status code {}, got {} when requesting {}", #status, code, uri))
         }
     })

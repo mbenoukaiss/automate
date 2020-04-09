@@ -14,7 +14,7 @@ struct Listeners {
 impl Parse for Listeners {
     fn parse(input: ParseStream) -> Result<Self> {
         let strct = input.parse::<Path>()?;
-        if input.parse::<Token![:]>().is_err() {
+        if input.parse::<Token![:]>().is_err() && input.peek(Ident) {
             strct.span()
                 .unwrap()
                 .error("Expected `:` after struct name")

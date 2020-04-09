@@ -47,7 +47,7 @@ pub fn object(metadata: TokenStream, item: TokenStream) -> TokenStream {
     output.extend(item.clone());
 
     let input: DeriveInput = parse_macro_input!(item);
-    utils::extend_with_deref(&input, &mut output);
+    unwrap!(utils::extend_with_deref(&input, &mut output));
 
     output
 }

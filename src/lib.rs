@@ -8,23 +8,41 @@
 //!
 //! This library provides all the tools that will handle setting up and maintaining
 //! a connection to Discord's API in order to make a bot.
-//! Before messing with the code of this library and make a bot, you first need to get a bot
-//! token on [Discord's developers portal](https://discordapp.com/developers/applications/).
+//! Before messing with the code of this library, you first need to get a bot token
+//! on [Discord's developers portal](https://discordapp.com/developers/applications/).
 //! Create a new application and add a bot to the newly created application.
 //! You can then copy the bot's token by clicking the copy button.
 //!
-//! Everything is handled through the [Discord](automate::Discord) struct :
-//! - [Discord::new](automate::Discord::new) : Takes the bot token as parameter. You can provide a
-//! hardcoded string, take it from the environment or retrieve it from a configuration file.
-//! - [Discord::register](automate::Discord::register) : Registers a listener struct or function
+//! In order to build your bot, you must first provide it with the settings you'd like to use which
+//! is done using the [Configuration](automate::Configuration) struct :
+//! - [Configuration::new](automate::Configuration::new) : Takes the bot token as parameter. You
+//! can provide a hardcoded string, take it from the environment or retrieve it from a configuration
+//! file.
+//! - [Configuration::from_env](automate::Configuration::from_env) : Does the same as `new` except
+//! it takes the bot token from the given environment variable.
+//! - [Configuration::register](automate::Configuration::register) : Registers stateful and
+//! stateless listeners.
+//! - [Configuration::enable_logging](automate::Configuration::enable_logging) and
+//! [Configuration::disable_logging](automate::Configuration::disable_logging) : Enable or
+//! disable Automate's built in logger. You can disable it and use your own logger if necessary.
+//! - [Configuration::log_level](automate::Configuration::log_level) : Sets the minimum log level
+//! for a line to be printed in the console output.
+//! - [Configuration::intents](automate::Configuration::intents) : Sets the events which will
+//! be sent to the bot using [intents](automate::Intent). Defaults to all events.
+//!
+//! The resulting configuration object can then be sent to
+//! [Automate::launch](automate::Automate::launch) for a basic setup or to the
+//! [ShardManager](automate::ShardManager) for larger bots requiring multiple shards.
 //!
 //! # Listeners
 //! Discord sends various events through their API about messages, guild and
 //! user updates, etc. Automate will then relay these events to your bot through
 //! the listeners you will define. There are two ways to create listeners :
 //!
-//! ## Listener function
-//! The first and recommended way is to use the `#[listener]` attribute on a function.
+//! ## Stateless listeners
+//! The easiest way to create a listener is to use a stateless listener. A stateless listener is
+//! a simple asynchronous function with the `#[listener]` attribute. As its name says, it doesn't
+//! have a state and thus can't save data across calls.
 //! ```
 //! # use automate::{Context, Error, listener};
 //! # use automate::gateway::MessageCreateDispatch;
@@ -96,9 +114,9 @@
 //! was created, update, or deleted.
 //!
 //! A listener function can be registered in the library by sending the name of the function to the
-//! [Discord::register](automate::Discord::register) method using the `functions` macro :
+//! [Configuration::register](automate::Configuration::register) method using the `stateless!` macro :
 //! ```
-//! # use automate::{Discord, Context, Error, functions, listener};
+//! # use automate::{stateless, listener, Configuration, Context, Error};
 //! # use automate::gateway::MessageCreateDispatch;
 //! #
 //! # #[listener]
@@ -107,33 +125,59 @@
 //! #     Ok(())
 //! # }
 //! #
-//! # let api_token = std::env::var("DISCORD_API_TOKEN").expect("API token not found");
-//! Discord::new(&api_token)
-//!         .register(functions!(print_hello))
-//!         .connect();
+//! Configuration::from_env("DISCORD_API_TOKEN")
+//!         .register(stateless!(print_hello));
 //! ```
 //!
-//! More advanced examples can be found in the  ̀examples/basic.rs` example file.
-//! It is not (yet) possible to create a listener function in an impl block. If you want to use
-//! functions in an impl block in order to keep variables, you should use the 
-//! [Listener](automate::Listener) trait.
+//! More advanced examples can be found in the `examples/basic.rs` example file.
+//! If you want to keep data between calls, you probably want to use a stateful listener.
 //!
-//! ## Listener struct
-//! Listener attribute functions provide a clean and quick way to setup a listener, 
-//! however they do not allow keeping variables between two events.
+//! It is possible to use `̀lazy_static!` to store data across calls but this is **probably not what
+//! you want** since data in the `lazy_static` will be shared between shards and kept across
+//! sessions.
+//!
+//! ## Stateful listeners
+//! Stateless listeners provide a clean and quick way to setup a listener, but as stated earlier,
+//! they do not allow keeping variables between two events which is necessary for a more
+//! advanced bot.
+//!
+//! States will not be the same across shards and they will be destroyed and recreated in the case
+//! of a deconnexion that could not resume and results in the creation of a new Discord session.
+//!
+//! Stateful listeners work in the exact same way as stateless listeners except they're
+//! declared in an impl block of a struct that derives the [State](automate::events::State) trait.
+//! Structs containing stateful listeners must do 3 things :
+//! - Derive the [State](automate::events::State) trait which can be done automatically using
+//! the `#[derive(State)]` derive macro.
+//! - Implement [Clone](std::clone::Clone) since they need to be cloned to be used between
+//! different shards and sessions.
+//! - Implement the [Initializable](automate::events::Initializable) trait which defines a
+//! single function that should return all the listeners of the struct. This can be done using
+//! the `methods!` macro which takes the name of the struct followed by a colon
+//! and a comma-separated list of the listener methods.
 //! 
 //! ```
-//! use automate::{Context, Error, Listener};
-//! use automate::gateway::MessageCreateDispatch;
+//! #[macro_use] extern crate automate;
 //!
-//! #[derive(Default, Clone)]
+//! use automate::{Context, Error, Snowflake};
+//! use automate::events::{Initializable, StatefulListener};
+//! use automate::gateway::MessageCreateDispatch;
+//! use std::collections::HashMap;
+//!
+//! #[derive(State, Default, Clone)]
 //! struct MessageCounter {
-//!     messages: u32
+//!     messages: i32,
 //! }
 //! 
-//! #[automate::async_trait]
-//! impl Listener for MessageCounter {
-//!     async fn on_message_create(&mut self, ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
+//! impl Initializable for MessageCounter {
+//!     fn initialize() -> Vec<StatefulListener<Self>> {
+//!         methods!(MessageCounter: count)
+//!     }
+//! }
+//! 
+//! impl MessageCounter {
+//!     #[listener]
+//!     async fn count(&mut self, _: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
 //!         self.messages += 1;
 //!         println!("A total of {} messages have been sent!", self.messages);
 //!
@@ -142,32 +186,37 @@
 //! }
 //! ```
 //!
-//! A listener struct can be registered in the library by sending an instance of the struct to the
-//! [Discord::register](automate::Discord::register) method using the `traits` macro :
+//! A state struct can be registered in the library by sending an instance of the struct to the
+//! [Configuration::register](automate::Configuration::register) method using the `stateful!` macro.
 //! ```
-//! # use automate::{structs, Discord, Listener};
+//! # #[macro_use] extern crate automate;
 //! #
-//! # #[derive(Default, Clone)]
+//! # use automate::{methods, stateful, Context, Error, Snowflake, Configuration};
+//! # use automate::events::{Initializable, StatefulListener};
+//! # use automate::gateway::MessageCreateDispatch;
+//! # use std::collections::HashMap;
+//! #
+//! # #[derive(State, Default, Clone)]
 //! # struct MessageCounter;
 //! #
-//! # #[automate::async_trait]
-//! # impl Listener for MessageCounter { }
+//! # impl Initializable for MessageCounter {
+//! #     fn initialize() -> Vec<StatefulListener<Self>> {
+//! #         methods!(MessageCounter)
+//! #     }
+//! # }
 //! #
-//! # let api_token = std::env::var("DISCORD_API_TOKEN").expect("API token not found");
-//! Discord::new(&api_token)
-//!         .register(structs!(MessageCounter::default()))
-//!         .connect();
+//! Configuration::from_env("DISCORD_API_TOKEN")
+//!         .register(stateful!(MessageCounter::default()));
 //! ```
 //!
 //! More advanced examples can be found in the  ̀examples/counter.rs` example file.
 //!
 //! # Examples
 //! ```no_run
-//! use automate::{listener, functions, Error, Discord, Context};
+//! use automate::{listener, stateless, Error, Context, Configuration, Automate};
 //! use automate::gateway::MessageCreateDispatch;
 //! use automate::http::CreateMessage;
-//! use std::env;
-//! 
+//!
 //! #[listener]
 //! async fn say_hello(ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
 //!     let message = &data.0;
@@ -184,11 +233,10 @@
 //!     Ok(())
 //! }
 //! 
-//! automate::setup_logging();
-//! 
-//! Discord::new(&env::var("DISCORD_API_TOKEN").expect("API token not found"))
-//!     .register(functions!(say_hello))
-//!     .connect_blocking()
+//! let config = Configuration::from_env("DISCORD_API_TOKEN")
+//!     .register(stateless!(say_hello));
+//!
+//! Automate::launch(config);
 //! ```
 //!
 
@@ -226,9 +274,13 @@ pub use automate_derive::listener;
 /// with `#[listener]`
 pub use automate_derive::State;
 
-/// Parses a list of function listeners before sending them
-/// to the [Discord::register](automate::Discord::register) method.
+/// Parses a list of stateless function listeners before sending them
+/// to the [Configuration::register](automate::Configuration::register) method.
 #[proc_macro_hack]
+pub use automate_derive::stateless;
+
+#[proc_macro_hack]
+#[deprecated(since = "0.3.1", note = "Use `automate::stateless!` instead")]
 pub use automate_derive::functions;
 
 /// Parses a list of method listeners in the initialize method
@@ -297,6 +349,28 @@ use std::env;
 use log::LevelFilter;
 use std::future::Future;
 
+/// Allows specifying API token, registering
+/// stateful and stateless listeners, stating
+/// the shard id, intents and configuring logger.
+///
+/// The resulting object can then be used in
+/// [Automate::launch](automate::Automate::launch)
+/// or the [ShardManager](automate::ShardManager).
+///
+/// # Example
+/// ```
+/// # use automate::{stateless, listener, Context, Configuration, Error};
+/// # use automate::gateway::MessageCreateDispatch;
+///
+/// # #[listener]
+/// # async fn kick_spammer(ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
+/// #     Ok(())
+/// # }
+/// #
+/// let config = Configuration::from_env("DISCORD_API_TOKEN")
+///        .disable_logging()
+///        .register(stateless!(kick_spammer));
+/// ```
 #[derive(Clone)]
 pub struct Configuration {
     shard_id: Option<i32>,
@@ -309,6 +383,12 @@ pub struct Configuration {
 }
 
 impl Configuration {
+    /// Creates a configuration with the specified
+    /// API token.
+    ///
+    /// This configuration will by default have
+    /// logging enabled and outputting all logs with
+    /// a level higher or equal to `LevelFiler::Info`
     pub fn new<S: Into<String>>(token: S) -> Configuration {
         Configuration {
             shard_id: None,
@@ -321,11 +401,26 @@ impl Configuration {
         }
     }
 
-    //TODO: say it takes from env
+    /// Creates a configuration by taking the API
+    /// token from the specified environment variable.
+    /// The environment variable is retrieved using
+    /// [env::var](std::env::var) and thus needs to
+    /// be specified at runtime and not compile time.
+    ///
+    /// This configuration will by default have
+    /// logging enabled and outputting all logs with
+    /// a level higher or equal to `LevelFiler::Info`
     pub fn from_env<S: Into<String>>(env: S) -> Configuration {
         Configuration::new(env::var(&env.into()).expect("API token not found"))
     }
 
+    /// Sets the shard id of this configuration and
+    /// the total amount of shards.
+    ///
+    /// If using the [ShardManager](automate::ShardManager)
+    /// or [Automate::launch](automate::Automate::launch) to
+    /// launch the bot, you should not use this function
+    /// since it is done automatically.
     pub fn shard(&mut self, shard_id: i32, total_shards: i32) -> &mut Self {
         self.shard_id = Some(shard_id);
         self.total_shards = Some(total_shards);
@@ -338,19 +433,19 @@ impl Configuration {
         self
     }
 
-    //TODO: say it's the default and it enables logging
+    /// Enables logging. Logger is enabled by default.
     pub fn enable_logging(mut self) -> Self {
         self.logging = true;
         self
     }
 
-    //TODO: say it disables logging
+    /// Disables logging.
     pub fn disable_logging(mut self) -> Self {
         self.logging = false;
         self
     }
 
-    //TODO: say it sets minimum logging level
+    /// Sets the minimum log level.
     pub fn log_level(mut self, level: LevelFilter) -> Self {
         self.log_level = level;
         self
@@ -380,24 +475,20 @@ impl Configuration {
     /// about message creation, update and deletion and when a
     /// user starts typing in a guild channel:
     /// ```
-    /// # let api_token = std::env::var("DISCORD_API_TOKEN").expect("API token not found");
-    /// use automate::{Discord, Intent::*};
+    /// use automate::{Discord, Configuration, Intent::*};
     ///
-    /// Discord::new(&api_token)
-    ///         .set_intents(GuildMessages | GuildMessageTyping)
-    ///         .connect();
+    /// Configuration::from_env("DISCORD_API_TOKEN")
+    ///         .intents(GuildMessages | GuildMessageTyping);
     /// ```
     ///
     /// If you want to only listen to one intent type, you must
     /// explicitly cast the intent to u32 like the following example
     /// which only listens to events about guild members:
     /// ```
-    /// # let api_token = std::env::var("DISCORD_API_TOKEN").expect("API token not found");
-    /// use automate::{Discord, Intent::*};
+    /// use automate::{Discord, Configuration, Intent::*};
     ///
-    /// Discord::new(&api_token)
-    ///         .set_intents(GuildMembers as u32)
-    ///         .connect();
+    /// Configuration::from_env("DISCORD_API_TOKEN")
+    ///         .intents(GuildMembers as u32);
     /// ```
     pub fn intents(mut self, intents: u32) -> Self {
         self.intents = Some(intents);
@@ -405,16 +496,17 @@ impl Configuration {
     }
 }
 
+/// Defines utility functions.
 pub struct Automate;
 
 impl Automate {
-    //TODO: comment setup logging, 1 shard only
+    /// Launches a basic bot with only 1 shard.
+    ///
+    /// If discord recommends using more than
+    /// one shard, this function will still
+    /// only launch one shard.
     pub fn launch(mut config: Configuration) {
         Automate::block_on(async move {
-            if config.logging {
-                logger::__internal_setup_logging(config.log_level.clone());
-            }
-
             config.shard(0, 1);
 
             let mut sm = ShardManager::with_config(config).await;
@@ -428,6 +520,8 @@ impl Automate {
         });
     }
 
+    /// Creates a tokio runtime and runs the
+    /// given future inside.
     pub fn block_on<F: Future>(future: F) -> F::Output {
         Runtime::new().unwrap().block_on(future)
     }
