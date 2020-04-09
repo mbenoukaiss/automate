@@ -62,7 +62,7 @@ async fn tell_reaction(ctx: &mut Context, reac: &MessageReactionAddDispatch) -> 
 
 fn main() {
     let config = Configuration::from_env("DISCORD_API_TOKEN")
-        .register(functions!(say_hello, invite, tell_reaction));
+        .register(stateless!(say_hello, invite, tell_reaction));
 
     Automate::launch(config);
 }

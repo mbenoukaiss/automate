@@ -7,16 +7,6 @@ use proc_macro_hack::proc_macro_hack;
 use proc_macro::TokenStream;
 
 macro_rules! compile_error {
-    ($tokens:expr, $msg:literal) => {
-        return ::syn::Error::new_spanned($tokens, $msg)
-                .to_compile_error()
-                .into();
-    };
-    ($msg:literal) => {
-        return ::syn::Error::new(::proc_macro2::Span::call_site(), $msg)
-                .to_compile_error()
-                .into();
-    };
     (err $tokens:expr, $msg:literal) => {
         return Err(::syn::Error::new_spanned($tokens, $msg)
                 .to_compile_error()
@@ -26,6 +16,16 @@ macro_rules! compile_error {
         return Err(::syn::Error::new(::proc_macro2::Span::call_site(), $msg)
                 .to_compile_error()
                 .into());
+    };
+    ($tokens:expr, $msg:literal) => {
+        return ::syn::Error::new_spanned($tokens, $msg)
+                .to_compile_error()
+                .into();
+    };
+    ($msg:literal) => {
+        return ::syn::Error::new(::proc_macro2::Span::call_site(), $msg)
+                .to_compile_error()
+                .into();
     };
 }
 
@@ -108,6 +108,12 @@ pub fn listener(metadata: TokenStream, item: TokenStream) -> TokenStream {
 //doc in automate's lib.rs
 #[proc_macro_hack]
 pub fn functions(input: TokenStream) -> TokenStream {
+    macros::functions(input)
+}
+
+//doc in automate's lib.rs
+#[proc_macro_hack]
+pub fn stateless(input: TokenStream) -> TokenStream {
     macros::functions(input)
 }
 

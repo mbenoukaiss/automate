@@ -427,7 +427,7 @@ impl GatewayAPI {
 
         self.config.listeners.register(context.new_listeners);
 
-        info!("Successfully established connection with Discord. Invite the bot in your guild using this link {}", self.invite_bot(8));
+        info!("Established connection for shard {}. Invite the bot in your guild using this link {}", self.config.shard_id.unwrap(), self.invite_bot(8));
 
         Ok(())
     }

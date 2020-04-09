@@ -23,7 +23,7 @@ async fn say_hello(ctx: &mut Context, data: &MessageCreateDispatch) -> Result<()
 
 fn main() {
     let config = Configuration::from_env("DISCORD_API_TOKEN")
-        .register(functions!(say_hello));
+        .register(stateless!(say_hello));
 
     Automate::block_on(async move {
         ShardManager::with_config(config).await

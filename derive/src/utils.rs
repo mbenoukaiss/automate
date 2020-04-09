@@ -28,7 +28,7 @@ pub fn read_function_arguments(signature: &Signature) -> Vec<(Ident, String)> {
 
 /// Extends [Deref](std::ops::Deref) and [DerefMut](std::ops::DerefMut)
 /// on tuple struct of one element.
-pub fn extend_with_deref(input: &DeriveInput, quote: &mut TokenStream) {
+pub fn extend_with_deref(input: &DeriveInput, quote: &mut TokenStream) -> Result<(), TokenStream>{
     let name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
@@ -59,8 +59,10 @@ pub fn extend_with_deref(input: &DeriveInput, quote: &mut TokenStream) {
 
                 quote.extend(TokenStream::from(deref));
             } else {
-                panic!("Structs with multiple unnamed fields are not supported yet");
+                compile_error!(err input, "Only tuple structs with one field can be dereferenced")
             }
         }
     }
+
+    Ok(())
 }
