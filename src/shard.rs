@@ -35,7 +35,7 @@ impl ShardManager {
         self
     }
 
-    pub fn setup(&mut self, shard_id: i32) -> &mut Self {
+    pub fn setup(&mut  self, shard_id: i32) -> &mut Self {
         let url = self.gateway_url.clone();
         let mut config = self.config.clone();
         config.shard(shard_id, self.total_shards);
@@ -47,7 +47,9 @@ impl ShardManager {
             //so wait 5.5 seconds to make sure we don't hit rate limit
             tokio::time::delay_for(Duration::from_millis(position as u64 * 5500)).await;
 
-            GatewayAPI::connect(config, url).await
+            logger::setup_for_task(format!("shard-{}", shard_id), async move {
+                GatewayAPI::connect(config, url).await
+            }).await
         });
 
         self.managed_shards.push(handle);
@@ -57,6 +59,10 @@ impl ShardManager {
     pub async fn launch(&mut self) {
         if self.config.logging {
             logger::__internal_setup_logging(self.config.log_level);
+        }
+
+        if self.recommended_shards > self.total_shards {
+            warn!("Discord recommends using {} shards, you should use at least this many shards", self.recommended_shards);
         }
 
         let mut shards = Vec::new();
@@ -80,5 +86,6 @@ impl ShardManager {
     pub fn shard_id(&self, guild_id: Snowflake) -> i32 {
         ((guild_id.0 >> 22) % self.total_shards as u64) as i32
     }
+
 }
 
