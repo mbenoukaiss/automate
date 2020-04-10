@@ -4,7 +4,7 @@ mod models;
 
 pub use models::*;
 
-use crate::{map, Error, Configuration};
+use crate::{map, Error, Configuration, logger};
 use crate::http::HttpAPI;
 use crate::encode::json;
 use crate::events::ListenerType;
@@ -19,8 +19,6 @@ use futures::channel::mpsc;
 use futures::channel::mpsc::SendError;
 use futures::channel::mpsc::UnboundedSender;
 use tungstenite::Message as TkMessage;
-use chrono::NaiveDateTime;
-use std::cell::RefCell;
 
 macro_rules! call_dispatcher {
     ($data:ident as $payload:ty => $self:ident.$method:ident) => {{
@@ -63,19 +61,11 @@ macro_rules! dispatcher {
     }
 }
 
-tokio::task_local! {
-    /// Rate-limit for gateway
-    /// Since gateway allow 120 events every 60 seconds, we're
-    /// storing the number of remaining events and the time at
-    /// which it will reset.
-    static RATE_LIMIT: RefCell<(i32, NaiveDateTime)>;
-}
-
 /// Context about the current gateway session.
 /// Provides a way to interact with Discord HTTP API
 /// by dereferencing to [HttpAPI](automate::http::HttpAPI).
 pub struct Context {
-    sender: UnboundedSender<TkMessage>,
+    sender: UnboundedSender<Direction>,
     http: Arc<HttpAPI>,
     bot: Option<Arc<User>>,
     new_listeners: Vec<ListenerType>,
@@ -87,22 +77,15 @@ impl Context {
             sender: gateway.msg_sender.clone(),
             http: Arc::clone(&gateway.http),
             bot: gateway.bot.clone(),
-            new_listeners: Vec::new()
-        }    
+            new_listeners: Vec::new(),
+        }
     }
 
     /// Sends a message to Discord through the websocket.
     /// The message must be a valid payload.
     #[inline]
     async fn send<M: Into<TkMessage>>(&mut self, msg: M) -> Result<(), Error> {
-        Ok(self.sender.send(msg.into()).await?)
-    }
-
-    /// Registers an event listener struct that implements
-    /// the [Listener](automate::Listener) trait or
-    /// a listener function with the `̀#[listener]` attribute.
-    pub async fn register(&mut self, mut listeners: Vec<ListenerType>) {
-        self.new_listeners.append(&mut listeners);
+        Ok(self.sender.send(Direction::Send(msg.into())).await?)
     }
 
     /// The user object of the bot.
@@ -132,6 +115,7 @@ impl Deref for Context {
 enum Direction {
     Receive(Result<TkMessage, tungstenite::Error>),
     Send(TkMessage),
+    Shutdown,
 }
 
 /// Communicates with Discord's gateway
@@ -140,7 +124,7 @@ pub(crate) struct GatewayAPI<'a> {
     session_id: Option<String>,
     sequence_number: Arc<Mutex<Option<i32>>>,
     heartbeat_confirmed: Arc<AtomicBool>,
-    msg_sender: UnboundedSender<TkMessage>,
+    msg_sender: UnboundedSender<Direction>,
     http: Arc<HttpAPI>,
     bot: Option<Arc<User>>,
 }
@@ -171,25 +155,25 @@ impl<'a> GatewayAPI<'a> {
 
                 let mut select = stream::select(
                     socket.map(Direction::Receive),
-                    rx.map(Direction::Send),
+                    rx,
                 );
 
                 while let Some(message) = select.next().await {
                     match message {
                         Direction::Receive(message) => gateway.on_message(message?).await?,
-                        Direction::Send(message) => select.get_mut().0.send(message).await?
+                        Direction::Send(message) => select.get_mut().0.send(message).await?,
+                        Direction::Shutdown => break
                     }
                 }
 
                 select.get_mut().0.close().await?;
+                select.get_mut().1.close();
 
                 session_id = gateway.session_id;
             };
 
             if let Err(err) = execution {
                 error!("Connection was interrupted with '{}'", err.msg);
-            } else {
-                error!("Connection interrupted");
             }
 
             if let Some(sid) = session_id.as_ref() {
@@ -202,7 +186,15 @@ impl<'a> GatewayAPI<'a> {
 
     #[inline]
     async fn send<M: Into<TkMessage>>(&mut self, msg: M) -> Result<(), Error> {
-        Ok(self.msg_sender.send(msg.into()).await?)
+        Ok(self.msg_sender.send(Direction::Send(msg.into())).await?)
+    }
+
+    #[inline]
+    async fn shutdown(&mut self) -> Result<(), Error> {
+        self.msg_sender.send(Direction::Shutdown).await?;
+        self.msg_sender.close().await?;
+
+        Ok(())
     }
 
     #[inline]
@@ -216,7 +208,7 @@ impl<'a> GatewayAPI<'a> {
                 if let Err(err) = self.dispatch_payload(&data).await {
                     error!("An error occurred while reading message: {}\n{}", err.msg, data);
                 }
-            },
+            }
             TkMessage::Close(_close) => return Error::err("Websocket connection closed"),
             _ => error!("Unknown message type received")
         };
@@ -346,42 +338,20 @@ impl<'a> GatewayAPI<'a> {
                 large_threshold: None,
                 presence: None,
                 guild_subscriptions: Some(true),
-                intents: self.config.intents
+                intents: self.config.intents,
             };
 
             self.send(identify).await?;
         }
 
-        let mut sender = self.msg_sender.clone();
+        let sender: UnboundedSender<Direction> = self.msg_sender.clone();
         let sequence_number = self.sequence_number.clone();
         let heartbeat_confirmed = self.heartbeat_confirmed.clone();
+        let shard_id = self.config.shard_id.clone().unwrap();
 
-        tokio::spawn(async move {
-            let rs: Result<(), SendError> = try {
-                loop {
-                    tokio::time::delay_for(Duration::from_millis(u64::from(payload.heartbeat_interval))).await;
-
-                    if !heartbeat_confirmed.load(Ordering::Relaxed) {
-                        warn!("Zombied connection detected, shutting down connection");
-                        sender.close().await?;
-                        break;
-                    }
-
-                    sender.send(Heartbeat(*sequence_number.lock().await).into()).await?;
-                    heartbeat_confirmed.store(false, Ordering::Relaxed);
-
-                    trace!("Successfully sent heartbeat");
-                }
-            };
-
-            if let Err(err) = rs {
-                error!("Heartbeat thread failed ({}), shutting down connection", err.to_string());
-
-                if let Err(err) = sender.close().await {
-                    error!("Failed to close channel: {}", err.to_string());
-                }
-            }
-        });
+        tokio::spawn(logger::setup_for_task(format!("hearbeat-{}", shard_id), async move {
+            heartbeat_task(sender, sequence_number, payload.heartbeat_interval as u64, heartbeat_confirmed).await;
+        }));
 
         Ok(())
     }
@@ -428,7 +398,7 @@ impl<'a> GatewayAPI<'a> {
 
     async fn on_reconnect(&mut self) -> Result<(), Error> {
         warn!("Received reconnect payload, disconnecting");
-        self.msg_sender.close().await?;
+        self.shutdown().await?;
 
         Ok(())
     }
@@ -438,7 +408,7 @@ impl<'a> GatewayAPI<'a> {
             self.session_id = None;
 
             warn!("Invalid session, shutting down connection");
-            self.msg_sender.close().await?;
+            self.shutdown().await?;
         }
 
         Ok(())
@@ -449,5 +419,50 @@ impl<'a> GatewayAPI<'a> {
 
         trace!("Received heartbeat acknowledgement");
         Ok(())
+    }
+}
+
+async fn heartbeat_task(
+    mut sender: UnboundedSender<Direction>,
+    sequence_number: Arc<Mutex<Option<i32>>>,
+    interval: u64,
+    heartbeat_confirmed: Arc<AtomicBool>,
+) {
+    let rs: Result<(), SendError> = try {
+        loop {
+            tokio::time::delay_for(Duration::from_millis(interval)).await;
+
+            //if the channel was closed, it means the shard closed and dropped the receiver
+            //therefore this heartbeat task is not needed anymore and a new one will be
+            //created
+            //since the channel is already closed, we directly return from the function
+            if sender.is_closed() {
+                trace!("Channel was closed, stopping heartbeat thread");
+                return;
+            }
+
+            if !heartbeat_confirmed.load(Ordering::Relaxed) {
+                warn!("Zombied connection detected, shutting down connection");
+                break;
+            }
+
+            sender.send(Direction::Send(Heartbeat(*sequence_number.lock().await).into())).await?;
+            heartbeat_confirmed.store(false, Ordering::Relaxed);
+
+            trace!("Successfully sent heartbeat");
+        }
+    };
+
+    if let Err(err) = rs {
+        error!("Heartbeat thread failed ({}), shutting down connection", err.to_string());
+    }
+
+    let shutdown: Result<(), SendError> = try {
+        sender.send(Direction::Shutdown).await?;
+        sender.close().await?;
+    };
+
+    if let Err(err) = shutdown {
+        error!("Failed to close channel: {}", err.to_string());
     }
 }
