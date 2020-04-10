@@ -88,6 +88,21 @@ impl Context {
         Ok(self.sender.send(Direction::Send(msg.into())).await?)
     }
 
+    /// Indicate a presence or status update.
+    pub async fn update_status(&mut self, data: UpdateStatus) -> Result<(), Error> {
+        self.send(data).await
+    }
+
+    /// Join, move or disconnect from a voice channel.
+    pub async fn update_voice_state(&mut self, data: UpdateVoiceState) -> Result<(), Error> {
+        self.send(data).await
+    }
+
+    /// Request members of a guild.
+    pub async fn request_guild_members(&mut self, data: RequestGuildMembers) -> Result<(), Error> {
+        self.send(data).await
+    }
+
     /// The user object of the bot.
     #[inline]
     pub fn bot(&self) -> &User {

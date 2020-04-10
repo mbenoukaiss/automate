@@ -282,7 +282,7 @@ pub struct UpdateStatus {
 #[payload(op = 4, client)]
 pub struct UpdateVoiceState {
     pub guild_id: Snowflake,
-    pub channel_id: Snowflake,
+    pub channel_id: Option<Snowflake>,
     pub self_mute: bool,
     pub self_deaf: bool,
 }
@@ -301,7 +301,7 @@ pub struct Reconnect;
 pub struct RequestGuildMembers {
     pub guild_id: Snowflake,
     pub query: Option<String>,
-    pub limit: Option<i32>,
+    pub limit: i32,
     pub presences: Option<bool>,
     pub user_ids: Vec<Snowflake>,
 }
