@@ -8,7 +8,6 @@ use crate::{map, Error, Configuration};
 use crate::http::HttpAPI;
 use crate::encode::json;
 use crate::events::ListenerType;
-use std::thread;
 use std::time::Duration;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -20,6 +19,8 @@ use futures::channel::mpsc;
 use futures::channel::mpsc::SendError;
 use futures::channel::mpsc::UnboundedSender;
 use tungstenite::Message as TkMessage;
+use chrono::NaiveDateTime;
+use std::cell::RefCell;
 
 macro_rules! call_dispatcher {
     ($data:ident as $payload:ty => $self:ident.$method:ident) => {{
@@ -62,30 +63,12 @@ macro_rules! dispatcher {
     }
 }
 
-struct Delayer {
-    delay: usize
-}
-
-impl Delayer {
-    const DELAYS: [u64; 10] = [5, 5, 5, 15, 30, 60, 120, 120, 300, 600];
-
-    fn new() -> Delayer {
-        Delayer {
-            delay: 0
-        }
-    }
-
-    fn delay(&mut self) {
-        thread::sleep(Duration::from_secs(Delayer::DELAYS[self.delay]));
-
-        if self.delay < 9 {
-            self.delay += 1;
-        }
-    }
-
-    fn reset(&mut self) {
-        self.delay = 0
-    }
+tokio::task_local! {
+    /// Rate-limit for gateway
+    /// Since gateway allow 120 events every 60 seconds, we're
+    /// storing the number of remaining events and the time at
+    /// which it will reset.
+    static RATE_LIMIT: RefCell<(i32, NaiveDateTime)>;
 }
 
 /// Context about the current gateway session.
@@ -107,9 +90,11 @@ impl Context {
             new_listeners: Vec::new()
         }    
     }
-    
+
+    /// Sends a message to Discord through the websocket.
+    /// The message must be a valid payload.
     #[inline]
-    pub async fn send<M: Into<TkMessage>>(&mut self, msg: M) -> Result<(), Error> {
+    async fn send<M: Into<TkMessage>>(&mut self, msg: M) -> Result<(), Error> {
         Ok(self.sender.send(msg.into()).await?)
     }
 
@@ -120,11 +105,14 @@ impl Context {
         self.new_listeners.append(&mut listeners);
     }
 
+    /// The user object of the bot.
     #[inline]
     pub fn bot(&self) -> &User {
         self.bot.as_ref().unwrap()
     }
 
+    /// Creates a link to invite the bot to a discord server
+    /// and give him the specified permissions.
     #[inline]
     pub fn invite_bot(&self, permission: u32) -> String {
         format!("https://discordapp.com/oauth2/authorize?client_id={}&scope=bot&permissions={}", self.bot().id, permission)
@@ -147,8 +135,8 @@ enum Direction {
 }
 
 /// Communicates with Discord's gateway
-pub(crate) struct GatewayAPI {
-    config: Configuration,
+pub(crate) struct GatewayAPI<'a> {
+    config: &'a mut Configuration,
     session_id: Option<String>,
     sequence_number: Arc<Mutex<Option<i32>>>,
     heartbeat_confirmed: Arc<AtomicBool>,
@@ -157,13 +145,11 @@ pub(crate) struct GatewayAPI {
     bot: Option<Arc<User>>,
 }
 
-impl GatewayAPI {
+impl<'a> GatewayAPI<'a> {
     /// Establishes a connection to Discord's
     /// gateway and calls the provided listeners
     /// when receiving an event.
-    pub(crate) async fn connect(config: Configuration, url: String) {
-        let mut delayer = Delayer::new();
-
+    pub(crate) async fn connect(mut config: Configuration, url: String) {
         let http = Arc::new(HttpAPI::new(&config.token));
         let sequence_number = Arc::new(Mutex::new(None));
         let mut session_id = None;
@@ -174,7 +160,7 @@ impl GatewayAPI {
                 let (socket, _) = tktungstenite::connect_async(&url).await?;
 
                 let mut gateway = GatewayAPI {
-                    config: config.clone(),
+                    config: &mut config,
                     session_id: None,
                     sequence_number: Arc::clone(&sequence_number),
                     heartbeat_confirmed: Arc::new(AtomicBool::new(true)),
@@ -198,7 +184,6 @@ impl GatewayAPI {
                 select.get_mut().0.close().await?;
 
                 session_id = gateway.session_id;
-                delayer.reset();
             };
 
             if let Err(err) = execution {
@@ -206,8 +191,6 @@ impl GatewayAPI {
             } else {
                 error!("Connection interrupted");
             }
-
-            delayer.delay();
 
             if let Some(sid) = session_id.as_ref() {
                 info!("Attempting to resume session {} with sequence_number: {}", sid, sequence_number.lock().await.unwrap());

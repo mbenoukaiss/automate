@@ -24,7 +24,7 @@ impl Log for QuickLogger {
 
         let time = Local::now().format("%Y-%m-%d %H:%M:%S");
 
-        TASK_NAME.with(|task_name| {
+        let result = TASK_NAME.try_with(|task_name| {
             println!(
                 "{} in {}({}) [{}]: {}",
                 time,
@@ -34,6 +34,16 @@ impl Log for QuickLogger {
                 record.args()
             );
         });
+
+        if result.is_err() {
+            println!(
+                "{} in {}(unknown) [{}]: {}",
+                time,
+                record.target(),
+                record.level(),
+                record.args()
+            );
+        }
     }
 
     fn flush(&self) {}

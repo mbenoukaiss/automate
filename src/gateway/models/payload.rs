@@ -249,6 +249,13 @@ pub struct WebhooksUpdateDispatch {
     pub channel_id: Snowflake,
 }
 
+/// This payload is not actually sent by discord.
+/// It will be dispatched by the library when the states
+/// are about to be dropped because the connexion with
+/// the gateway API was interrupted.
+#[payload(op = 0, event = "SHUTDOWN", server)]
+pub struct ShutdownDispatch;
+
 #[payload(op = 1, client)]
 pub struct Heartbeat(pub Option<i32>);
 

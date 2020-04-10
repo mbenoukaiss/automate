@@ -7,7 +7,7 @@ use crate::{Error, Snowflake};
 use std::borrow::Cow;
 
 lazy_static::lazy_static! {
-    /// Global rate-limit buckets storage.
+    /// Rate-limit buckets storage.
     /// Associates the bot token, the bucket id and the
     /// major parameter to the bucket data provided
     /// by Discord.
