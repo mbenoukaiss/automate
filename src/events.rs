@@ -730,7 +730,7 @@ impl<T> StatefulListenerStorage<T> {
                 StatefulListener::VoiceStateUpdate(l) => self.voice_state_update.push(l),
                 StatefulListener::VoiceServerUpdate(l) => self.voice_server_update.push(l),
                 StatefulListener::WebhooksUpdate(l) => self.webhooks_update.push(l),
-                
+
                 StatefulListener::ReadyMut(l) => self.ready_mut.push(l),
                 StatefulListener::ChannelCreateMut(l) => self.channel_create_mut.push(l),
                 StatefulListener::ChannelUpdateMut(l) => self.channel_update_mut.push(l),
