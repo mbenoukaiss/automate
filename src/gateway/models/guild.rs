@@ -1,20 +1,21 @@
 use crate::gateway::{User, PartialUser, PartialVoiceState, Channel};
-use crate::Snowflake;
+use crate::{Snowflake, Nullable};
 
 #[object(server)]
 pub struct Guild {
     pub id: Snowflake,
     pub name: String,
-    pub icon: Option<String>,
-    pub splash: Option<String>,
+    pub icon: Nullable<String>,
+    pub splash: Nullable<String>,
+    pub discovery_splash: Nullable<String>,
     pub owner: Option<bool>,
     pub owner_id: Snowflake,
     pub permissions: Option<u32>,
     pub region: String,
-    pub afk_channel_id: Option<Snowflake>,
+    pub afk_channel_id: Nullable<Snowflake>,
     pub afk_timeout: i32,
     pub embed_enabled: Option<bool>,
-    pub embed_channel_id: Option<Snowflake>,
+    pub embed_channel_id: Option<Nullable<Snowflake>>,
     pub verification_level: VerificationLevel,
     pub default_message_notifications: MessageNotificationLevel,
     pub explicit_content_filter: ExplicitContentFilterLevel,
@@ -22,10 +23,10 @@ pub struct Guild {
     pub emojis: Vec<Emoji>,
     pub features: Vec<GuildFeature>,
     pub mfa_level: MFALevel,
-    pub application_id: Option<Snowflake>,
+    pub application_id: Nullable<Snowflake>,
     pub widget_enabled: Option<bool>,
-    pub widget_channel_id: Option<Snowflake>,
-    pub system_channel_id: Option<Snowflake>,
+    pub widget_channel_id: Option<Nullable<Snowflake>>,
+    pub system_channel_id: Option<Nullable<Snowflake>>,
     pub joined_at: Option<String>,
     pub large: Option<bool>,
     pub unavailable: Option<bool>,
@@ -34,15 +35,16 @@ pub struct Guild {
     pub members: Option<Vec<GuildMember>>,
     pub channels: Option<Vec<Channel>>,
     pub presences: Option<Vec<PartialPresenceUpdate>>,
-    pub max_presences: Option<i32>,
+    pub max_presences: Option<Nullable<i32>>,
     pub max_members: Option<i32>,
-    pub vanity_url_code: Option<String>,
-    pub description: Option<String>,
-    pub banner: Option<String>,
+    pub vanity_url_code: Nullable<String>,
+    pub description: Nullable<String>,
+    pub banner: Nullable<String>,
     pub premium_tier: PremiumTier,
     pub premium_subscription_count: Option<i32>,
     pub preferred_locale: String,
-    pub rules_channel_id: Option<Snowflake>
+    pub rules_channel_id: Nullable<Snowflake>,
+    pub public_updates_channel_id: Nullable<Snowflake>,
 }
 
 #[object(server)]
@@ -50,13 +52,13 @@ pub struct PartialGuild {
     pub id: Snowflake,
     pub name: String,
     pub icon: Option<String>,
-    pub splash: Option<String>
+    pub splash: Option<String>,
 }
 
 #[object(server)]
 pub struct UnavailableGuild {
     pub id: Snowflake,
-    pub unavailable: bool
+    pub unavailable: bool,
 }
 
 #[convert(u32)]
@@ -99,7 +101,7 @@ pub enum VerificationLevel {
     Low = 1,
     Medium = 2,
     High = 3,
-    VeryHigh = 4
+    VeryHigh = 4,
 }
 
 #[convert(u8)]
@@ -112,7 +114,7 @@ pub enum MessageNotificationLevel {
 pub enum ExplicitContentFilterLevel {
     Disabled = 0,
     MembersWithoutRoles = 1,
-    AllMembers = 2
+    AllMembers = 2,
 }
 
 #[stringify(upper_snake_case)]
@@ -128,7 +130,7 @@ pub enum GuildFeature {
     Discoverable,
     Featurable,
     AnimatedIcon,
-    Banner
+    Banner,
 }
 
 #[convert(u8)]
@@ -154,7 +156,7 @@ pub struct Role {
     pub position: i32,
     pub permissions: u32,
     pub managed: bool,
-    pub mentionable: bool
+    pub mentionable: bool,
 }
 
 #[object(server)]
@@ -165,25 +167,25 @@ pub struct PartialRole {
 
 #[object(both)]
 pub struct Emoji {
-    pub id: Option<Snowflake>,
+    pub id: Nullable<Snowflake>,
     pub name: String,
     pub roles: Option<Vec<Role>>,
     pub user: Option<User>,
     pub require_colons: Option<bool>,
     pub managed: Option<bool>,
     pub animated: Option<bool>,
-    pub available: bool
+    pub available: bool,
 }
 
 #[object(both)]
 pub struct PartialEmoji {
-    pub id: Option<Snowflake>,
+    pub id: Nullable<Snowflake>,
     pub name: String,
     pub roles: Option<Vec<Role>>,
     pub user: Option<User>,
     pub require_colons: Option<bool>,
     pub managed: Option<bool>,
-    pub animated: Option<bool>
+    pub animated: Option<bool>,
 }
 
 #[object(server)]
@@ -192,10 +194,10 @@ pub struct GuildMember {
     pub nick: Option<String>,
     pub roles: Vec<Snowflake>,
     pub joined_at: String,
-    pub premium_since: Option<String>,
+    pub premium_since: Option<Nullable<String>>,
     pub hoisted_role: Option<Snowflake>,
     pub deaf: bool,
-    pub mute: bool
+    pub mute: bool,
 }
 
 #[object(server)]
@@ -204,10 +206,10 @@ pub struct PartialGuildMember {
     pub nick: Option<String>,
     pub roles: Vec<Snowflake>,
     pub joined_at: String,
-    pub premium_since: Option<String>,
+    pub premium_since: Option<Nullable<String>>,
     pub hoisted_role: Option<Snowflake>,
     pub deaf: bool,
-    pub mute: bool
+    pub mute: bool,
 }
 
 /// A user's presence is their current state on a guild.
@@ -226,14 +228,14 @@ pub struct PartialGuildMember {
 #[object(server)]
 pub struct PresenceUpdate {
     pub user: PartialUser,
-    pub nick: Option<String>,
+    pub nick: Option<Nullable<String>>,
     pub roles: Vec<Snowflake>,
-    pub game: Option<Activity>,
+    pub game: Nullable<Activity>,
     pub guild_id: Snowflake,
     pub status: String,
     pub activities: Vec<Activity>,
     pub client_status: ClientStatus,
-    pub premium_since: Option<String>
+    pub premium_since: Option<Nullable<String>>,
 }
 
 /// A user's presence is their current state on a guild.
@@ -252,12 +254,14 @@ pub struct PresenceUpdate {
 #[object(server)]
 pub struct PartialPresenceUpdate {
     pub user: Option<PartialUser>,
+    pub nick: Option<Nullable<String>>,
     pub roles: Option<Vec<Snowflake>>,
     pub game: Option<Activity>,
     pub guild_id: Option<Snowflake>,
     pub status: Option<String>,
     pub activities: Option<Vec<Activity>>,
-    pub client_status: Option<ClientStatus>
+    pub client_status: Option<ClientStatus>,
+    pub premium_since: Option<Nullable<String>>,
 }
 
 /// Active sessions are indicated with an "online",
@@ -270,7 +274,7 @@ pub struct PartialPresenceUpdate {
 pub struct ClientStatus {
     pub desktop: Option<String>,
     pub mobile: Option<String>,
-    pub web: Option<String>
+    pub web: Option<String>,
 }
 
 /// A user's displayed activity.
@@ -278,16 +282,17 @@ pub struct ClientStatus {
 /// More information on [Discord's documentation](https://discordapp.com/developers/docs/topics/gateway#activity-object)
 #[object(both)]
 pub struct Activity {
-    pub id: String,
     pub name: String,
     #[serde(rename = "type")]
     pub _type: ActivityType,
-    pub url: Option<String>,
+    pub url: Option<Nullable<String>>,
+
+    /* Bots are only allowed to send name, type and optionally URL
     pub timestamps: Option<ActivityTimestamps>,
     pub application_id: Option<Snowflake>,
-    pub details: Option<String>,
-    pub state: Option<String>,
-    pub emoji: Option<PartialEmoji>,
+    pub details: Option<Nullable<String>>,
+    pub state: Option<Nullable<String>>,
+    pub emoji: Option<Nullable<PartialEmoji>>,
     pub party: Option<ActivityParty>,
     pub assets: Option<ActivityAssets>,
     pub secrets: Option<ActivitySecrets>,
@@ -296,6 +301,7 @@ pub struct Activity {
     pub sync_id: Option<String>,
     pub session_id: Option<String>,
     pub created_at: u64
+    */
 }
 
 #[convert(u8)]
@@ -303,7 +309,7 @@ pub enum ActivityType {
     Game = 0,
     Streaming = 1,
     Listening = 2,
-    Custom = 4
+    Custom = 4,
 }
 
 #[convert(u32)]
@@ -323,14 +329,14 @@ pub enum ActivityFlags {
 #[object(both)]
 pub struct ActivityTimestamps {
     pub start: Option<u64>,
-    pub end: Option<u64>
+    pub end: Option<u64>,
 }
 
 /// More information on [Discord's documentation](https://discordapp.com/developers/docs/topics/gateway#activity-object-activity-party)
 #[object(both)]
 pub struct ActivityParty {
     pub id: Option<String>,
-    pub size: Option<[i32; 2]>
+    pub size: Option<[i32; 2]>,
 }
 
 /// More information on [Discord's documentation](https://discordapp.com/developers/docs/topics/gateway#activity-object-activity-assets)
@@ -353,5 +359,5 @@ pub struct ActivitySecrets {
 #[object(both)]
 pub struct Ban {
     pub user: User,
-    pub reason: Option<String>
+    pub reason: Nullable<String>,
 }

@@ -1,5 +1,5 @@
 use crate::gateway::PartialGuildMember;
-use crate::Snowflake;
+use crate::{Snowflake, Nullable};
 
 /// Users in Discord are generally considered the
 /// base entity. Users can spawn across the entire
@@ -18,7 +18,7 @@ pub struct User {
     pub id: Snowflake,
     pub username: String,
     pub discriminator: String,
-    pub avatar: Option<String>,
+    pub avatar: Nullable<String>,
     pub bot: Option<bool>,
     pub mfa_enabled: Option<bool>,
     pub locale: Option<String>,
@@ -30,14 +30,12 @@ pub struct User {
 
 /// A [User] object with all fields optional
 /// except for  ̀id`.
-///
-/// More information on [Discord's documentation](https://discordapp.com/developers/docs/topics/gateway#presence-update)
 #[object(server)]
 pub struct PartialUser {
     pub id: Snowflake,
     pub username: Option<String>,
     pub discriminator: Option<String>,
-    pub avatar: Option<String>,
+    pub avatar: Option<Nullable<String>>,
     pub bot: Option<bool>,
     pub mfa_enabled: Option<bool>,
     pub locale: Option<String>,
@@ -53,7 +51,7 @@ pub struct MentionnedUser {
     pub member: PartialGuildMember,
     pub username: String,
     pub discriminator: String,
-    pub avatar: Option<String>,
+    pub avatar: Nullable<String>,
     pub bot: Option<bool>,
     pub mfa_enabled: Option<bool>,
     pub locale: Option<String>,

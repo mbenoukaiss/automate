@@ -328,6 +328,8 @@ pub use lazy_static;
 pub use tokio;
 
 #[doc(inline)]
+pub use encode::json::Nullable;
+#[doc(inline)]
 pub use events::Listener;
 #[doc(inline)]
 pub use http::HttpAPI;
@@ -348,6 +350,7 @@ use tokio::runtime::Runtime;
 use std::env;
 use log::LevelFilter;
 use std::future::Future;
+use crate::gateway::UpdateStatus;
 
 /// Allows specifying API token, registering
 /// stateful and stateless listeners, stating
@@ -373,13 +376,16 @@ use std::future::Future;
 /// ```
 #[derive(Clone)]
 pub struct Configuration {
-    shard_id: Option<i32>,
-    total_shards: Option<i32>,
+    shard_id: Option<u32>,
+    total_shards: Option<u32>,
     token: String,
     logging: bool,
     log_level: LevelFilter,
     listeners: ListenerStorage,
     intents: Option<u32>,
+    member_threshold: Option<u32>,
+    presence: Option<UpdateStatus>,
+    guild_subscriptions: Option<bool>
 }
 
 impl Configuration {
@@ -398,6 +404,9 @@ impl Configuration {
             log_level: LevelFilter::Info,
             listeners: ListenerStorage::default(),
             intents: None,
+            member_threshold: None,
+            presence: None,
+            guild_subscriptions: None,
         }
     }
 
@@ -421,7 +430,7 @@ impl Configuration {
     /// or [Automate::launch](automate::Automate::launch) to
     /// launch the bot, you should not use this function
     /// since it is done automatically.
-    pub fn shard(&mut self, shard_id: i32, total_shards: i32) -> &mut Self {
+    pub fn shard(&mut self, shard_id: u32, total_shards: u32) -> &mut Self {
         self.shard_id = Some(shard_id);
         self.total_shards = Some(total_shards);
         self
@@ -492,6 +501,34 @@ impl Configuration {
     /// ```
     pub fn intents(mut self, intents: u32) -> Self {
         self.intents = Some(intents);
+        self
+    }
+
+    /// Number of members where the gateway will stop sending offline members
+    /// in the guild member list. The value must be between 50 and 250.
+    ///
+    /// If not set, the value will default to 50.
+    pub fn member_threshold(mut self, threshold: u32) -> Self {
+        self.member_threshold = Some(threshold);
+        self
+    }
+
+    /// Sets the presence of the bot.
+    ///
+    /// This can later be modified using the
+    /// [update_status](automate::Context::update_status)
+    /// gateway command.
+    pub fn presence(mut self, presence: UpdateStatus) -> Self {
+        self.presence = Some(presence);
+        self
+    }
+
+    /// Enables dispatching of guild subscription events
+    /// (presence and typing events).
+    ///
+    /// Defaults to true.
+    pub fn guild_subscriptions(mut self, enabled: bool) -> Self {
+        self.guild_subscriptions = Some(enabled);
         self
     }
 }

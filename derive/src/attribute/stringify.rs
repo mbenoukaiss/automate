@@ -100,12 +100,20 @@ pub fn stringify(metadata: TokenStream, item: TokenStream) -> TokenStream {
         impl #impl_generics ::automate::encode::AsJson for #struct_name #ty_generics #where_clause {
             #[cfg_attr(feature = "aggressive-inlining", inline)]
             fn as_json(&self) -> String {
-                self.as_string().to_owned()
+                let mut json = String::with_capacity(self.as_string().len() + 2);
+                json.push('"');
+                json.push_str(self.as_string());
+                json.push('"');
+
+                json
             }
 
             #[cfg_attr(feature = "aggressive-inlining", inline)]
             fn concat_json(&self, dest: &mut String) {
+                dest.reserve(self.as_string().len() + 2);
+                dest.push('"');
                 dest.push_str(self.as_string());
+                dest.push('"');
             }
         }
     }));

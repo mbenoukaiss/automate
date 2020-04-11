@@ -6,8 +6,8 @@ use std::time::Duration;
 
 pub struct ShardManager {
     config: Configuration,
-    total_shards: i32,
-    recommended_shards: i32,
+    total_shards: u32,
+    recommended_shards: u32,
     gateway_url: String,
     managed_shards: Vec<JoinHandle<()>>,
 }
@@ -26,7 +26,7 @@ impl ShardManager {
         }
     }
 
-    pub fn set_total_shards(&mut self, total_shards: i32) -> &mut Self {
+    pub fn set_total_shards(&mut self, total_shards: u32) -> &mut Self {
         if !self.managed_shards.is_empty() {
             panic!("Changing total shards count after a shard has been launched is forbidden");
         }
@@ -35,7 +35,7 @@ impl ShardManager {
         self
     }
 
-    pub fn setup(&mut  self, shard_id: i32) -> &mut Self {
+    pub fn setup(&mut  self, shard_id: u32) -> &mut Self {
         let url = self.gateway_url.clone();
         let mut config = self.config.clone();
         config.shard(shard_id, self.total_shards);
@@ -75,16 +75,16 @@ impl ShardManager {
         }
     }
 
-    pub fn recommended_shards(&self) -> i32 {
+    pub fn recommended_shards(&self) -> u32 {
         self.recommended_shards
     }
 
-    pub fn total_shards(&self) -> i32 {
+    pub fn total_shards(&self) -> u32 {
         self.total_shards
     }
 
-    pub fn shard_id(&self, guild_id: Snowflake) -> i32 {
-        ((guild_id.0 >> 22) % self.total_shards as u64) as i32
+    pub fn shard_id(&self, guild_id: Snowflake) -> u32 {
+        ((guild_id.0 >> 22) % self.total_shards as u64) as u32
     }
 
 }
