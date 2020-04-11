@@ -62,6 +62,56 @@ macro_rules! dispatcher {
     }
 }
 
+/// Helps avoid spamming connections to Discord
+/// in case the bots is constantly getting
+/// disconnected by the gateway API since the bot
+/// is only allowed 1000 connections per day or
+/// a bit more than 41 per hour.
+struct Delayer {
+    attempts: u32
+}
+
+impl Delayer {
+    fn new() -> Delayer {
+        Delayer {
+            attempts: 0
+        }
+    }
+
+    /// Delays based on the amount of previous failed
+    /// connexion attempts.
+    async fn delay(&self, session_id: &Option<String>) {
+        let delay = match self.attempts {
+            0 => 0,
+            1 => 5,
+            2 | 3 => 30,
+            4 | 5 => 60,
+            6..=10 => 120,
+            _ => 600
+        };
+
+        if let Some(sid) = session_id.as_ref() {
+            info!("Attempting to resume session {} in {} seconds", sid, delay);
+        } else {
+            info!("Attempting to reconnect in {} seconds", delay);
+        }
+
+        tokio::time::delay_for(Duration::from_millis(delay * 1000)).await
+    }
+
+    /// Call this function when the previous connection
+    /// returned an error or was judged invalid.
+    fn failure(&mut self) {
+        self.attempts += 1;
+    }
+
+    /// Call this when the previous connection was disconnected
+    /// in order to reconnect.
+    fn reset(&mut self) {
+        self.attempts = 0;
+    }
+}
+
 /// Context about the current gateway session.
 /// Provides a way to interact with Discord HTTP API
 /// by dereferencing to [HttpAPI](automate::http::HttpAPI).
@@ -150,6 +200,8 @@ impl<'a> GatewayAPI<'a> {
     /// gateway and calls the provided listeners
     /// when receiving an event.
     pub(crate) async fn connect(mut config: Configuration, url: String) {
+        let mut delayer = Delayer::new();
+
         let http = Arc::new(HttpAPI::new(&config.token));
         let sequence_number = Arc::new(Mutex::new(None));
         let mut session_id = None;
@@ -188,15 +240,22 @@ impl<'a> GatewayAPI<'a> {
                 session_id = gateway.session_id;
             };
 
+            // if there was an error, there's probably a problem with the bot and it should
+            // therefore not try to reconnect immediately. if the session_id is empty, either
+            // the bot didn't make it to the end of the identify or it received an invalid session
+            // in both cases it should try to delay because the bot is probably doing something
+            // wrong
+            if execution.is_err() || session_id.is_none() {
+                delayer.failure();
+            } else {
+                delayer.reset(); //else everything went correctly and it's probably just a reconnect
+            }
+
             if let Err(err) = execution {
                 error!("Connection was interrupted with '{}'", err.msg);
             }
 
-            if let Some(sid) = session_id.as_ref() {
-                info!("Attempting to resume session {} with sequence_number: {}", sid, sequence_number.lock().await.unwrap());
-            } else {
-                info!("Attempting to reconnect");
-            }
+            delayer.delay(&session_id).await
         }
     }
 
