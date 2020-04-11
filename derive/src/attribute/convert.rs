@@ -37,10 +37,22 @@ pub fn convert(metadata: TokenStream, item: TokenStream) -> TokenStream {
         compile_error!( "Convert attribute only works on enums")
     }
 
-    let mut output: TokenStream = quote!(#[derive(Clone, Debug, ::serde_repr::Deserialize_repr)]#[repr(#convertion_type)]).into();
+    let mut output = TokenStream::from(quote!(#[derive(Clone, Debug)]));
     output.extend(cloned_item);
 
     output.extend(TokenStream::from(quote! {
+        impl<'de> ::serde::Deserialize<'de> for #struct_name {
+            #[allow(non_upper_case_globals)]
+            fn deserialize<D>(deserializer: D) -> ::core::result::Result<Self, D::Error> where D: ::serde::Deserializer<'de> {
+                #(const #fields_ident: #convertion_type = #fields_expr;)*
+
+                match <#convertion_type as ::serde::Deserialize>::deserialize(deserializer)? {
+                    #(#fields_ident => ::core::result::Result::Ok(#struct_name #ty_generics :: #fields_ident),)*
+                    other => ::core::result::Result::Err(serde::de::Error::custom(format!("No variant of {} found for {}", stringify!(#struct_name #ty_generics), other)))    ,
+                }
+            }
+        }
+
         impl #impl_generics #struct_name #ty_generics #where_clause {
             fn #as_method_name(&self) -> #convertion_type {
                 match self {
