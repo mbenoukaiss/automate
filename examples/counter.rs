@@ -5,13 +5,12 @@
 #[macro_use]
 extern crate automate;
 
-use automate::{Context, Error, Snowflake, Configuration, Automate};
+use automate::{Context, Error, Snowflake, Configuration, Nullable, Automate};
 use automate::gateway::{MessageCreateDispatch, UpdateStatus, StatusType, Activity, ActivityType};
 use automate::http::CreateMessage;
 use automate::events::{Initializable, StatefulListener};
 use automate::log::LevelFilter;
 use std::collections::HashMap;
-use automate::encode::json::Nullable;
 
 #[derive(State, Default, Clone)]
 struct MessageCounter {
