@@ -106,7 +106,7 @@ pub struct GuildMemberUpdateDispatch {
     pub guild_id: Snowflake,
     pub roles: Vec<Snowflake>,
     pub user: User,
-    pub nick: String,
+    pub nick: Option<String>,
 }
 
 /// Sent in response to [RequestGuildMembers](RequestGuildMembers)
@@ -226,8 +226,8 @@ pub struct TypingStartDispatch {
     pub guild_id: Option<Snowflake>,
     pub channel_id: Snowflake,
     pub user_id: Snowflake,
-    pub member: GuildMember,
     pub timestamp: u32,
+    pub member: Option<GuildMember>,
 }
 
 #[payload(op = 0, event = "USER_UPDATE", server)]
