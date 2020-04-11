@@ -1,4 +1,4 @@
-use crate::{Error, Snowflake};
+use crate::{Error, Snowflake, Nullable};
 use crate::gateway::*;
 use crate::http::*;
 use percent_encoding::NON_ALPHANUMERIC;
@@ -54,7 +54,7 @@ impl ExtractSnowflake for Snowflake {
 
 impl ExtractSnowflake for Emoji {
     fn extract_snowflake(&self) -> Result<Snowflake, Error> {
-        if let Some(id) = self.id {
+        if let Nullable::Value(id) = self.id {
             Ok(id)
         } else {
             Error::err("Emoji's id field is empty")
@@ -64,7 +64,7 @@ impl ExtractSnowflake for Emoji {
 
 impl ExtractSnowflake for PartialEmoji {
     fn extract_snowflake(&self) -> Result<Snowflake, Error> {
-        if let Some(id) = self.id {
+        if let Nullable::Value(id) = self.id {
             Ok(id)
         } else {
             Error::err("Emoji's id field is empty")
@@ -97,7 +97,7 @@ impl WriteUrl for Emoji {
         buf.reserve(self.name.len());
         buf.write_fmt(format_args!("{}", penc))?;
 
-        if let Some(id) = self.id {
+        if let Nullable::Value(id) = self.id {
             buf.push(':');
             buf.push_str(&id.to_string());
         }
@@ -113,7 +113,7 @@ impl WriteUrl for PartialEmoji {
         buf.reserve(self.name.len());
         buf.write_fmt(format_args!("{}", penc))?;
 
-        if let Some(id) = self.id {
+        if let Nullable::Value(id) = self.id {
             buf.push(':');
             buf.push_str(&id.to_string());
         }

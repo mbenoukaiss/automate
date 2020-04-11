@@ -6,11 +6,12 @@
 extern crate automate;
 
 use automate::{Context, Error, Snowflake, Configuration, Automate};
-use automate::gateway::MessageCreateDispatch;
+use automate::gateway::{MessageCreateDispatch, UpdateStatus, StatusType, Activity, ActivityType};
 use automate::http::CreateMessage;
 use automate::events::{Initializable, StatefulListener};
 use automate::log::LevelFilter;
 use std::collections::HashMap;
+use automate::encode::json::Nullable;
 
 #[derive(State, Default, Clone)]
 struct MessageCounter {
@@ -61,6 +62,16 @@ fn main() {
     let config = Configuration::from_env("DISCORD_API_TOKEN")
         .enable_logging()
         .log_level(LevelFilter::Info)
+        .presence(UpdateStatus {
+            status: StatusType::Dnd,
+            afk: false,
+            game: Nullable::Value(Activity {
+                name: String::from("Counting messages..."),
+                _type: ActivityType::Game,
+                url: None
+            }),
+            since: Nullable::Null
+        })
         .register(stateful!(MessageCounter::default()));
 
     Automate::launch(config);

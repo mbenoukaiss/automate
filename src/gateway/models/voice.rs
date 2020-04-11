@@ -1,10 +1,10 @@
 use crate::gateway::GuildMember;
-use crate::Snowflake;
+use crate::{Snowflake, Nullable};
 
 #[object(server)]
 pub struct VoiceState {
     pub guild_id: Option<Snowflake>,
-    pub channel_id: Option<Snowflake>,
+    pub channel_id: Nullable<Snowflake>,
     pub user_id: Snowflake,
     pub member: GuildMember,
     pub session_id: String,
@@ -17,7 +17,7 @@ pub struct VoiceState {
 
 #[object(server)]
 pub struct PartialVoiceState {
-    pub channel_id: Option<Snowflake>,
+    pub channel_id: Nullable<Snowflake>,
     pub user_id: Snowflake,
     pub member: GuildMember,
     pub session_id: String,

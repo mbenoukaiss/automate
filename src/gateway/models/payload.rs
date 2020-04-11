@@ -3,6 +3,7 @@ use crate::Snowflake;
 use std::collections::HashMap;
 use serde_json::Value;
 use std::ops::BitOr;
+use crate::encode::json::Nullable;
 
 /// A Discord Gateway API Payload.
 /// Contains the event data and the sequence
@@ -264,8 +265,8 @@ pub struct Identify {
     pub token: String,
     pub properties: HashMap<String, String>,
     pub compress: bool,
-    pub shard: [i32; 2],
-    pub large_threshold: Option<u8>,
+    pub shard: [u32; 2],
+    pub large_threshold: Option<u32>,
     pub presence: Option<UpdateStatus>,
     pub guild_subscriptions: Option<bool>,
     pub intents: Option<u32>,
@@ -273,8 +274,8 @@ pub struct Identify {
 
 #[payload(op = 3, client)]
 pub struct UpdateStatus {
-    pub since: Option<i32>,
-    pub game: Option<Activity>,
+    pub since: Nullable<i32>,
+    pub game: Nullable<Activity>,
     pub status: StatusType,
     pub afk: bool,
 }
@@ -282,7 +283,7 @@ pub struct UpdateStatus {
 #[payload(op = 4, client)]
 pub struct UpdateVoiceState {
     pub guild_id: Snowflake,
-    pub channel_id: Option<Snowflake>,
+    pub channel_id: Nullable<Snowflake>,
     pub self_mute: bool,
     pub self_deaf: bool,
 }

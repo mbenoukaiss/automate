@@ -1,5 +1,5 @@
 use crate::gateway::{User, Webhook, Overwrite, ChannelType, PartialRole};
-use crate::Snowflake;
+use crate::{Snowflake, Nullable};
 
 #[object(server)]
 pub struct AuditLog {
@@ -11,7 +11,7 @@ pub struct AuditLog {
 #[object(server)]
 pub struct AuditLogEntry {
     pub id: Snowflake,
-    pub target_id: Option<String>,
+    pub target_id: Nullable<String>,
     pub changes: Option<Vec<AuditLogChange>>,
     pub user_id: Snowflake,
     pub action_type: AuditLogEvent,

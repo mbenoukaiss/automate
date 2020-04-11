@@ -8,6 +8,7 @@ use crate::{map, Error, Configuration, logger};
 use crate::http::HttpAPI;
 use crate::encode::json;
 use crate::events::ListenerType;
+use std::env;
 use std::time::Duration;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -344,15 +345,15 @@ impl<'a> GatewayAPI<'a> {
             let identify = Identify {
                 token: self.http.token().clone(),
                 properties: map! {
-                    "$os" => "linux",
+                    "$os" => env::consts::OS,
                     "$browser" => "automate",
                     "$device" => "automate"
                 },
                 compress: false,
                 shard: [self.config.shard_id.unwrap(), self.config.total_shards.unwrap()],
-                large_threshold: None,
-                presence: None,
-                guild_subscriptions: Some(true),
+                large_threshold: self.config.member_threshold,
+                presence: self.config.presence.clone(),
+                guild_subscriptions: self.config.guild_subscriptions,
                 intents: self.config.intents,
             };
 

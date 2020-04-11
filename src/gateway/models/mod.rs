@@ -29,7 +29,7 @@ pub struct Gateway {
 #[object(server)]
 pub struct GatewayBot {
     pub url: String,
-    pub shards: i32,
+    pub shards: u32,
     pub session_start_limit: SessionStartLimit
 }
 
