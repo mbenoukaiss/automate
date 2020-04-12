@@ -1,4 +1,5 @@
 //! Tools to interact with Discord's gateway API
+#![allow(deprecated)]
 
 mod models;
 

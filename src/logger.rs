@@ -1,5 +1,5 @@
-use log::{Log, Metadata, Record, LevelFilter};
 use chrono::Local;
+use log::{Log, Metadata, Record, LevelFilter};
 use std::future::Future;
 
 tokio::task_local! {
@@ -10,11 +10,22 @@ pub(crate) async fn setup_for_task<S: Into<String>, F: Future>(name: S, future: 
     TASK_NAME.scope(name.into(), future).await
 }
 
-struct QuickLogger;
+#[derive(Debug)]
+struct QuickLogger {
+    levels: Vec<(String, LevelFilter)>
+}
 
 impl Log for QuickLogger {
-    fn enabled(&self, _: &Metadata) -> bool {
-        true
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        let target = metadata.target();
+
+        for (module, level) in &self.levels {
+            if (target.len() >= module.len() + 2 && &target[..module.len()] == module || &module[..module.len() - 2] == target) && metadata.level() <= *level {
+                return true;
+            }
+        }
+
+        false
     }
 
     fn log(&self, record: &Record) {
@@ -49,19 +60,32 @@ impl Log for QuickLogger {
     fn flush(&self) {}
 }
 
-static QUICK_LOGGER: QuickLogger = QuickLogger;
-
 /// Sets up a very basic logger that prints
 /// logs to stdout.
-#[deprecated(since = "0.3.1", note = "Logger is automatically set up, use `Configuration::log_level` and `Configuration::disable_logging` to configure it. Using this function may cause crashes.")]
+#[deprecated(since = "0.3.1", note = "Logger is automatically set up, use `Configuration::level_for` and `Configuration::disable_logging` to configure it. Using this function may cause crashes.")]
 pub fn setup_logging() {
-    log::set_logger(&QUICK_LOGGER).unwrap();
+    let logger = QuickLogger {
+        levels: Vec::new()
+    };
+
+    log::set_boxed_logger(Box::new(logger)).unwrap();
     log::set_max_level(LevelFilter::Info);
 }
 
 /// Sets up a very basic logger that prints
 /// logs to stdout.
-pub fn __internal_setup_logging(level: LevelFilter) {
-    log::set_logger(&QUICK_LOGGER).unwrap();
-    log::set_max_level(level);
+pub fn __internal_setup_logging(levels: Vec<(String, LevelFilter)>) {
+    let mut max_level = LevelFilter::Off;
+    for (_, level) in &levels {
+        if *level >= max_level {
+            max_level = *level;
+        }
+    }
+
+    let logger = QuickLogger {
+        levels
+    };
+
+    log::set_boxed_logger(Box::new(logger)).unwrap();
+    log::set_max_level(max_level);
 }

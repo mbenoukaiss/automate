@@ -1,4 +1,5 @@
 #![allow(unused_variables)]
+#![allow(deprecated)]
 //! Defines all the types and macros required to make
 //! and register listeners.
 //!
@@ -15,6 +16,7 @@ use std::future::Future;
 
 /// Parses a list of struct listeners before sending them to the
 /// [Configuration::register](automate::Configuration::register) method.
+#[deprecated(since = "0.3.1", note = "Use stateful listeners instead (see the doc)")]
 #[macro_export]
 macro_rules! structs {
     ($($listener:expr),*) => {
@@ -39,7 +41,13 @@ pub trait Initializable {
     fn initialize() -> Vec<StatefulListener<Self>> where Self: Sized;
 }
 
-/// Struct relaying events to its listeners.
+/// A stateful event listener.
+/// After an instance of a struct implementing
+/// this trait is registered, methods will be called
+/// when the library receives the corresponding events.
+///
+/// Structs implementing this listener must derive [Clone](std::clone::Clone) and
+/// [Initializable](automate::events::Initializable) in order to be registered.
 #[async_trait]
 pub trait State: StateClone + Send + 'static {
     async fn on_ready(&mut self, ctx: &mut Context, event: &ReadyDispatch);
@@ -106,6 +114,7 @@ impl Clone for Box<dyn State> {
 ///
 /// Structs implementing this listener must derive
 /// [Clone](std::clone::Clone).
+#[deprecated(since = "0.3.1", note = "Use stateful listeners instead (see the doc)")]
 #[async_trait]
 pub trait Listener: ListenerClone + Send + 'static {
     /// Method called when a [Ready](automate::gateway::ReadyDispatch) event is received.
