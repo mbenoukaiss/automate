@@ -60,7 +60,7 @@ impl MessageCounter {
 fn main() {
     let config = Configuration::from_env("DISCORD_API_TOKEN")
         .enable_logging()
-        .log_level(LevelFilter::Info)
+        .level_for("automate", LevelFilter::Trace)
         .presence(UpdateStatus {
             status: StatusType::Dnd,
             afk: false,

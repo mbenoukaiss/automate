@@ -83,8 +83,14 @@ fn generate_request(item: &ItemFn, args: Args, major_parameter: TokenStream2) ->
 
         match code {
             #status => #return_value,
-            429 => Error::err(format!("Reached rate limit for endpoint `{}`", stringify!(#fn_name))),
-            _ => Error::err(format!("Expected status code {}, got {} when requesting {}", #status, code, uri))
+            400 => Error::err(format!("Bad request (endpoint `̀{}`)", stringify!(#fn_name))),
+            401 => Error::err(format!("Authorization token was missing or invalid (endpoint `̀{}`)", stringify!(#fn_name))),
+            403 => Error::err(format!("Authorization token did not have the permission (endpoint `̀{}`)", stringify!(#fn_name))),
+            404 => Error::err(format!("Endpoint  ̀{}` not found", stringify!(#fn_name))),
+            405 => Error::err(format!("Method {} not allowed (endpoint `̀{}`)", stringify!(#method), stringify!(#fn_name))),
+            429 => Error::err(format!("Reached rate limit (endpoint `̀{}`)", stringify!(#fn_name))),
+            502 => Error::err(format!("Gateway unavailable (endpoint `̀{}`)", stringify!(#fn_name))),
+            _ => Error::err(format!("Expected status code {}, got {} when requesting {}", #status, code, uri)),
         }
     })
 }
@@ -110,10 +116,10 @@ struct Args {
     body: Option<String>,
     status: u16,
     #[darling(default)]
-    empty: bool
+    empty: bool,
 }
 
-impl  Args {
+impl Args {
     fn method(&self) -> Result<Ident, TokenStream> {
         if self.get {
             Ok(Ident::new("GET", Span::call_site()))
@@ -247,7 +253,7 @@ pub fn endpoint(metadata: TokenStream, item: TokenStream) -> TokenStream {
     for (name, _) in utils::read_function_arguments(&input.sig) {
         let str_name = name.to_string();
 
-        if &str_name == "guild" || &str_name == "channel" || &str_name == "webhook"{
+        if &str_name == "guild" || &str_name == "channel" || &str_name == "webhook" {
             major_parameter = quote!(Some(::automate::encode::ExtractSnowflake::extract_snowflake(&#name)?));
         }
     }

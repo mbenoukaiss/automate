@@ -25,14 +25,14 @@
 //! - [Configuration::enable_logging](automate::Configuration::enable_logging) and
 //! [Configuration::disable_logging](automate::Configuration::disable_logging) : Enable or
 //! disable Automate's built in logger. You can disable it and use your own logger if necessary.
-//! - [Configuration::log_level](automate::Configuration::log_level) : Sets the minimum log level
-//! for a line to be printed in the console output.
+//! - [Configuration::level_for](automate::Configuration::level_for) : Sets the minimum log level
+//! for a line to be printed in the console output for the given module.
 //! - [Configuration::intents](automate::Configuration::intents) : Sets the events which will
 //! be sent to the bot using [intents](automate::Intent). Defaults to all events.
+//! - [Configuration::presence](automate::Configuration::presence) : Sets the presence of the bot.
 //!
 //! The resulting configuration object can then be sent to
-//! [Automate::launch](automate::Automate::launch) for a basic setup or to the
-//! [ShardManager](automate::ShardManager) for larger bots requiring multiple shards.
+//! [Automate::launch](automate::Automate::launch) which will start the bot.
 //!
 //! # Listeners
 //! Discord sends various events through their API about messages, guild and
@@ -211,6 +211,16 @@
 //!
 //! More advanced examples can be found in the  ̀examples/counter.rs` example file.
 //!
+//! # Sharding
+//! Automate implements support for sharding through the [ShardManager](automate::ShardManager)
+//! struct. However, you will not need to use the [ShardManager](automate::ShardManager) directly
+//! in most cases since [Automate::launch](automate::Automate::launch) will automatically
+//! create as many shards as Discord recommends.
+//!
+//! The reasons you would need to use the [ShardManager](automate::ShardManager) are if you want
+//! to spread your bot across multiple servers or if you want to launch more or less
+//! shards than what Discord recommends.
+//!
 //! # Examples
 //! ```no_run
 //! use automate::{listener, stateless, Error, Context, Configuration, Automate};
@@ -256,7 +266,7 @@ pub mod events;
 pub mod http;
 pub mod encode;
 pub mod gateway;
-mod shard;
+pub mod sharding;
 mod snowflake;
 mod macros;
 mod errors;
@@ -330,6 +340,7 @@ pub use tokio;
 #[doc(inline)]
 pub use encode::json::Nullable;
 #[doc(inline)]
+#[allow(deprecated)]
 pub use events::Listener;
 #[doc(inline)]
 pub use http::HttpAPI;
@@ -340,7 +351,7 @@ pub use gateway::Intent;
 
 #[allow(deprecated)]
 pub use logger::setup_logging;
-pub use shard::ShardManager;
+pub use sharding::ShardManager;
 pub use snowflake::Snowflake;
 pub use errors::Error;
 
@@ -380,7 +391,7 @@ pub struct Configuration {
     total_shards: Option<u32>,
     token: String,
     logging: bool,
-    log_level: LevelFilter,
+    log_levels: Vec<(String, LevelFilter)>,
     listeners: ListenerStorage,
     intents: Option<u32>,
     member_threshold: Option<u32>,
@@ -401,7 +412,7 @@ impl Configuration {
             total_shards: None,
             token: token.into(),
             logging: true,
-            log_level: LevelFilter::Info,
+            log_levels: Vec::new(),
             listeners: ListenerStorage::default(),
             intents: None,
             member_threshold: None,
@@ -454,9 +465,16 @@ impl Configuration {
         self
     }
 
-    /// Sets the minimum log level.
-    pub fn log_level(mut self, level: LevelFilter) -> Self {
-        self.log_level = level;
+    /// Sets the minimum log level for the given module.
+    ///
+    /// By default, automate will be set to
+    /// [LevelFilter::Info](log::LevelFilter::Info) and its
+    /// dependencies won't log anything.
+    pub fn level_for<S: Into<String>>(mut self, module: S, min: LevelFilter) -> Self {
+        let mut module = module.into().replace('-', "_");
+        module.push_str("::");
+
+        self.log_levels.push((module, min));
         self
     }
 
@@ -537,17 +555,12 @@ impl Configuration {
 pub struct Automate;
 
 impl Automate {
-    /// Launches a basic bot with only 1 shard.
-    ///
-    /// If discord recommends using more than
-    /// one shard, this function will still
-    /// only launch one shard.
-    pub fn launch(mut config: Configuration) {
+    /// Launches a basic bot with the given configuration
+    /// and the amount of shards recommended by Discord.
+    pub fn launch(config: Configuration) {
         Automate::block_on(async move {
-            config.shard(0, 1);
-
             ShardManager::with_config(config).await
-                .setup(0)
+                .auto_setup()
                 .launch().await;
         });
     }

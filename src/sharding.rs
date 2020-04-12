@@ -4,6 +4,17 @@ use futures::future::join_all;
 use tokio::task::JoinHandle;
 use std::time::Duration;
 
+/// Helps setting up a bot with multiple shards.
+///
+/// Using this struct is probably not necessary and
+/// [Automate::launch](automate::Automate::launch)
+/// will do the work.
+/// The only reason to use this instead of
+/// [Automate::launch](automate::Automate::launch)
+/// would be if you want to spread the shards across
+/// multiple servers or if you wanted to have more
+/// or less shards than the amount recommended
+/// by Discord.
 pub struct ShardManager {
     config: Configuration,
     total_shards: u32,
@@ -13,6 +24,8 @@ pub struct ShardManager {
 }
 
 impl ShardManager {
+    /// Creates a shard manager where all the shards
+    /// will use the given config.
     pub async fn with_config(config: Configuration) -> ShardManager {
         let http = HttpAPI::new(&config.token);
         let gateway_bot = http.gateway_bot().await.expect("Failed to get gateway information from Discord");
@@ -26,16 +39,8 @@ impl ShardManager {
         }
     }
 
-    pub fn set_total_shards(&mut self, total_shards: u32) -> &mut Self {
-        if !self.managed_shards.is_empty() {
-            panic!("Changing total shards count after a shard has been launched is forbidden");
-        }
-
-        self.total_shards = total_shards;
-        self
-    }
-
-    pub fn setup(&mut  self, shard_id: u32) -> &mut Self {
+    /// Sets up the given shard
+    pub fn setup(&mut self, shard_id: u32) -> &mut Self {
         let url = self.gateway_url.clone();
         let mut config = self.config.clone();
         config.shard(shard_id, self.total_shards);
@@ -56,9 +61,19 @@ impl ShardManager {
         self
     }
 
+    /// Sets up as many shards as Discord recommends.
+    pub fn auto_setup(&mut self) -> &mut Self {
+        for i in 0..self.recommended_shards {
+            self.setup(i);
+        }
+
+        self
+    }
+
+    /// Launches all the previously set up shards
     pub async fn launch(&mut self) {
         if self.config.logging {
-            logger::__internal_setup_logging(self.config.log_level);
+            logger::__internal_setup_logging(self.config.log_levels.clone());
         }
 
         if self.recommended_shards > self.total_shards {
@@ -75,17 +90,30 @@ impl ShardManager {
         }
     }
 
+    /// The amount of shards recommended by discord
     pub fn recommended_shards(&self) -> u32 {
         self.recommended_shards
     }
 
+    /// The amount of shards this bot will have.
+    /// Defaults to the recommended shards value.
     pub fn total_shards(&self) -> u32 {
         self.total_shards
     }
 
-    pub fn shard_id(&self, guild_id: Snowflake) -> u32 {
-        ((guild_id.0 >> 22) % self.total_shards as u64) as u32
-    }
+    /// Sets the amount of shards the bot will have.
+    pub fn set_total_shards(&mut self, total_shards: u32) -> &mut Self {
+        if !self.managed_shards.is_empty() {
+            panic!("Changing total shards count after a shard has been launched is forbidden");
+        }
 
+        self.total_shards = total_shards;
+        self
+    }
 }
 
+/// Calculates the id of the shard a guild will
+/// be handled by.
+pub fn shard_id(total_shards: u64, guild_id: Snowflake) -> u32 {
+    ((guild_id.0 >> 22) % total_shards) as u32
+}
