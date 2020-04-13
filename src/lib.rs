@@ -407,12 +407,15 @@ impl Configuration {
     /// logging enabled and outputting all logs with
     /// a level higher or equal to `LevelFiler::Info`
     pub fn new<S: Into<String>>(token: S) -> Configuration {
+        let mut default_levels = Vec::new();
+        default_levels.push((String::from("automate"), LevelFilter::Info));
+
         Configuration {
             shard_id: None,
             total_shards: None,
             token: token.into(),
             logging: true,
-            log_levels: Vec::new(),
+            log_levels: default_levels,
             listeners: ListenerStorage::default(),
             intents: None,
             member_threshold: None,
