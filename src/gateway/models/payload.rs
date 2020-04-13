@@ -134,7 +134,7 @@ pub struct GuildRoleUpdateDispatch {
 #[payload(op = 0, event = "GUILD_ROLE_DELETE", server)]
 pub struct GuildRoleDeleteDispatch {
     pub guild_id: Snowflake,
-    pub role: Snowflake,
+    pub role_id: Snowflake,
 }
 
 #[payload(op = 0, event = "INVITE_CREATE", server)]

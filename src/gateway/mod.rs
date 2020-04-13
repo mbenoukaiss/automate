@@ -21,6 +21,7 @@ use futures::channel::mpsc;
 use futures::channel::mpsc::SendError;
 use futures::channel::mpsc::UnboundedSender;
 use tungstenite::Message as TkMessage;
+use chrono::{NaiveDateTime, Utc, Duration as ChronoDuration};
 
 macro_rules! call_dispatcher {
     ($data:ident as $payload:ty => $self:ident.$method:ident) => {{
@@ -117,7 +118,7 @@ impl Delayer {
 /// Provides a way to interact with Discord HTTP API
 /// by dereferencing to [HttpAPI](automate::http::HttpAPI).
 pub struct Context {
-    sender: UnboundedSender<Direction>,
+    sender: UnboundedSender<Instruction>,
     http: Arc<HttpAPI>,
     bot: Option<Arc<User>>,
     new_listeners: Vec<ListenerType>,
@@ -137,7 +138,7 @@ impl Context {
     /// The message must be a valid payload.
     #[inline]
     async fn send<M: Into<TkMessage>>(&mut self, msg: M) -> Result<(), Error> {
-        Ok(self.sender.send(Direction::Send(msg.into())).await?)
+        Ok(self.sender.send(Instruction::Send(msg.into(), false)).await?)
     }
 
     /// Indicate a presence or status update.
@@ -179,9 +180,12 @@ impl Deref for Context {
 }
 
 #[derive(Debug)]
-enum Direction {
+enum Instruction {
     Receive(Result<TkMessage, tungstenite::Error>),
-    Send(TkMessage),
+    /// The message and whether it is a necessary message or not.
+    /// Necessary messages have reserved slots to keep sending
+    /// them even when it's about to reach rate-limit.
+    Send(TkMessage, bool),
     Shutdown,
 }
 
@@ -191,7 +195,7 @@ pub(crate) struct GatewayAPI<'a> {
     session_id: Option<String>,
     sequence_number: Arc<Mutex<Option<i32>>>,
     heartbeat_confirmed: Arc<AtomicBool>,
-    msg_sender: UnboundedSender<Direction>,
+    msg_sender: UnboundedSender<Instruction>,
     http: Arc<HttpAPI>,
     bot: Option<Arc<User>>,
 }
@@ -212,6 +216,8 @@ impl<'a> GatewayAPI<'a> {
                 let (tx, rx) = mpsc::unbounded();
                 let (socket, _) = tktungstenite::connect_async(&url).await?;
 
+                let mut remaining_commands: Option<(i32, NaiveDateTime)> = None;
+
                 let mut gateway = GatewayAPI {
                     config: &mut config,
                     session_id: None,
@@ -223,15 +229,36 @@ impl<'a> GatewayAPI<'a> {
                 };
 
                 let mut select = stream::select(
-                    socket.map(Direction::Receive),
+                    socket.map(Instruction::Receive),
                     rx,
                 );
 
                 while let Some(message) = select.next().await {
                     match message {
-                        Direction::Receive(message) => gateway.on_message(message?).await?,
-                        Direction::Send(message) => select.get_mut().0.send(message).await?,
-                        Direction::Shutdown => break
+                        Instruction::Receive(message) => gateway.on_message(message?).await?,
+                        Instruction::Send(message, necessary) => {
+                            if remaining_commands.is_none() {
+                                let until: NaiveDateTime = Utc::now().naive_utc() + ChronoDuration::minutes(1);
+
+                                remaining_commands = Some((120, until));
+                            }
+
+                            let mut remaining_commands = remaining_commands.as_mut().unwrap();
+
+                            //if now is after the given time, reset the rate-limit
+                            if ::chrono::Utc::now().naive_utc() > remaining_commands.1 {
+                                remaining_commands.0 = 120;
+                                remaining_commands.1 += ChronoDuration::minutes(1);
+                            }
+
+                            if necessary || remaining_commands.0 > 5 {
+                                select.get_mut().0.send(message).await?;
+                                remaining_commands.0 -= 1;
+                            }
+
+                            trace!("{} gateway command calls remaining until (reset at {} UTC)", remaining_commands.0, remaining_commands.1.format("%Y-%m-%d %H:%M:%S"));
+                        },
+                        Instruction::Shutdown => break
                     }
                 }
 
@@ -261,13 +288,13 @@ impl<'a> GatewayAPI<'a> {
     }
 
     #[inline]
-    async fn send<M: Into<TkMessage>>(&mut self, msg: M) -> Result<(), Error> {
-        Ok(self.msg_sender.send(Direction::Send(msg.into())).await?)
+    async fn send<M: Into<TkMessage>>(&mut self, msg: M, necessary: bool) -> Result<(), Error> {
+        Ok(self.msg_sender.send(Instruction::Send(msg.into(), necessary)).await?)
     }
 
     #[inline]
     async fn shutdown(&mut self) -> Result<(), Error> {
-        self.msg_sender.send(Direction::Shutdown).await?;
+        self.msg_sender.send(Instruction::Shutdown).await?;
         self.msg_sender.close().await?;
 
         Ok(())
@@ -399,7 +426,7 @@ impl<'a> GatewayAPI<'a> {
                 seq: self.sequence_number.lock().await.unwrap(),
             };
 
-            self.send(resume).await?;
+            self.send(resume, true).await?;
             info!("Requested to resume session");
         } else {
             let identify = Identify {
@@ -417,10 +444,10 @@ impl<'a> GatewayAPI<'a> {
                 intents: self.config.intents,
             };
 
-            self.send(identify).await?;
+            self.send(identify, true).await?;
         }
 
-        let sender: UnboundedSender<Direction> = self.msg_sender.clone();
+        let sender: UnboundedSender<Instruction> = self.msg_sender.clone();
         let sequence_number = self.sequence_number.clone();
         let heartbeat_confirmed = self.heartbeat_confirmed.clone();
         let shard_id = self.config.shard_id.clone().unwrap();
@@ -499,7 +526,7 @@ impl<'a> GatewayAPI<'a> {
 }
 
 async fn heartbeat_task(
-    mut sender: UnboundedSender<Direction>,
+    mut sender: UnboundedSender<Instruction>,
     sequence_number: Arc<Mutex<Option<i32>>>,
     interval: u64,
     heartbeat_confirmed: Arc<AtomicBool>,
@@ -522,7 +549,7 @@ async fn heartbeat_task(
                 break;
             }
 
-            sender.send(Direction::Send(Heartbeat(*sequence_number.lock().await).into())).await?;
+            sender.send(Instruction::Send(Heartbeat(*sequence_number.lock().await).into(), true)).await?;
             heartbeat_confirmed.store(false, Ordering::Relaxed);
 
             trace!("Successfully sent heartbeat");
@@ -534,7 +561,7 @@ async fn heartbeat_task(
     }
 
     let shutdown: Result<(), SendError> = try {
-        sender.send(Direction::Shutdown).await?;
+        sender.send(Instruction::Shutdown).await?;
         sender.close().await?;
     };
 
