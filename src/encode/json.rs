@@ -2,9 +2,6 @@ use std::collections::{VecDeque, LinkedList, HashMap, BTreeMap, HashSet, BTreeSe
 use std::fmt::{Display, Formatter, Error, Debug, Write};
 use std::hash::{BuildHasher};
 use serde::{Deserialize, Deserializer};
-use std::marker::PhantomData;
-use serde::de::{Visitor, Error as DeError};
-use core::fmt;
 
 /// A data structure that can be represented in a
 /// JSON string.
@@ -89,77 +86,12 @@ impl Debug for JsonError {
 /// the JSON string, these are represented as
 /// Option<T>. Some other values must be in the
 /// JSON string but may contain the null value
-/// and should be represented using Nullable<T>.
-#[derive(Debug, Clone, Copy)]
-pub enum Nullable<T> {
-    Value(T),
-    Null,
-}
-
-impl<T> Nullable<T> {
-    pub fn some_value(value: T) -> Option<Nullable<T>> {
-        Some(Nullable::Value(value))
-    }
-
-    pub fn some_null() -> Option<Nullable<T>> {
-        Some(Nullable::Null)
-    }
-
-    //TODO: add util functions like for option
-}
-
-impl<'de, T> Deserialize<'de> for Nullable<T> where T: Deserialize<'de> {
-    fn deserialize<D>(deserializer: D) -> Result<Nullable<T>, D::Error> where D: Deserializer<'de>, {
-        deserializer.deserialize_option(NullableVisitor { phantom: PhantomData::<T> })
-    }
-}
-
-impl<T> AsJson for Nullable<T> where T: AsJson {
-    fn as_json(&self) -> String {
-        if let Nullable::Value(val) = self {
-            val.as_json()
-        } else {
-            "null".to_owned()
-        }
-    }
-
-    fn concat_json(&self, dest: &mut String) {
-        if let Nullable::Value(val) = self {
-            val.concat_json(dest);
-        } else {
-            dest.push_str("null");
-        }
-    }
-}
-
-impl<T> Display for Nullable<T> where T: Display {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
-        match self {
-            Nullable::Value(v) => f.write_fmt(format_args!("{}", v)),
-            Nullable::Null => f.write_str("null")
-        }
-    }
-}
-
-struct NullableVisitor<T> {
-    phantom: PhantomData<T>,
-}
-
-impl<'de, T> Visitor<'de> for NullableVisitor<T> where T: Deserialize<'de> {
-    type Value = Nullable<T>;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("A null or a value")
-    }
-
-    fn visit_none<E>(self) -> Result<Self::Value, E> where E: DeError, {
-        Ok(Nullable::Null)
-    }
-
-    fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, <D as Deserializer<'de>>::Error> where
-        D: Deserializer<'de>, {
-        Ok(Nullable::Value(T::deserialize(deserializer)?))
-    }
+/// and should be represented using Option<Option<T>>.
+pub fn double_option<'de, T, D>(de: D) -> Result<Option<Option<T>>, D::Error>
+    where T: Deserialize<'de>,
+          D: Deserializer<'de>
+{
+    Deserialize::deserialize(de).map(Some)
 }
 
 /// Implements [AsJson](automate::AsJson) for simple

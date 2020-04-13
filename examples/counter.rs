@@ -5,7 +5,7 @@
 #[macro_use]
 extern crate automate;
 
-use automate::{Context, Error, Snowflake, Configuration, Nullable, Automate};
+use automate::{Context, Error, Snowflake, Configuration, Automate};
 use automate::gateway::{MessageCreateDispatch, UpdateStatus, StatusType, Activity, ActivityType};
 use automate::http::CreateMessage;
 use automate::events::{Initializable, StatefulListener};
@@ -64,12 +64,12 @@ fn main() {
         .presence(UpdateStatus {
             status: StatusType::Dnd,
             afk: false,
-            game: Nullable::Value(Activity {
+            game: Some(Activity {
                 name: String::from("Counting messages..."),
                 _type: ActivityType::Game,
                 url: None
             }),
-            since: Nullable::Null
+            since: None
         })
         .register(stateful!(MessageCounter::default()));
 

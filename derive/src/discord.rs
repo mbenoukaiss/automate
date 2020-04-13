@@ -1,5 +1,5 @@
 use proc_macro::TokenStream;
-use syn::DeriveInput;
+use syn::ItemStruct;
 use quote::quote;
 
 /// Which side is creating and sending this struct
@@ -12,6 +12,29 @@ pub enum StructSide {
 }
 
 impl StructSide {
+    #[allow(dead_code)]
+    pub fn is_server(&self) -> bool {
+        match self {
+            StructSide::Server | StructSide::Both => true,
+            StructSide::Client => false,
+        }
+    }
+
+    pub fn is_client(&self) -> bool {
+        match self {
+            StructSide::Client | StructSide::Both => true,
+            StructSide::Server => false,
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn is_both(&self) -> bool {
+        match self {
+            StructSide::Both => true,
+            _ => false,
+        }
+    }
+
     pub fn appropriate_derive(&self, default: bool) -> TokenStream {
         let mut default_traits = vec![quote!(Debug)];
 
@@ -27,7 +50,7 @@ impl StructSide {
     }
 }
 
-pub fn append_client_quote(input: &DeriveInput, opcode: u8, quote: &mut TokenStream) {
+pub fn append_client_quote(input: &ItemStruct, opcode: u8, quote: &mut TokenStream) {
     let struct_name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
@@ -42,12 +65,10 @@ pub fn append_client_quote(input: &DeriveInput, opcode: u8, quote: &mut TokenStr
                     ::tungstenite::Message::Text(msg)
                 }
             }
-        };
+    };
 
     quote.extend(TokenStream::from(message_from));
 }
 
 #[allow(unused_variables)]
-pub fn append_server_quote(input: &DeriveInput, quote: &mut TokenStream) {
-
-}
+pub fn append_server_quote(input: &ItemStruct, quote: &mut TokenStream) {}

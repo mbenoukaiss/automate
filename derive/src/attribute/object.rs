@@ -1,6 +1,7 @@
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, AttributeArgs, DeriveInput};
+use syn::{parse_macro_input, AttributeArgs, ItemStruct};
 use darling::FromMeta;
+use quote::quote;
 use crate::utils;
 use crate::discord::StructSide;
 
@@ -44,9 +45,11 @@ pub fn object(metadata: TokenStream, item: TokenStream) -> TokenStream {
     let side: StructSide = unwrap!(args.side());
 
     let mut output = side.appropriate_derive(args.default);
-    output.extend(item.clone());
 
-    let input: DeriveInput = parse_macro_input!(item);
+    let mut input: ItemStruct = parse_macro_input!(item);
+    utils::replace_attributes(&mut input, &side);
+
+    output.extend(TokenStream::from(quote!(#input)));
     unwrap!(utils::extend_with_deref(&input, &mut output));
 
     output

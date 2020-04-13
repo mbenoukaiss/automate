@@ -1,5 +1,5 @@
 use crate::gateway::{User, PartialUser, PartialGuild};
-use crate::{Snowflake, Nullable};
+use crate::Snowflake;
 
 #[object(server)]
 pub struct Channel {
@@ -10,17 +10,21 @@ pub struct Channel {
     pub position: Option<i32>,
     pub permission_overwrites: Option<Vec<Overwrite>>,
     pub name: Option<String>,
-    pub topic: Option<Nullable<String>>,
+    #[option_nullable]
+    pub topic: Option<Option<String>>,
     pub nsfw: Option<bool>,
-    pub last_message_id: Option<Nullable<Snowflake>>,
+    #[option_nullable]
+    pub last_message_id: Option<Option<Snowflake>>,
     pub bitrate: Option<i32>,
     pub user_limit: Option<i32>,
     pub rate_limit_per_user: Option<i32>,
     pub recipients: Option<Vec<User>>,
-    pub icon: Option<Nullable<String>>,
+    #[option_nullable]
+    pub icon: Option<Option<String>>,
     pub owner_id: Option<Snowflake>,
     pub application_id: Option<Snowflake>,
-    pub parent_id: Option<Nullable<Snowflake>>,
+    #[option_nullable]
+    pub parent_id: Option<Option<Snowflake>>,
     pub last_pin_timestamp: Option<String>,
 }
 
@@ -105,8 +109,10 @@ pub struct Webhook {
     pub guild_id: Option<Snowflake>,
     pub channel_id: Snowflake,
     pub user: Option<User>,
-    pub name: Option<Nullable<String>>,
-    pub avatar: Option<Nullable<String>>,
+    #[option_nullable]
+    pub name: Option<Option<String>>,
+    #[option_nullable]
+    pub avatar: Option<Option<String>>,
     pub token: Option<String>,
 }
 

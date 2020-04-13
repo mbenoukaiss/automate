@@ -1,5 +1,5 @@
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, AttributeArgs, DeriveInput};
+use syn::{parse_macro_input, AttributeArgs, ItemStruct};
 use quote::quote;
 use darling::FromMeta;
 use crate::{utils, discord};
@@ -47,12 +47,14 @@ pub fn payload(metadata: TokenStream, item: TokenStream) -> TokenStream {
 
     let side: StructSide = unwrap!(args.side());
 
-    let mut output: TokenStream = side.appropriate_derive(args.default);
-    output.extend(item.clone());
+    let mut input: ItemStruct = parse_macro_input!(item);
+    utils::replace_attributes(&mut input, &side);
 
-    let input: DeriveInput = parse_macro_input!(item);
     let struct_name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
+    let mut output: TokenStream = side.appropriate_derive(args.default);
+    output.extend(TokenStream::from(quote!(#input)));
 
     if let Some(event_name) = args.event {
         let constant_impl = quote! {
