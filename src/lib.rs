@@ -2,7 +2,7 @@
 #![feature(try_blocks)]
 #![feature(proc_macro_hygiene)]
 #![allow(clippy::identity_op)] //because clippy forbides 1 << 0 in c-like enums
-#![allow(where_clauses_object_safety)] //should be fixable when async traits are allowed
+#![allow(clippy::option_option)] //opt<opt<>> is required to properly handle nullables
 
 //! A low level and asynchronous rust library made for interacting with Discord's API.
 //!
@@ -337,8 +337,6 @@ pub use lazy_static;
 #[doc(no_inline)]
 pub use tokio;
 
-#[doc(inline)]
-pub use encode::json::Nullable;
 #[doc(inline)]
 #[allow(deprecated)]
 pub use events::Listener;

@@ -1,5 +1,5 @@
 use crate::gateway::{User, MentionnedUser, PartialGuildMember, ChannelMention, PartialEmoji};
-use crate::{Snowflake, Nullable};
+use crate::Snowflake;
 
 #[object(server)]
 pub struct Message {
@@ -10,7 +10,8 @@ pub struct Message {
     pub member: Option<PartialGuildMember>,
     pub content: String,
     pub timestamp: String,
-    pub edited_timestamp: Nullable<String>,
+    #[nullable]
+    pub edited_timestamp: Option<String>,
     pub tts: bool,
     pub mention_everyone: bool,
     pub mentions: Vec<MentionnedUser>,
@@ -39,7 +40,8 @@ pub struct PartialMessage {
     pub member: Option<PartialGuildMember>,
     pub content: Option<String>,
     pub timestamp: Option<String>,
-    pub edited_timestamp: Option<Nullable<String>>,
+    #[option_nullable]
+    pub edited_timestamp: Option<Option<String>>,
     pub tts: Option<bool>,
     pub mention_everyone: Option<bool>,
     pub mentions: Option<Vec<MentionnedUser>>,
@@ -189,13 +191,15 @@ pub struct MessageApplication {
     pub id: Snowflake,
     pub cover_image: Option<String>,
     pub description: String,
-    pub icon: Nullable<String>,
+    #[nullable]
+    pub icon: Option<String>,
     pub name: String
 }
 
-#[object(server)]
+#[object(both)]
 pub struct MessageReference {
-    pub message_id: Snowflake,
+    pub message_id: core::option::Option<Snowflake>,
     pub channel_id: Snowflake,
-    pub guild_id: Snowflake
+    #[nullable]
+    pub guild_id: Option<Snowflake>
 }
