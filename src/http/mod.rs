@@ -4,6 +4,7 @@ mod models;
 mod rate_limit;
 
 pub use models::*;
+pub use rate_limit::collect_outdated_buckets;
 
 use crate::gateway::*;
 use crate::encode::AsJson;
