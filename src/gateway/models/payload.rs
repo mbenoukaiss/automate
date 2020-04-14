@@ -3,6 +3,7 @@ use crate::Snowflake;
 use std::collections::HashMap;
 use serde_json::Value;
 use std::ops::BitOr;
+use chrono::NaiveDateTime;
 
 /// A Discord Gateway API Payload.
 /// Contains the event data and the sequence
@@ -108,6 +109,7 @@ pub struct GuildMemberUpdateDispatch {
     pub roles: Vec<Snowflake>,
     pub user: User,
     pub nick: Option<String>,
+    pub premium_since: Option<NaiveDateTime>
 }
 
 /// Sent in response to [RequestGuildMembers](RequestGuildMembers)
@@ -307,7 +309,7 @@ pub struct RequestGuildMembers {
     pub query: Option<String>,
     pub limit: i32,
     pub presences: Option<bool>,
-    pub user_ids: Vec<Snowflake>,
+    pub user_ids: Option<Vec<Snowflake>>,
 }
 
 #[payload(op = 9, server)]

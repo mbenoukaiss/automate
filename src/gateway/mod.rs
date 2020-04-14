@@ -134,26 +134,26 @@ impl Context {
         }
     }
 
-    /// Sends a message to Discord through the websocket.
+    /// Sends a command to the gateway.
     /// The message must be a valid payload.
     #[inline]
-    async fn send<M: Into<TkMessage>>(&mut self, msg: M) -> Result<(), Error> {
+    async fn send_command<M: Into<TkMessage>>(&mut self, msg: M) -> Result<(), Error> {
         Ok(self.sender.send(Instruction::Send(msg.into(), false)).await?)
     }
 
     /// Indicate a presence or status update.
     pub async fn update_status(&mut self, data: UpdateStatus) -> Result<(), Error> {
-        self.send(data).await
+        self.send_command(data).await
     }
 
     /// Join, move or disconnect from a voice channel.
     pub async fn update_voice_state(&mut self, data: UpdateVoiceState) -> Result<(), Error> {
-        self.send(data).await
+        self.send_command(data).await
     }
 
     /// Request members of a guild.
     pub async fn request_guild_members(&mut self, data: RequestGuildMembers) -> Result<(), Error> {
-        self.send(data).await
+        self.send_command(data).await
     }
 
     /// The user object of the bot.
@@ -235,28 +235,9 @@ impl<'a> GatewayAPI<'a> {
 
                 while let Some(message) = select.next().await {
                     match message {
-                        Instruction::Receive(message) => gateway.on_message(message?).await?,
-                        Instruction::Send(message, necessary) => {
-                            if remaining_commands.is_none() {
-                                let until: NaiveDateTime = Utc::now().naive_utc() + ChronoDuration::minutes(1);
-
-                                remaining_commands = Some((120, until));
-                            }
-
-                            let mut remaining_commands = remaining_commands.as_mut().unwrap();
-
-                            //if now is after the given time, reset the rate-limit
-                            if ::chrono::Utc::now().naive_utc() > remaining_commands.1 {
-                                remaining_commands.0 = 120;
-                                remaining_commands.1 += ChronoDuration::minutes(1);
-                            }
-
-                            if necessary || remaining_commands.0 > 5 {
-                                select.get_mut().0.send(message).await?;
-                                remaining_commands.0 -= 1;
-                            }
-
-                            trace!("{} gateway command calls remaining until (reset at {} UTC)", remaining_commands.0, remaining_commands.1.format("%Y-%m-%d %H:%M:%S"));
+                        Instruction::Receive(m) => gateway.on_message(m?).await?,
+                        Instruction::Send(m, n) => if check_remaining(&mut remaining_commands, n).await {
+                            select.get_mut().0.send(m).await?;
                         },
                         Instruction::Shutdown => break
                     }
@@ -287,22 +268,19 @@ impl<'a> GatewayAPI<'a> {
         }
     }
 
+    /// Sends a command to the gateway.
     #[inline]
-    async fn send<M: Into<TkMessage>>(&mut self, msg: M, necessary: bool) -> Result<(), Error> {
+    async fn send_command<M: Into<TkMessage>>(&mut self, msg: M, necessary: bool) -> Result<(), Error> {
         Ok(self.msg_sender.send(Instruction::Send(msg.into(), necessary)).await?)
     }
 
+    /// Shuts down the conneciton with the gateway.
     #[inline]
     async fn shutdown(&mut self) -> Result<(), Error> {
         self.msg_sender.send(Instruction::Shutdown).await?;
         self.msg_sender.close().await?;
 
         Ok(())
-    }
-
-    #[inline]
-    pub fn invite_bot(&self, permission: u32) -> String {
-        format!("https://discordapp.com/oauth2/authorize?client_id={}&scope=bot&permissions={}", self.bot.as_ref().unwrap().id, permission)
     }
 
     async fn on_message(&mut self, msg: TkMessage) -> Result<(), Error> {
@@ -312,8 +290,14 @@ impl<'a> GatewayAPI<'a> {
                     error!("An error occurred while reading message: {}\n{}", err.msg, data);
                 }
             }
-            TkMessage::Close(_close) => return Error::err("Websocket connection closed"),
-            _ => error!("Unknown message type received")
+            TkMessage::Close(close) => {
+                if let Some(cf) = close {
+                    return Error::err(format!("Gateway unexpectedly closed with code {}: {}", Into::<u16>::into(cf.code), cf.reason));
+                } else {
+                    return Error::err("Gateway unexpectedly closed");
+                }
+            }
+            unknown => trace!("Unknown message type received: {:?}", unknown)
         };
 
         Ok(())
@@ -426,7 +410,7 @@ impl<'a> GatewayAPI<'a> {
                 seq: self.sequence_number.lock().await.unwrap(),
             };
 
-            self.send(resume, true).await?;
+            self.send_command(resume, true).await?;
             info!("Requested to resume session");
         } else {
             let identify = Identify {
@@ -444,7 +428,7 @@ impl<'a> GatewayAPI<'a> {
                 intents: self.config.intents,
             };
 
-            self.send(identify, true).await?;
+            self.send_command(identify, true).await?;
         }
 
         let sender: UnboundedSender<Instruction> = self.msg_sender.clone();
@@ -460,6 +444,15 @@ impl<'a> GatewayAPI<'a> {
     }
 
     async fn on_ready(&mut self, payload: ReadyDispatch) -> Result<(), Error> {
+        let shard_id = self.config.shard_id.unwrap();
+        if shard_id == 0 && self.bot.is_none() {
+            let invite = format!("https://discordapp.com/oauth2/authorize?client_id={}&scope=bot&permissions=8", payload.user.id);
+
+            info!("You can invite the bot in your guild using this link: {}", invite);
+        }
+
+        info!("Established connection for shard {}", shard_id);
+
         self.bot = Some(Arc::new(payload.user.clone()));
         self.session_id.replace(payload.session_id.clone());
 
@@ -482,14 +475,6 @@ impl<'a> GatewayAPI<'a> {
         }
 
         self.config.listeners.register(context.new_listeners);
-
-        let shard_id = self.config.shard_id.unwrap();
-
-        if shard_id == 0 {
-            info!("You can invite the bot in your guild using this link: {}", self.invite_bot(8));
-        }
-
-        info!("Established connection for shard {}", self.config.shard_id.unwrap());
 
         Ok(())
     }
@@ -522,6 +507,32 @@ impl<'a> GatewayAPI<'a> {
 
         trace!("Received heartbeat acknowledgement");
         Ok(())
+    }
+}
+
+async fn check_remaining(remaining_commands: &mut Option<(i32, NaiveDateTime)>, necessary: bool) -> bool {
+    if remaining_commands.is_none() {
+        let until: NaiveDateTime = Utc::now().naive_utc() + ChronoDuration::minutes(1);
+
+        *remaining_commands = Some((120, until));
+    }
+
+    let mut remaining_commands = remaining_commands.as_mut().unwrap();
+
+    //if now is after the given time, reset the rate-limit
+    if ::chrono::Utc::now().naive_utc() > remaining_commands.1 {
+        remaining_commands.0 = 120;
+        remaining_commands.1 += ChronoDuration::minutes(1);
+    }
+
+    if necessary || remaining_commands.0 > 5 {
+        remaining_commands.0 -= 1;
+
+        trace!("{} gateway command calls remaining until (reset at {} UTC)", remaining_commands.0, remaining_commands.1.format("%Y-%m-%d %H:%M:%S"));
+        true
+    } else {
+        trace!("Reached gateway rate limit ({} calls left, reset at {} UTC)", remaining_commands.0, remaining_commands.1.format("%Y-%m-%d %H:%M:%S"));
+        false
     }
 }
 

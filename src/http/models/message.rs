@@ -15,4 +15,5 @@ pub struct CreateMessage {
 pub struct ModifyMessage {
     pub content: Option<String>,
     pub embed: Option<Embed>,
+    pub flags: u32
 }
