@@ -28,7 +28,7 @@ pub struct Message {
     pub activity: Option<MessageActivity>,
     pub application: Option<MessageApplication>,
     pub message_reference: Option<MessageReference>,
-    pub flags: Option<u32>
+    pub flags: Option<u32>,
 }
 
 #[object(server)]
@@ -57,7 +57,7 @@ pub struct PartialMessage {
     pub activity: Option<MessageActivity>,
     pub application: Option<MessageApplication>,
     pub message_reference: Option<MessageReference>,
-    pub flags: Option<u32>
+    pub flags: Option<u32>,
 }
 
 #[convert(u8)]
@@ -74,14 +74,16 @@ pub enum MessageType {
     UserPremiumGuildSubscriptionTier1 = 9,
     UserPremiumGuildSubscriptionTier2 = 10,
     UserPremiumGuildSubscriptionTier3 = 11,
-    ChannelFollowAdd = 12
+    ChannelFollowAdd = 12,
 }
 
 #[convert(u32)]
 pub enum MessageFlags {
     Crossposted = 1 << 0,
     IsCrosspost = 1 << 1,
-    SuppressEmbeds = 1 << 2
+    SuppressEmbeds = 1 << 2,
+    SourceMessageDeleted = 1 << 3,
+    Urgent = 1 << 4,
 }
 
 #[object(server)]
@@ -92,7 +94,7 @@ pub struct Attachment {
     pub url: String,
     pub proxy_url: String,
     pub height: Option<u32>,
-    pub width: Option<u32>
+    pub width: Option<u32>,
 }
 
 #[object(both)]
@@ -110,14 +112,14 @@ pub struct Embed {
     pub video: Option<EmbedVideo>,
     pub provider: Option<EmbedProvider>,
     pub author: Option<EmbedAuthor>,
-    pub fields: Option<Vec<EmbedField>>
+    pub fields: Option<Vec<EmbedField>>,
 }
 
 #[object(both)]
 pub struct EmbedFooter {
     pub text: String,
     pub icon_url: Option<String>,
-    pub proxy_icon_url: Option<String>
+    pub proxy_icon_url: Option<String>,
 }
 
 #[object(both)]
@@ -125,7 +127,7 @@ pub struct EmbedImage {
     pub url: Option<String>,
     pub proxy_url: Option<String>,
     pub height: Option<u32>,
-    pub width: Option<u32>
+    pub width: Option<u32>,
 }
 
 #[object(both)]
@@ -133,20 +135,20 @@ pub struct EmbedThumbnail {
     pub url: Option<String>,
     pub proxy_url: Option<String>,
     pub height: Option<u32>,
-    pub width: Option<u32>
+    pub width: Option<u32>,
 }
 
 #[object(both)]
 pub struct EmbedVideo {
     pub url: Option<String>,
     pub height: Option<u32>,
-    pub width: Option<u32>
+    pub width: Option<u32>,
 }
 
 #[object(both)]
 pub struct EmbedProvider {
     pub name: Option<String>,
-    pub url: Option<String>
+    pub url: Option<String>,
 }
 
 #[object(both)]
@@ -154,28 +156,28 @@ pub struct EmbedAuthor {
     pub name: Option<String>,
     pub url: Option<String>,
     pub icon_url: Option<String>,
-    pub proxy_icon_url: Option<String>
+    pub proxy_icon_url: Option<String>,
 }
 
 #[object(both)]
 pub struct EmbedField {
     pub name: String,
     pub value: String,
-    pub inline: Option<bool>
+    pub inline: Option<bool>,
 }
 
 #[object(server)]
 pub struct Reaction {
     pub count: u32,
     pub me: bool,
-    pub emoji: PartialEmoji
+    pub emoji: PartialEmoji,
 }
 
 #[object(server)]
 pub struct MessageActivity {
     #[serde(rename = "type")]
     pub _type: MessageActivityType,
-    pub party_id: Option<String>
+    pub party_id: Option<String>,
 }
 
 #[convert(u8)]
@@ -193,13 +195,13 @@ pub struct MessageApplication {
     pub description: String,
     #[nullable]
     pub icon: Option<String>,
-    pub name: String
+    pub name: String,
 }
 
 #[object(both)]
 pub struct MessageReference {
-    pub message_id: core::option::Option<Snowflake>,
+    pub message_id: Option<Snowflake>,
     pub channel_id: Snowflake,
     #[nullable]
-    pub guild_id: Option<Snowflake>
+    pub guild_id: Option<Snowflake>,
 }

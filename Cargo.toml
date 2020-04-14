@@ -21,7 +21,7 @@ hyper-tls = "0.4"
 bytes = "0.5"
 tungstenite = "0.10"
 tokio-tungstenite = { version = "0.10", features = ["tls"] }
-chrono = "0.4"
+chrono = { version = "0.4", features = ["serde"]}
 log = { version = "0.4", features = ["std"]}
 percent-encoding = "2.1.0"
 serde = { version = "1.0", features = ["derive"]}

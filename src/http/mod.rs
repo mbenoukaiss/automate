@@ -245,8 +245,8 @@ impl HttpAPI {
     #[endpoint(post, route = "/guilds/{#guild}/emojis", body = "emoji", status = 200)]
     pub async fn create_emoji<S: ExtractSnowflake>(&self, guild: S, emoji: NewEmoji) -> Result<Emoji, Error> {}
 
-    #[endpoint(patch, route = "/guilds/{#guild}/emojis/{#emoji}", body = "emoji", status = 200)]
-    pub async fn modify_emoji<S: ExtractSnowflake>(&self, guild: S, emoji: UpdateEmoji) -> Result<Emoji, Error> {}
+    #[endpoint(patch, route = "/guilds/{#guild}/emojis/{#emoji}", body = "modification", status = 200)]
+    pub async fn modify_emoji<S: ExtractSnowflake>(&self, guild: S, emoji: S, modification: ModifyEmoji) -> Result<Emoji, Error> {}
 
     #[endpoint(delete, route = "/guilds/{#guild}/emojis/{#emoji}", status = 204, empty)]
     pub async fn delete_emoji<S: ExtractSnowflake>(&self, guild: S, emoji: S) -> Result<(), Error> {}

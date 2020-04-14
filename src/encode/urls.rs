@@ -1,6 +1,5 @@
 use crate::{Error, Snowflake};
 use crate::gateway::*;
-use crate::http::*;
 use percent_encoding::NON_ALPHANUMERIC;
 use std::fmt::Write;
 
@@ -41,7 +40,6 @@ automate_types! {
     Webhook,
     Guild, PartialGuild, UnavailableGuild,
     Role, PartialRole,
-    UpdateEmoji,
     Message, Attachment, MessageApplication,
     User, PartialUser, MentionnedUser
 }

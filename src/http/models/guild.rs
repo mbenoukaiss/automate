@@ -64,8 +64,7 @@ pub struct NewEmoji {
 }
 
 #[object(client)]
-pub struct UpdateEmoji {
-    pub id: Snowflake,
+pub struct ModifyEmoji {
     pub image: String,
     pub roles: Vec<Snowflake>,
 }
@@ -82,7 +81,7 @@ pub struct ModifyMember {
     pub roles: Option<Vec<Snowflake>>,
     pub mute: Option<bool>,
     pub deaf: Option<bool>,
-    pub channel_id: Option<u64>,
+    pub channel_id: Option<Option<u64>>,
 }
 
 #[object(client, default)]
