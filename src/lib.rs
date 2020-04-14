@@ -394,7 +394,8 @@ pub struct Configuration {
     intents: Option<u32>,
     member_threshold: Option<u32>,
     presence: Option<UpdateStatus>,
-    guild_subscriptions: Option<bool>
+    guild_subscriptions: Option<bool>,
+    collector_period: u64
 }
 
 impl Configuration {
@@ -419,6 +420,7 @@ impl Configuration {
             member_threshold: None,
             presence: None,
             guild_subscriptions: None,
+            collector_period: 300 //default to 5 minutes for now
         }
     }
 

@@ -1,10 +1,11 @@
-use chrono::NaiveDateTime;
+use chrono::{NaiveDateTime, Utc};
 use hyper::HeaderMap;
 use hyper::header::HeaderValue;
 use std::collections::HashMap;
 use futures::lock::Mutex;
-use crate::{Error, Snowflake};
 use std::borrow::Cow;
+use crate::{Error, Snowflake};
+use std::time::Instant;
 
 lazy_static::lazy_static! {
     /// Rate-limit buckets storage.
@@ -83,4 +84,31 @@ impl Bucket {
             Ok(None)
         }
     }
+}
+
+/// Cleans up the bucket hashmap by removing every bucket
+/// that contains a date inferior to now.
+pub async fn collect_outdated_buckets() {
+    let mut removes = 0;
+
+    let now: NaiveDateTime = Utc::now().naive_utc();
+
+    let time = {
+        let start = Instant::now();
+        let buckets: &mut HashMap<Key<'static>, Bucket> = &mut *BUCKETS.lock().await;
+
+        buckets.retain(|_, bucket| {
+            if bucket.reset < now {
+                removes += 1;
+
+                false
+            } else {
+                true
+            }
+        });
+
+        start.elapsed().as_micros()
+    };
+
+    trace!("Removed {} outdated rate-limit buckets in {}µs", removes, time);
 }

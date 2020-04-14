@@ -5,7 +5,7 @@ mod models;
 
 pub use models::*;
 
-use crate::{map, Error, Configuration, logger};
+use crate::{map, Error, Configuration, logger, http};
 use crate::http::HttpAPI;
 use crate::encode::json;
 use crate::events::ListenerType;
@@ -440,6 +440,12 @@ impl<'a> GatewayAPI<'a> {
             heartbeat_task(sender, sequence_number, payload.heartbeat_interval as u64, heartbeat_confirmed).await;
         }));
 
+        let interval = self.config.collector_period;
+
+        tokio::spawn(logger::setup_for_task(format!("collector-{}", shard_id), async move {
+            bucket_collector_task(interval).await;
+        }));
+
         Ok(())
     }
 
@@ -578,5 +584,12 @@ async fn heartbeat_task(
 
     if let Err(err) = shutdown {
         error!("Failed to close channel: {}", err.to_string());
+    }
+}
+
+async fn bucket_collector_task(interval: u64) {
+    loop {
+        tokio::time::delay_for(Duration::from_millis(interval * 1000)).await;
+        http::collect_outdated_buckets().await;
     }
 }
