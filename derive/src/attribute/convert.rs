@@ -1,80 +1,65 @@
+use proc_macro2::TokenStream as TokenStream2;
 use proc_macro::{TokenStream, TokenTree};
-use syn::{parse_macro_input, Ident, Expr, Data, DeriveInput};
-use quote::quote;
+use syn::{parse_macro_input, Ident, Expr, ItemEnum};
+use quote::{quote, ToTokens};
+
+fn extract_variants(item: &ItemEnum) -> Result<(Vec<&Ident>, Vec<&Expr>), TokenStream> {
+    let mut fields_ident: Vec<&Ident> = Vec::new();
+    let mut fields_expr: Vec<&Expr> = Vec::new();
+
+    for variant in &item.variants {
+        if variant.discriminant.is_none() {
+            compile_error!(err "Convert attribute only works with C-like enums")
+        }
+
+        let (_, expr) = variant.discriminant.as_ref().unwrap();
+
+        fields_ident.push(&variant.ident);
+        fields_expr.push(expr);
+    }
+
+    Ok((fields_ident, fields_expr))
+}
 
 pub fn convert(metadata: TokenStream, item: TokenStream) -> TokenStream {
-    let cloned_item = item.clone();
+    let item: ItemEnum = parse_macro_input!(item);
+    let struct_name: &Ident = &item.ident;
 
-    let input: DeriveInput = parse_macro_input!(item);
-    let struct_name: &Ident = &input.ident;
-    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
-
-    let (as_method_name, convertion_type): (Ident, Ident) = match metadata.into_iter().next() {
+    let convertion_type: Ident = match metadata.into_iter().next() {
         Some(TokenTree::Ident(ty)) => {
-            let as_method = Ident::new(&format!("as_{}", ty.to_string()), ty.span().into());
-            let ty = Ident::new(&ty.to_string(), ty.span().into());
-
-            (as_method, ty)
+            Ident::new(&ty.to_string(), ty.span().into())
         }
         _ => compile_error!("Expected arguments under the format (type)")
     };
 
-    let mut fields_ident: Vec<&Ident> = Vec::new();
-    let mut fields_expr: Vec<&Expr> = Vec::new();
+    let (fields_ident, fields_expr) = unwrap!(extract_variants(&item));
 
-    if let Data::Enum(en) = &input.data {
-        for variant in &en.variants {
-            if variant.discriminant.is_none() {
-                compile_error!("Convert attribute only works with C-like enums")
+    let mut output: TokenStream2 = quote!(#[derive(Clone, Debug)]);
+    item.to_tokens(&mut output);
+
+    output.extend(quote! {
+        impl serde::Serialize for #struct_name {
+            fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> where S: serde::Serializer {
+                let value = match self {
+                    #(#struct_name::#fields_ident => #struct_name::#fields_ident as #convertion_type),*
+                };
+
+                serde::Serialize::serialize(&value, serializer)
             }
-
-            let (_, expr) = variant.discriminant.as_ref().unwrap();
-
-            fields_ident.push(&variant.ident);
-            fields_expr.push(expr);
         }
-    } else {
-        compile_error!( "Convert attribute only works on enums")
-    }
 
-    let mut output = TokenStream::from(quote!(#[derive(Clone, Debug)]));
-    output.extend(cloned_item);
-
-    output.extend(TokenStream::from(quote! {
-        impl<'de> ::serde::Deserialize<'de> for #struct_name {
+        impl<'de> serde::Deserialize<'de> for #struct_name {
             #[allow(non_upper_case_globals)]
-            fn deserialize<D>(deserializer: D) -> ::core::result::Result<Self, D::Error> where D: ::serde::Deserializer<'de> {
+            fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error> where D: serde::Deserializer<'de> {
                 #(const #fields_ident: #convertion_type = #fields_expr;)*
 
-                match <#convertion_type as ::serde::Deserialize>::deserialize(deserializer)? {
-                    #(#fields_ident => ::core::result::Result::Ok(#struct_name #ty_generics :: #fields_ident),)*
-                    other => ::core::result::Result::Err(serde::de::Error::custom(format!("No variant of {} found for {}", stringify!(#struct_name #ty_generics), other)))    ,
+                match <#convertion_type as serde::Deserialize>::deserialize(deserializer)? {
+                    #(#fields_ident => core::result::Result::Ok(#struct_name::#fields_ident),)*
+                    other => core::result::Result::Err(serde::de::Error::custom(format!("No variant of {} found for {}", stringify!(#struct_name), other)))    ,
                 }
             }
         }
+    });
 
-        impl #impl_generics #struct_name #ty_generics #where_clause {
-            fn #as_method_name(&self) -> #convertion_type {
-                match self {
-                    #(
-                     #struct_name #ty_generics :: #fields_ident => #fields_expr
-                    ),*
-                }
-            }
-        }
-
-        impl #impl_generics ::automate::encode::AsJson for #struct_name #ty_generics #where_clause {
-            #[cfg_attr(feature = "aggressive-inlining", inline)]
-            fn as_json(&self) -> String {
-                self.#as_method_name().to_string()
-            }
-
-            #[cfg_attr(feature = "aggressive-inlining", inline)]
-            fn concat_json(&self, dest: &mut String) {
-                ::std::fmt::Write::write_fmt(dest, format_args!("{}", self.#as_method_name())).expect("A Display implementation returned an error unexpectedly");
-            }
-        }
-    }));
-
-    output
+    TokenStream::from(output)
 }

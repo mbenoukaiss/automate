@@ -44,11 +44,6 @@ mod macros;
 mod discord;
 mod utils;
 
-#[proc_macro_derive(AsJson, attributes(nullable))]
-pub fn as_json(item: TokenStream) -> TokenStream {
-    derive::as_json(item)
-}
-
 //doc in automae's lib.rs
 #[proc_macro_derive(State)]
 pub fn state(input: TokenStream) -> TokenStream {

@@ -1,5 +1,5 @@
-use crate::encode::JsonError;
 use std::{fmt, result};
+use crate::encode::json::JsonError;
 
 /// Represents an error that occurred while using
 /// Automate library.

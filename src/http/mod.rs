@@ -7,7 +7,6 @@ pub use models::*;
 pub use rate_limit::collect_outdated_buckets;
 
 use crate::gateway::*;
-use crate::encode::AsJson;
 use crate::{Error, Snowflake};
 use crate::encode::{ExtractSnowflake, WriteUrl};
 use hyper::Client;
@@ -212,8 +211,12 @@ impl HttpAPI {
     #[endpoint(delete, route = "/channels/{#channel}/messages/{#message}", status = 204, empty)]
     pub async fn delete_message<S: ExtractSnowflake>(&self, channel: S, message: S) -> Result<(), Error> {}
 
-    #[endpoint(delete, route = "/channels/{#channel}/messages/bulk-delete", body = "messages", status = 204, empty)]
-    pub async fn delete_message_bulk<S: ExtractSnowflake + AsJson>(&self, channel: S, messages: Vec<S>) -> Result<(), Error> {}
+    #[endpoint(delete, route = "/channels/{#channel}/messages/bulk-delete", body = "snowflakes", status = 204, empty)]
+    pub async fn delete_message_bulk<S: ExtractSnowflake>(&self, channel: S, messages: Vec<S>) -> Result<(), Error> {
+        let snowflakes = messages.iter()
+            .map(|m| m.extract_snowflake())
+            .collect::<Result<Vec<Snowflake>, Error>>()?;
+    }
 
     #[endpoint(get, route = "/channels/{#channel}/messages/{#message}/reactions/{+emoji}/{query}", status = 200)]
     pub async fn reactions<S: ExtractSnowflake, U: WriteUrl>(&self, channel: S, message: S, emoji: &U, reactions: ReactionsPosition) -> Result<Vec<User>, Error> {

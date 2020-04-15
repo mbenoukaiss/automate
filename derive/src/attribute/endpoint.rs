@@ -173,7 +173,7 @@ impl Args {
             Some(body) => {
                 let body = Ident::new(body, Span::call_site());
 
-                quote!(::hyper::Body::from(::automate::encode::AsJson::as_json(&#body)))
+                quote!(::hyper::Body::from(serde_json::to_string(&#body)?))
             }
             None => quote!(::hyper::Body::empty()),
         }
@@ -247,7 +247,7 @@ pub fn endpoint(metadata: TokenStream, item: TokenStream) -> TokenStream {
     let input: ItemFn = parse_macro_input!(item);
     let visibility = &input.vis;
     let signature = &input.sig;
-    let content = &input.block;
+    let content = &input.block.stmts;
 
     let mut major_parameter = quote!(None);
     for (name, _) in utils::read_function_arguments(&input.sig) {
@@ -258,15 +258,12 @@ pub fn endpoint(metadata: TokenStream, item: TokenStream) -> TokenStream {
         }
     }
 
-    let request = match generate_request(&input, args, major_parameter) {
-        Ok(ts) => ts,
-        Err(ts) => return ts
-    };
+    let request = unwrap!(generate_request(&input, args, major_parameter));
 
     TokenStream::from(quote! {
         #[allow(unused_variables)]
         #visibility #signature {
-            #content
+            #(#content)*
             #request
         }
     })

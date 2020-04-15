@@ -47,7 +47,7 @@ pub fn object(metadata: TokenStream, item: TokenStream) -> TokenStream {
     let mut output = side.appropriate_derive(args.default);
 
     let mut input: ItemStruct = parse_macro_input!(item);
-    utils::replace_attributes(&mut input, &side);
+    utils::replace_attributes(&mut input);
 
     output.extend(TokenStream::from(quote!(#input)));
     unwrap!(utils::extend_with_deref(&input, &mut output));

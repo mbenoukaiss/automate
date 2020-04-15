@@ -1,10 +1,9 @@
 use proc_macro::TokenStream;
-use proc_macro2::Span;
 use quote::quote;
-use syn::{ItemStruct, Ident, Fields, FnArg, Pat, Signature};
+use syn::{ItemStruct, Ident, Fields, FnArg, Pat, Path, Type, Attribute, Signature};
+use syn::parse::Parser;
 use syn::spanned::Spanned;
 use quote::ToTokens;
-use crate::discord::StructSide;
 
 /// Read the arguments in a function's signature and
 /// returns a vec with tuples of the function name and
@@ -67,24 +66,68 @@ pub fn extend_with_deref(input: &ItemStruct, quote: &mut TokenStream) -> Result<
     Ok(())
 }
 
-pub fn replace_attributes(input: &mut ItemStruct, side: &StructSide) {
+pub fn is_option(path: &Path) -> bool {
+    path.segments.last().unwrap().ident == "Option"
+}
+
+enum FieldType {
+    Normal,
+    Nullable,
+    OptionNullable
+}
+
+impl FieldType {
+    fn from_str(input: &str) -> FieldType {
+        match input {
+            "nullable" => FieldType::Nullable,
+            "option_nullable" => FieldType::OptionNullable,
+            _ => FieldType::Normal
+        }
+    }
+}
+
+pub fn replace_attributes(input: &mut ItemStruct) {
     for field in &mut input.fields {
+        //if it's not an option, skip it
+        match &field.ty {
+            Type::Path(p) if is_option(&p.path) => (),
+            _ => continue
+        }
+
+        let mut field_type =  FieldType::Normal;
+
         field.attrs.retain(|attr| {
             let attr_name = attr.path.segments.last().unwrap().ident.to_string();
+            field_type = FieldType::from_str(&attr_name);
 
-            //if it's not going to derive AsJson but still has nullable, remove it
-            attr_name != "nullable" || side.is_client()
+            match field_type {
+                FieldType::Nullable | FieldType::OptionNullable => false,
+                FieldType::Normal => true
+            }
         });
 
-        for attr in &mut field.attrs {
-            let attr_name = attr.path.segments.last().unwrap().ident.to_string();
+        let skip_none = quote!(skip_serializing_if = "Option::is_none");
+        let double_option = quote!(deserialize_with = "automate::encode::json::double_option");
 
-            if attr_name == "option_nullable" {
-                let path = &mut attr.path.segments.last_mut().unwrap();
-                path.ident = Ident::new("serde", Span::call_site());
+        match field_type {
+            //normal optional fields should not be serialized
+            FieldType::Normal => {
+                let attrs = Attribute::parse_outer
+                    .parse2(quote!(#[serde(#skip_none)]))
+                    .unwrap();
 
-                attr.tokens = "(default, deserialize_with = \"automate::encode::json::double_option\")".parse().unwrap();
+                field.attrs.extend(attrs);
+            },
+            //nullable fields must be serialized (as null if they're none) which is serde's
+            //default behaviour, so don't add any attribute
+            FieldType::Nullable => (),
+            //nullable options use the double option function to deserialize
+            FieldType::OptionNullable => {
+                let attrs = Attribute::parse_outer
+                    .parse2(quote!(#[serde(default, #double_option, #skip_none)]))
+                    .unwrap();
+                field.attrs.extend(attrs);
             }
-        }
+        };
     }
 }
