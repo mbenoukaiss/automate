@@ -12,29 +12,6 @@ pub enum StructSide {
 }
 
 impl StructSide {
-    #[allow(dead_code)]
-    pub fn is_server(&self) -> bool {
-        match self {
-            StructSide::Server | StructSide::Both => true,
-            StructSide::Client => false,
-        }
-    }
-
-    pub fn is_client(&self) -> bool {
-        match self {
-            StructSide::Client | StructSide::Both => true,
-            StructSide::Server => false,
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn is_both(&self) -> bool {
-        match self {
-            StructSide::Both => true,
-            _ => false,
-        }
-    }
-
     pub fn appropriate_derive(&self, default: bool) -> TokenStream {
         let mut default_traits = vec![quote!(Debug)];
 
@@ -43,9 +20,9 @@ impl StructSide {
         }
 
         match self {
-            StructSide::Client => quote!(#[derive(#(#default_traits),*, Clone, AsJson)]),
-            StructSide::Server => quote!(#[derive(#(#default_traits),*, Clone, ::serde::Deserialize)]),
-            StructSide::Both => quote!(#[derive(#(#default_traits),*, Clone, AsJson, ::serde::Deserialize)])
+            StructSide::Client => quote!(#[derive(#(#default_traits),*, Clone, serde::Serialize)]),
+            StructSide::Server => quote!(#[derive(#(#default_traits),*, Clone, serde::Deserialize)]),
+            StructSide::Both => quote!(#[derive(#(#default_traits),*, Clone, serde::Serialize, serde::Deserialize)])
         }.into()
     }
 }
@@ -59,7 +36,7 @@ pub fn append_client_quote(input: &ItemStruct, opcode: u8, quote: &mut TokenStre
                 fn from(origin: #struct_name #ty_generics) -> Self {
                     let mut msg = String::with_capacity(14);
                     msg.push_str(concat!("{\"op\":", #opcode, ",\"d\":"));
-                    msg.push_str(&::automate::encode::AsJson::as_json(&origin));
+                    msg.push_str(&serde_json::to_string(&origin).expect(concat!("Failed to serialize ", stringify!(#struct_name))));
                     msg.push('}');
 
                     ::tungstenite::Message::Text(msg)

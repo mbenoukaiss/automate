@@ -48,7 +48,7 @@ pub fn payload(metadata: TokenStream, item: TokenStream) -> TokenStream {
     let side: StructSide = unwrap!(args.side());
 
     let mut input: ItemStruct = parse_macro_input!(item);
-    utils::replace_attributes(&mut input, &side);
+    utils::replace_attributes(&mut input);
 
     let struct_name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();

@@ -416,7 +416,7 @@ impl BitOr for Intent {
     type Output = u32;
 
     fn bitor(self, rhs: Self) -> u32 {
-        self.as_u32() | rhs.as_u32()
+        self as u32 | rhs as u32
     }
 }
 
@@ -424,6 +424,6 @@ impl BitOr<u32> for Intent {
     type Output = u32;
 
     fn bitor(self, rhs: u32) -> u32 {
-        self.as_u32() | rhs
+        self as u32 | rhs
     }
 }

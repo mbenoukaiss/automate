@@ -1,4 +1,3 @@
-use crate::encode::AsJson;
 use std::fmt::{Display, Debug, Formatter, Error as FmtError};
 use std::ops::{Deref, DerefMut};
 use serde::{Deserializer, Deserialize};
@@ -13,19 +12,9 @@ use core::fmt;
 #[derive(Eq, PartialEq, Ord, PartialOrd)]
 #[derive(Hash)]
 #[derive(Copy, Clone)]
+#[derive(Serialize)]
+#[serde(transparent)]
 pub struct Snowflake(pub u64);
-
-impl AsJson for Snowflake {
-    #[cfg_attr(feature = "aggressive-inlining", inline)]
-    fn as_json(&self) -> String {
-        self.0.as_json()
-    }
-
-    #[cfg_attr(feature = "aggressive-inlining", inline)]
-    fn concat_json(&self, dest: &mut String) {
-        self.0.concat_json(dest)
-    }
-}
 
 struct SnowflakeVisitor;
 
