@@ -77,7 +77,7 @@ pub enum MemberFilter {
 
 #[object(client, default)]
 pub struct ModifyMember {
-    pub nick: Option<String>,
+    pub nick: Option<Option<String>>,
     pub roles: Option<Vec<Snowflake>>,
     pub mute: Option<bool>,
     pub deaf: Option<bool>,

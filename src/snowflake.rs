@@ -9,11 +9,13 @@ use core::fmt;
 /// used by discord API to provide unique IDs for guilds, channels, users, etc.
 /// Since a snowflake is 64bits in size, it is stored as a u64 in the
 /// `automate` library.
-#[derive(Eq, PartialEq, Ord, PartialOrd)]
-#[derive(Hash)]
+///
+/// Snowflakes are serialized as normal integers but can be deserialized
+/// from string or integer since Discord may send normal integers or wrap
+/// them in a string.
+#[derive(Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[derive(Copy, Clone)]
 #[derive(Serialize)]
-#[serde(transparent)]
 pub struct Snowflake(pub u64);
 
 struct SnowflakeVisitor;
