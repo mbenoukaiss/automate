@@ -221,6 +221,26 @@
 //! to spread your bot across multiple servers or if you want to launch more or less
 //! shards than what Discord recommends.
 //!
+//! # Models
+//! In order to deal with the data sent by Discord, [model structs and enums](automate::gateway::models)
+//! have been created. The goal is to be able to manipulate data by dealing with usual structs
+//! and not JSON data.
+//!
+//! The data returned by discord can be of 4 kinds :
+//! - Always present
+//! - Nullable: Field will be included but the data can either be null or present.
+//! - Optional: Field will either not be included at all or present
+//! - Optional and nullable : The field can be present, null or not included.
+//!
+//! Both nullable and optional are handled with  [Option](std::option::Option) enum, but optional
+//! nullable are wrapped in two [Option](std::option::Option)s because in some cases you may
+//! need to know or specify if the data was not present or null.
+//!
+//! For example, when editing a guild member, if you need to modify some fields but NOT the
+//! nickname (which is optional and nullable), you will set the `nick` field to `None`.
+//! But if you want to remove the nick, it needs to be set to null and you can achieve that
+//! by sending `Some(None)`.
+//!
 //! # Examples
 //! ```no_run
 //! use automate::{listener, stateless, Error, Context, Configuration, Automate};
@@ -420,7 +440,7 @@ impl Configuration {
             member_threshold: None,
             presence: None,
             guild_subscriptions: None,
-            collector_period: 300 //default to 5 minutes for now
+            collector_period: 3600
         }
     }
 
@@ -550,6 +570,34 @@ impl Configuration {
     /// Defaults to true.
     pub fn guild_subscriptions(mut self, enabled: bool) -> Self {
         self.guild_subscriptions = Some(enabled);
+        self
+    }
+
+    /// Sets the bucket collector period in seconds. Defaults
+    /// to one hour.
+    ///
+    /// A bucket is a structure specifying the state of the
+    /// rate-limit of a specified endpoint. It contains the
+    /// amount of remaining API calls for the endpoint and
+    /// the time at which it will reset.
+    ///
+    /// After each HTTP API call and in order to not reach the
+    /// rate-limit set by Discord, the library keeps a hashmap
+    /// associating the routes to their bucket. However, when
+    /// these buckets reset, it is not necessary to keep them
+    /// in memory anymore.
+    /// Keeping buckets as long as the program runs would
+    /// gradually use more and more memory as the bot joins
+    /// and leaves guilds and sends DMs to users.
+    ///
+    /// The bucket collector was thus created to clean
+    /// up memory every `period` seconds.
+    ///
+    /// For bots that are only in a few guilds and are meant to
+    /// stay that way, it is not necessary to run the collector
+    /// often. Once every few days will suffice.
+    pub fn collector_period(mut self, period: u64) -> Self {
+        self.collector_period = period;
         self
     }
 }
