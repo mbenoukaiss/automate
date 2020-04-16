@@ -279,7 +279,7 @@ pub struct UpdateStatus {
     #[nullable]
     pub since: Option<i32>,
     #[nullable]
-    pub game: Option<Activity>,
+    pub game: Option<ActivityUpdate>,
     pub status: StatusType,
     pub afk: bool,
 }
