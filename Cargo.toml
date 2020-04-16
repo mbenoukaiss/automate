@@ -12,7 +12,7 @@ edition = "2018"
 
 [dependencies]
 proc-macro-hack = "0.5"
-automate-derive = { version = "0.3.0", path = "derive" }
+automate-derive = { version = "0.3.0", path = "derive", features = ["strict-deserializer"] }
 futures = "0.3"
 async-trait = "0.1"
 tokio = { version = "0.2.10", features = ["time", "rt-threaded", "rt-util"] }
@@ -34,3 +34,9 @@ optional = true
 
 [features]
 default = []
+
+# Returns error when deserialized data does not
+# have a corresponding field in the struct.
+# Only useful in development/debug to find data
+# that the library should support.
+strict-deserializer = []

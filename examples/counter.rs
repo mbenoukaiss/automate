@@ -6,7 +6,7 @@
 extern crate automate;
 
 use automate::{Context, Error, Snowflake, Configuration, Automate};
-use automate::gateway::{MessageCreateDispatch, UpdateStatus, StatusType, Activity, ActivityType};
+use automate::gateway::{MessageCreateDispatch, UpdateStatus, StatusType, ActivityType, ActivityUpdate};
 use automate::http::CreateMessage;
 use automate::events::{Initializable, StatefulListener};
 use automate::log::LevelFilter;
@@ -64,7 +64,7 @@ fn main() {
         .presence(UpdateStatus {
             status: StatusType::Dnd,
             afk: false,
-            game: Some(Activity {
+            game: Some(ActivityUpdate {
                 name: String::from("Counting messages..."),
                 _type: ActivityType::Game,
                 url: None

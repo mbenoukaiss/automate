@@ -41,7 +41,6 @@ macro_rules! unwrap {
 mod attribute;
 mod derive;
 mod macros;
-mod discord;
 mod utils;
 
 //doc in automae's lib.rs

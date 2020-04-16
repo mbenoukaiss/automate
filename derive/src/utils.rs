@@ -1,9 +1,9 @@
+use proc_macro2::TokenStream as TokenStream2;
 use proc_macro::TokenStream;
-use quote::quote;
+use quote::{quote, ToTokens};
 use syn::{ItemStruct, Ident, Fields, FnArg, Pat, Path, Type, Attribute, Signature};
 use syn::parse::Parser;
 use syn::spanned::Spanned;
-use quote::ToTokens;
 
 /// Read the arguments in a function's signature and
 /// returns a vec with tuples of the function name and
@@ -29,7 +29,7 @@ pub fn read_function_arguments(signature: &Signature) -> Vec<(Ident, String)> {
 
 /// Extends [Deref](std::ops::Deref) and [DerefMut](std::ops::DerefMut)
 /// on tuple struct of one element.
-pub fn extend_with_deref(input: &ItemStruct, quote: &mut TokenStream) -> Result<(), TokenStream> {
+pub fn extend_with_deref(input: &ItemStruct, quote: &mut TokenStream2) -> Result<(), TokenStream> {
     let name = &input.ident;
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
@@ -38,26 +38,24 @@ pub fn extend_with_deref(input: &ItemStruct, quote: &mut TokenStream) -> Result<
         if unnamed.unnamed.len() == 1 {
             let underlying = &unnamed.unnamed.first().unwrap().ty;
 
-            let deref = quote! {
-                    impl #impl_generics ::std::ops::Deref for #name #ty_generics #where_clause {
-                        type Target = #underlying;
+            quote.extend(quote! {
+                impl #impl_generics ::std::ops::Deref for #name #ty_generics #where_clause {
+                    type Target = #underlying;
 
-                        #[inline]
-                        fn deref(&self) -> &Self::Target {
-                            &self.0
-                        }
+                    #[inline]
+                    fn deref(&self) -> &Self::Target {
+                        &self.0
                     }
+                }
 
-                    impl #impl_generics ::std::ops::DerefMut for #name #ty_generics #where_clause {
+                impl #impl_generics ::std::ops::DerefMut for #name #ty_generics #where_clause {
 
-                        #[inline]
-                        fn deref_mut(&mut self) -> &mut Self::Target {
-                            &mut self.0
-                        }
+                    #[inline]
+                    fn deref_mut(&mut self) -> &mut Self::Target {
+                        &mut self.0
                     }
-                };
-
-            quote.extend(TokenStream::from(deref));
+                }
+            });
         } else {
             compile_error!(err input, "Only tuple structs with one field can be dereferenced")
         }
@@ -131,3 +129,52 @@ pub fn replace_attributes(input: &mut ItemStruct) {
         };
     }
 }
+
+/// Which side is creating and sending this struct
+/// mostly useful to avoid implementing `AsJson` or
+/// `Deserialize` on types that don't need them.
+pub enum StructSide {
+    Server = 1,
+    Client = 2,
+    Both = 3,
+}
+
+impl StructSide {
+    pub fn appropriate_derive(&self, default: bool) -> TokenStream2 {
+        let mut default_traits = vec![quote!(Debug)];
+
+        if default {
+            default_traits.push(quote!(Default));
+        }
+
+        let mut tokens = match self {
+            StructSide::Client => quote!(#[derive(#(#default_traits),*, Clone, serde::Serialize)]),
+            StructSide::Server => quote!(#[derive(#(#default_traits),*, Clone, serde::Deserialize)]),
+            StructSide::Both => quote!(#[derive(#(#default_traits),*, Clone, serde::Serialize, serde::Deserialize)])
+        };
+
+        tokens.extend(quote!(#[cfg_attr(feature = "strict-deserializer", serde(deny_unknown_fields))]));
+        tokens
+    }
+}
+
+pub fn append_client_quote(input: &ItemStruct, opcode: u8, quote: &mut TokenStream2) {
+    let struct_name = &input.ident;
+    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+
+    quote.extend(quote! {
+        impl #impl_generics From<#struct_name #ty_generics> for ::tungstenite::Message #where_clause {
+            fn from(origin: #struct_name #ty_generics) -> Self {
+                let mut msg = String::with_capacity(14);
+                msg.push_str(concat!("{\"op\":", #opcode, ",\"d\":"));
+                msg.push_str(&serde_json::to_string(&origin).expect(concat!("Failed to serialize ", stringify!(#struct_name))));
+                msg.push('}');
+
+                ::tungstenite::Message::Text(msg)
+            }
+        }
+    });
+}
+
+#[allow(unused_variables)]
+pub fn append_server_quote(input: &ItemStruct, quote: &mut TokenStream2) {}

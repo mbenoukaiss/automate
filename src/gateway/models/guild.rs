@@ -302,15 +302,13 @@ pub struct ClientStatus {
 /// A user's displayed activity.
 ///
 /// More information on [Discord's documentation](https://discordapp.com/developers/docs/topics/gateway#activity-object)
-#[object(both)]
+#[object(server)]
 pub struct Activity {
     pub name: String,
     #[serde(rename = "type")]
     pub _type: ActivityType,
     #[option_nullable]
     pub url: Option<Option<String>>,
-
-    /* Bots are only allowed to send name, type and optionally URL
     pub timestamps: Option<ActivityTimestamps>,
     pub application_id: Option<Snowflake>,
     #[option_nullable]
@@ -327,7 +325,15 @@ pub struct Activity {
     pub sync_id: Option<String>,
     pub session_id: Option<String>,
     pub created_at: u64
-    */
+}
+
+#[object(client)]
+pub struct ActivityUpdate {
+    pub name: String,
+    #[serde(rename = "type")]
+    pub _type: ActivityType,
+    #[option_nullable]
+    pub url: Option<Option<String>>
 }
 
 #[convert(u8)]

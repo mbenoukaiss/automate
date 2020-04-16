@@ -1,9 +1,11 @@
+use proc_macro2::{TokenStream as TokenStream2, Span};
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, AttributeArgs, ItemStruct};
-use quote::quote;
+use syn::{parse_macro_input, AttributeArgs, Attribute, Field, Fields, Ident, ItemStruct};
+use syn::parse::Parser;
+use quote::{quote, ToTokens};
 use darling::FromMeta;
-use crate::{utils, discord};
-use crate::discord::StructSide;
+use crate::utils;
+use crate::utils::StructSide;
 
 /// Parses the list of variables for a gateway payload
 ///   `#[payload(op = 0, event = "READY", server)]`
@@ -47,35 +49,81 @@ pub fn payload(metadata: TokenStream, item: TokenStream) -> TokenStream {
 
     let side: StructSide = unwrap!(args.side());
 
-    let mut input: ItemStruct = parse_macro_input!(item);
-    utils::replace_attributes(&mut input);
+    let mut item: ItemStruct = parse_macro_input!(item);
+    utils::replace_attributes(&mut item);
 
-    let struct_name = &input.ident;
-    let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
+    let struct_name = &item.ident;
+    let (impl_generics, ty_generics, where_clause) = item.generics.split_for_impl();
 
-    let mut output: TokenStream = side.appropriate_derive(args.default);
-    output.extend(TokenStream::from(quote!(#input)));
+    let trace_struct = if cfg!(feature = "strict-deserializer") {
+        if let Fields::Named(mut fields) = item.fields.clone() {
+            let derives = side.appropriate_derive(args.default);
+            let trace_name = format!("__trace_{}", item.ident);
+            let trace_ident = Ident::new(&trace_name, Span::call_site());
+
+            //retrieve field names to use in the From<>
+            let field_names = fields.named.iter()
+                .map(|f| f.ident.clone())
+                .collect::<Option<Vec<Ident>>>();
+
+            //add the extra _trace field
+            fields.named.push(Field::parse_named
+                .parse2(quote!(_trace: Vec<String>))
+                .unwrap());
+
+            //create a similar struct with the additional `_trace` to allow deserializing
+            //with the strict deserializer without the presence of `_trace` returning err
+            if let Some(field_names) = field_names {
+                let attrs = Attribute::parse_outer
+                    .parse2(quote!(#[serde(from = #trace_name)]))
+                    .unwrap();
+
+                item.attrs.extend(attrs);
+
+                quote! {
+                    #derives
+                    struct #trace_ident #ty_generics #fields
+
+                    impl #impl_generics core::convert::From<#trace_ident #ty_generics> for #struct_name #ty_generics {
+                        fn from(trace: #trace_ident #ty_generics) -> Self {
+                            #struct_name #ty_generics {
+                                #(#field_names: trace.#field_names),*
+                            }
+                        }
+                    }
+                }
+            } else {
+                TokenStream2::new()
+            }
+        } else {
+            TokenStream2::new()
+        }
+    } else {
+        TokenStream2::new()
+    };
+
+    let mut output = side.appropriate_derive(args.default);
+    item.to_tokens(&mut output);
+    output.extend(trace_struct);
 
     if let Some(event_name) = args.event {
-        let constant_impl = quote! {
+        output.extend(quote! {
             impl #impl_generics #struct_name #ty_generics #where_clause {
                 pub const EVENT_NAME: &'static str = #event_name;
             }
-        };
-
-        output.extend(TokenStream::from(constant_impl));
+        });
     }
 
-    unwrap!(utils::extend_with_deref(&input, &mut output));
+    unwrap!(utils::extend_with_deref(&item, &mut output));
 
     if let StructSide::Client = side {
-        discord::append_client_quote(&input, args.op, &mut output);
+        utils::append_client_quote(&item, args.op, &mut output);
     } else if let StructSide::Server = side {
-        discord::append_server_quote(&input, &mut output);
+        utils::append_server_quote(&item, &mut output);
     } else {
-        discord::append_client_quote(&input, args.op, &mut output);
-        discord::append_server_quote(&input, &mut output);
+        utils::append_client_quote(&item, args.op, &mut output);
+        utils::append_server_quote(&item, &mut output);
     }
 
-    output
+    TokenStream::from(output)
 }
