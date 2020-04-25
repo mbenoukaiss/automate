@@ -67,7 +67,7 @@ pub fn state(input: TokenStream) -> TokenStream {
     let name = input.ident.clone();
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
-    let methods_storage_name = Ident::new(&format!("METHODS_{}", input.ident).to_uppercase(), Span::call_site());
+    let methods_storage_name = Ident::new(&format!("__methods_{}", input.ident).to_uppercase(), Span::call_site());
     let (functions, immutables, mutables, dispatches) = events_list();
     
     TokenStream::from(quote! {

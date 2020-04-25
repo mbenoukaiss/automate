@@ -28,8 +28,7 @@ fn main() {
     Automate::block_on(async move {
         ShardManager::with_config(config).await
             .set_total_shards(2)
-            .setup(0)
-            .setup(1)
+            .auto_setup()
             .launch().await;
     });
 }

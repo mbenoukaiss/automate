@@ -33,7 +33,7 @@ async fn invite(ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), E
             unique: false,
         }).await?.code;
 
-        let content = format!("Here's your invite {} : https://discord.gg/{}", message.author.username, invite);
+        let content = format!("Here's your invite {}: https://discord.gg/{}", message.author.username, invite);
 
         ctx.create_message(message.channel_id, CreateMessage {
             content: Some(content),

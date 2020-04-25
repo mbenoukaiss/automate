@@ -46,6 +46,9 @@ pub trait Initializable {
 /// this trait is registered, methods will be called
 /// when the library receives the corresponding events.
 ///
+/// Please do not implement this manually as the structure
+/// is subject to changes until version 0.4.
+///
 /// Structs implementing this listener must derive [Clone](std::clone::Clone) and
 /// [Initializable](automate::events::Initializable) in order to be registered.
 #[async_trait]
@@ -698,7 +701,6 @@ pub struct StatefulListenerStorage<T> {
     pub voice_server_update_mut: Vec<VoiceServerUpdateSelfMut<T>>,
     pub webhooks_update_mut: Vec<WebhooksUpdateSelfMut<T>>,
 }
-
 
 impl<T> StatefulListenerStorage<T> {
     pub fn register(&mut self, listeners: Vec<StatefulListener<T>>) {

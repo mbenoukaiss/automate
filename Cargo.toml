@@ -1,6 +1,6 @@
 [package]
 name = "automate"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["mbenoukaiss <marwane.benou-kaiss@etu.u-bordeaux.fr>"]
 license = "MIT"
 repository = "https://github.com/mbenoukaiss/automate"
@@ -12,7 +12,7 @@ edition = "2018"
 
 [dependencies]
 proc-macro-hack = "0.5"
-automate-derive = { version = "0.3.0", path = "derive", features = ["strict-deserializer"] }
+automate-derive = { version = "0.3.1", path = "derive" }
 futures = "0.3"
 async-trait = "0.1"
 tokio = { version = "0.2.10", features = ["time", "rt-threaded", "rt-util"] }
@@ -39,4 +39,6 @@ default = []
 # have a corresponding field in the struct.
 # Only useful in development/debug to find data
 # that the library should support.
-strict-deserializer = []
+#
+# Re-exported to the derive crate.
+strict-deserializer = ["automate-derive/strict-deserializer"]

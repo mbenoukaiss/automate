@@ -159,7 +159,7 @@ fn main() {
             status: StatusType::Dnd,
             afk: false,
             game: Some(ActivityUpdate {
-                name: String::from("Counting messages..."),
+                name: String::from("counting messages..."),
                 _type: ActivityType::Game,
                 url: None,
             }),

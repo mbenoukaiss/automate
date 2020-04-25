@@ -181,14 +181,14 @@ impl Args {
 }
 
 /// A Discord HTTP API endpoint.
-/// Takes the following parameters :
+/// Takes the following parameters:
 /// * (get|post|put|patch|delete): defines the HTTP method
 /// * route: defines the URL to send the request to
 /// * body: The variable in which the body is contained
 /// * status: The expected status code
 ///
 /// The route should be a single string. Parameters can
-/// be interpolated by being surrounded by curly braces :
+/// be interpolated by being surrounded by curly braces:
 /// * Types implementing the `ExtractSnowflake` type,
 /// their snowflake will be appended to the URL using
 /// [extract_snowflake](automate::encode:ExtractSnowflake::extract_snowflake)

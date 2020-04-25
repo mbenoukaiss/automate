@@ -10,7 +10,7 @@ to learn how to switch to rust nightly.
 In order to use Automate in your project, add the following line to your `Cargo.toml` :
 ```
 [dependencies]
-automate = "0.3"
+automate = "0.3.1"
 ```
 
 You can then write the following in your `main.rs`. This simple example will respond Hello <name of the user>! to any
@@ -56,7 +56,7 @@ For examples with more details, see in the `examples` folder. You can also refer
 While mature enough to make text bots, Automate is still missing some important features which will be implemented soon such as :
 - **Caching system**: necessary to avoid making API calls each time you need information about a member or a guild. You can still implement it manually, see the [levels example](examples/levels.rs).
 - **Voice**: it is possible to interact with members in voice channels (kicking, muting, deafening them...) but it is not possible to make the bot join a channel and receive or send sound.
-- **[Examples](examples/)**: necessary to properly show how the library works, feel free to make pull request if you want to submit one :)
+- **More [examples](examples)**: not a feature but necessary to properly show how the library works, feel free to make pull request if you want to submit one :)
 
 # Contributing
 Any kind of contribution is welcome, from issues to pull requests. For major changes, please open an issue first to discuss what you would like to change.
