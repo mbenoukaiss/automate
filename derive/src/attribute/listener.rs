@@ -52,7 +52,7 @@ fn adapt_method(item: &ItemFn, rcv: &Receiver, arguments: (&Ident, &Ident), even
     let self_tokens = if rcv.mutability.is_some() {
         quote!(&'a mut self)
     } else {
-        quote!(&'q self)
+        quote!(&'a self)
     };
 
     let func = &item.sig.ident;

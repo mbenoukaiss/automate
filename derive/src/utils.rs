@@ -153,7 +153,10 @@ impl StructSide {
             StructSide::Both => quote!(#[derive(#(#default_traits),*, Clone, serde::Serialize, serde::Deserialize)])
         };
 
-        tokens.extend(quote!(#[cfg_attr(feature = "strict-deserializer", serde(deny_unknown_fields))]));
+        if cfg!(feature = "strict-deserializer") {
+            tokens.extend(quote!(#[cfg_attr(feature = "strict-deserializer", serde(deny_unknown_fields))]));
+        }
+
         tokens
     }
 }
