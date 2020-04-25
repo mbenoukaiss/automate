@@ -68,7 +68,7 @@ pub fn payload(metadata: TokenStream, item: TokenStream) -> TokenStream {
 
             //add the extra _trace field
             fields.named.push(Field::parse_named
-                .parse2(quote!(_trace: Vec<String>))
+                .parse2(quote!(_trace: Option<Vec<String>>))
                 .unwrap());
 
             //create a similar struct with the additional `_trace` to allow deserializing
