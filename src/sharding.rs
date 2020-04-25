@@ -1,6 +1,6 @@
 use crate::{HttpAPI, Snowflake, Configuration, logger};
 use crate::gateway::GatewayAPI;
-use futures::future::join_all;
+use futures::future;
 use tokio::task::JoinHandle;
 use std::time::Duration;
 
@@ -83,7 +83,7 @@ impl ShardManager {
         let mut shards = Vec::new();
         shards.append(&mut self.managed_shards);
 
-        for result in join_all(shards).await {
+        for result in future::join_all(shards).await {
             if let Err(err) = result {
                 error!("Failed to join shard: {}", err);
             }

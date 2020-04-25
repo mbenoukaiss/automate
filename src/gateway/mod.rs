@@ -8,7 +8,6 @@ pub use models::*;
 use crate::{map, Error, Configuration, logger, http};
 use crate::http::HttpAPI;
 use crate::encode::json;
-use crate::events::ListenerType;
 use std::env;
 use std::time::Duration;
 use std::sync::Arc;
@@ -56,8 +55,6 @@ macro_rules! dispatcher {
             for listener in &mut *self.config.listeners.stateful_listeners {
                 (*listener).$fn_name(&mut context, &payload).await;
             }
-
-            self.config.listeners.register(context.new_listeners);
 
             Ok(())
         }
@@ -121,7 +118,6 @@ pub struct Context {
     sender: UnboundedSender<Instruction>,
     http: Arc<HttpAPI>,
     bot: Option<Arc<User>>,
-    new_listeners: Vec<ListenerType>,
 }
 
 impl Context {
@@ -130,7 +126,6 @@ impl Context {
             sender: gateway.msg_sender.clone(),
             http: Arc::clone(&gateway.http),
             bot: gateway.bot.clone(),
-            new_listeners: Vec::new(),
         }
     }
 
@@ -186,7 +181,7 @@ enum Instruction {
     /// Necessary messages have reserved slots to keep sending
     /// them even when it's about to reach rate-limit.
     Send(TkMessage, bool),
-    Shutdown,
+    Close,
 }
 
 /// Communicates with Discord's gateway
@@ -229,8 +224,8 @@ impl<'a> GatewayAPI<'a> {
                 };
 
                 let mut select = stream::select(
-                    socket.map(Instruction::Receive),
-                    rx,
+                    socket.map(Instruction::Receive), //gateway events
+                    rx,                                  //commands and close
                 );
 
                 while let Some(message) = select.next().await {
@@ -239,7 +234,7 @@ impl<'a> GatewayAPI<'a> {
                         Instruction::Send(m, n) => if check_remaining(&mut remaining_commands, n).await {
                             select.get_mut().0.send(m).await?;
                         },
-                        Instruction::Shutdown => break
+                        Instruction::Close => break
                     }
                 }
 
@@ -274,10 +269,10 @@ impl<'a> GatewayAPI<'a> {
         Ok(self.msg_sender.send(Instruction::Send(msg.into(), necessary)).await?)
     }
 
-    /// Shuts down the conneciton with the gateway.
+    /// Shuts down the connection with the gateway.
     #[inline]
-    async fn shutdown(&mut self) -> Result<(), Error> {
-        self.msg_sender.send(Instruction::Shutdown).await?;
+    async fn disconnect(&mut self) -> Result<(), Error> {
+        self.msg_sender.send(Instruction::Close).await?;
         self.msg_sender.close().await?;
 
         Ok(())
@@ -291,11 +286,11 @@ impl<'a> GatewayAPI<'a> {
                 }
             }
             TkMessage::Close(close) => {
-                if let Some(cf) = close {
-                    return Error::err(format!("Gateway unexpectedly closed with code {}: {}", Into::<u16>::into(cf.code), cf.reason));
+                return if let Some(cf) = close {
+                    Error::err(format!("Gateway unexpectedly closed with code {}: {}", Into::<u16>::into(cf.code), cf.reason))
                 } else {
-                    return Error::err("Gateway unexpectedly closed");
-                }
+                    Error::err("Gateway unexpectedly closed")
+                };
             }
             unknown => trace!("Unknown message type received: {:?}", unknown)
         };
@@ -452,9 +447,8 @@ impl<'a> GatewayAPI<'a> {
     async fn on_ready(&mut self, payload: ReadyDispatch) -> Result<(), Error> {
         let shard_id = self.config.shard_id.unwrap();
         if shard_id == 0 && self.bot.is_none() {
-            let invite = format!("https://discordapp.com/oauth2/authorize?client_id={}&scope=bot&permissions=8", payload.user.id);
-
-            info!("You can invite the bot in your guild using this link: {}", invite);
+            let i = format!("https://discordapp.com/oauth2/authorize?client_id={}&scope=bot&permissions=8", payload.user.id);
+            info!("You can invite the bot in your guild using this link: {}", i);
         }
 
         info!("Established connection for shard {}", shard_id);
@@ -480,8 +474,6 @@ impl<'a> GatewayAPI<'a> {
             (*listener).on_ready(&mut context, &payload).await
         }
 
-        self.config.listeners.register(context.new_listeners);
-
         Ok(())
     }
 
@@ -491,8 +483,8 @@ impl<'a> GatewayAPI<'a> {
     }
 
     async fn on_reconnect(&mut self) -> Result<(), Error> {
-        warn!("Received reconnect payload, disconnecting");
-        self.shutdown().await?;
+        info!("Received reconnect payload, disconnecting");
+        self.disconnect().await?;
 
         Ok(())
     }
@@ -502,7 +494,7 @@ impl<'a> GatewayAPI<'a> {
             self.session_id = None;
 
             warn!("Invalid session, shutting down connection");
-            self.shutdown().await?;
+            self.disconnect().await?;
         }
 
         Ok(())
@@ -553,8 +545,7 @@ async fn heartbeat_task(
             tokio::time::delay_for(Duration::from_millis(interval)).await;
 
             //if the channel was closed, it means the shard closed and dropped the receiver
-            //therefore this heartbeat task is not needed anymore and a new one will be
-            //created
+            //therefore this heartbeat task is not needed anymore and a new one will be created
             //since the channel is already closed, we directly return from the function
             if sender.is_closed() {
                 trace!("Channel was closed, stopping heartbeat thread");
@@ -577,12 +568,12 @@ async fn heartbeat_task(
         error!("Heartbeat thread failed ({}), shutting down connection", err.to_string());
     }
 
-    let shutdown: Result<(), SendError> = try {
-        sender.send(Instruction::Shutdown).await?;
+    let close: Result<(), SendError> = try {
+        sender.send(Instruction::Close).await?;
         sender.close().await?;
     };
 
-    if let Err(err) = shutdown {
+    if let Err(err) = close {
         error!("Failed to close channel: {}", err.to_string());
     }
 }

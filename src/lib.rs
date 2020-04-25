@@ -14,22 +14,22 @@
 //! You can then copy the bot's token by clicking the copy button.
 //!
 //! In order to build your bot, you must first provide it with the settings you'd like to use which
-//! is done using the [Configuration](automate::Configuration) struct :
-//! - [Configuration::new](automate::Configuration::new) : Takes the bot token as parameter. You
+//! is done using the [Configuration](automate::Configuration) struct:
+//! - [Configuration::new](automate::Configuration::new): Takes the bot token as parameter. You
 //! can provide a hardcoded string, take it from the environment or retrieve it from a configuration
 //! file.
-//! - [Configuration::from_env](automate::Configuration::from_env) : Does the same as `new` except
+//! - [Configuration::from_env](automate::Configuration::from_env): Does the same as `new` except
 //! it takes the bot token from the given environment variable.
-//! - [Configuration::register](automate::Configuration::register) : Registers stateful and
+//! - [Configuration::register](automate::Configuration::register): Registers stateful and
 //! stateless listeners.
 //! - [Configuration::enable_logging](automate::Configuration::enable_logging) and
-//! [Configuration::disable_logging](automate::Configuration::disable_logging) : Enable or
+//! [Configuration::disable_logging](automate::Configuration::disable_logging): Enable or
 //! disable Automate's built in logger. You can disable it and use your own logger if necessary.
-//! - [Configuration::level_for](automate::Configuration::level_for) : Sets the minimum log level
+//! - [Configuration::level_for](automate::Configuration::level_for): Sets the minimum log level
 //! for a line to be printed in the console output for the given module.
-//! - [Configuration::intents](automate::Configuration::intents) : Sets the events which will
+//! - [Configuration::intents](automate::Configuration::intents): Sets the events which will
 //! be sent to the bot using [intents](automate::Intent). Defaults to all events.
-//! - [Configuration::presence](automate::Configuration::presence) : Sets the presence of the bot.
+//! - [Configuration::presence](automate::Configuration::presence): Sets the presence of the bot.
 //!
 //! The resulting configuration object can then be sent to
 //! [Automate::launch](automate::Automate::launch) which will start the bot.
@@ -37,7 +37,7 @@
 //! # Listeners
 //! Discord sends various events through their API about messages, guild and
 //! user updates, etc. Automate will then relay these events to your bot through
-//! the listeners you will define. There are two ways to create listeners :
+//! the listeners you will define. There are two ways to create listeners:
 //!
 //! ## Stateless listeners
 //! The easiest way to create a listener is to use a stateless listener. A stateless listener is
@@ -58,63 +58,63 @@
 //! argument is the session, it provides information about the bot and all the methods
 //! allowing you to send instructions to Discord through their HTTP API. The second
 //! argument is the dispatch struct which contains all the data about the event you received.
-//! Events and thus allowed types for the second argument are :
-//! - [ReadyDispatch](automate::gateway::ReadyDispatch) : called right after the connection with
+//! Events and thus allowed types for the second argument are:
+//! - [ReadyDispatch](automate::gateway::ReadyDispatch): called right after the connection with
 //! discord is established. Provides data about current guilds, DMs and the bot user account.
-//! - [ChannelCreateDispatch](automate::gateway::ChannelCreateDispatch) : a channel (guild channel
+//! - [ChannelCreateDispatch](automate::gateway::ChannelCreateDispatch): a channel (guild channel
 //! or DM) was created.
-//! - [ChannelUpdateDispatch](automate::gateway::ChannelUpdateDispatch) : a channel (guild channel
+//! - [ChannelUpdateDispatch](automate::gateway::ChannelUpdateDispatch): a channel (guild channel
 //! or DM) was updated.
-//! - [ChannelDeleteDispatch](automate::gateway::ChannelDeleteDispatch) : a channel (guild channel
+//! - [ChannelDeleteDispatch](automate::gateway::ChannelDeleteDispatch): a channel (guild channel
 //! or DM) was deleted.
-//! - [ChannelPinsUpdateDispatch](automate::gateway::ChannelPinsUpdateDispatch) : a message was
+//! - [ChannelPinsUpdateDispatch](automate::gateway::ChannelPinsUpdateDispatch): a message was
 //! pinned or unpinned.
-//! - [GuildCreateDispatch](automate::gateway::GuildCreateDispatch) : a guild was created, became
+//! - [GuildCreateDispatch](automate::gateway::GuildCreateDispatch): a guild was created, became
 //! available or the bot was added to a guild.
-//! - [GuildUpdateDispatch](automate::gateway::GuildUpdateDispatch) : a guild was updated.
-//! - [GuildDeleteDispatch](automate::gateway::GuildDeleteDispatch) : a guild was deleted, became
+//! - [GuildUpdateDispatch](automate::gateway::GuildUpdateDispatch): a guild was updated.
+//! - [GuildDeleteDispatch](automate::gateway::GuildDeleteDispatch): a guild was deleted, became
 //! unavailable or the bot was removed from the guild.
-//! - [GuildBanAddDispatch](automate::gateway::GuildBanAddDispatch) : a user was banned from a guild.
-//! - [GuildBanRemoveDispatch](automate::gateway::GuildBanRemoveDispatch) : a user was unbanned
+//! - [GuildBanAddDispatch](automate::gateway::GuildBanAddDispatch): a user was banned from a guild.
+//! - [GuildBanRemoveDispatch](automate::gateway::GuildBanRemoveDispatch): a user was unbanned
 //! from a guild.
-//! - [GuildEmojisUpdateDispatch](automate::gateway::GuildEmojisUpdateDispatch) : the emojis of a
+//! - [GuildEmojisUpdateDispatch](automate::gateway::GuildEmojisUpdateDispatch): the emojis of a
 //! guild were updated.
-//! - [GuildIntegrationsUpdateDispatch](automate::gateway::GuildIntegrationsUpdateDispatch) :
+//! - [GuildIntegrationsUpdateDispatch](automate::gateway::GuildIntegrationsUpdateDispatch):
 //! the integration of a guild was updated.
-//! - [GuildMemberAddDispatch](automate::gateway::GuildMemberAddDispatch) : a user joined a guild.
-//! - [GuildMemberUpdateDispatch](automate::gateway::GuildMemberUpdateDispatch) : a guild member was updated.
-//! - [GuildMemberRemoveDispatch](automate::gateway::GuildMemberRemoveDispatch) : a user was removed from a guild.
-//! - [GuildMembersChunkDispatch](automate::gateway::GuildMembersChunkDispatch) : response to a
+//! - [GuildMemberAddDispatch](automate::gateway::GuildMemberAddDispatch): a user joined a guild.
+//! - [GuildMemberUpdateDispatch](automate::gateway::GuildMemberUpdateDispatch): a guild member was updated.
+//! - [GuildMemberRemoveDispatch](automate::gateway::GuildMemberRemoveDispatch): a user was removed from a guild.
+//! - [GuildMembersChunkDispatch](automate::gateway::GuildMembersChunkDispatch): response to a
 //! request guild members (not yet implemented).
-//! - [GuildRoleCreateDispatch](automate::gateway::GuildRoleCreateDispatch) : a role was created.
-//! - [GuildRoleUpdateDispatch](automate::gateway::GuildRoleUpdateDispatch) : a role was updated.
-//! - [GuildRoleDeleteDispatch](automate::gateway::GuildRoleDeleteDispatch) : a role was deleted.
-//! - [InviteCreateDispatch](automate::gateway::InviteCreateDispatch) : an invite to a channel was created.
-//! - [InviteDeleteDispatch](automate::gateway::InviteDeleteDispatch) : an invited to a channel was deleted.
-//! - [MessageCreateDispatch](automate::gateway::MessageCreateDispatch) : a message was created
-//! - [MessageUpdateDispatch](automate::gateway::MessageUpdateDispatch) : a message updated.
-//! - [MessageDeleteDispatch](automate::gateway::MessageDeleteDispatch) : a message was deleted.
-//! - [MessageDeleteBulkDispatch](automate::gateway::MessageDeleteBulkDispatch) : multiple messages 
+//! - [GuildRoleCreateDispatch](automate::gateway::GuildRoleCreateDispatch): a role was created.
+//! - [GuildRoleUpdateDispatch](automate::gateway::GuildRoleUpdateDispatch): a role was updated.
+//! - [GuildRoleDeleteDispatch](automate::gateway::GuildRoleDeleteDispatch): a role was deleted.
+//! - [InviteCreateDispatch](automate::gateway::InviteCreateDispatch): an invite to a channel was created.
+//! - [InviteDeleteDispatch](automate::gateway::InviteDeleteDispatch): an invited to a channel was deleted.
+//! - [MessageCreateDispatch](automate::gateway::MessageCreateDispatch): a message was created
+//! - [MessageUpdateDispatch](automate::gateway::MessageUpdateDispatch): a message updated.
+//! - [MessageDeleteDispatch](automate::gateway::MessageDeleteDispatch): a message was deleted.
+//! - [MessageDeleteBulkDispatch](automate::gateway::MessageDeleteBulkDispatch): multiple messages 
 //! were deleted at once.
-//! - [MessageReactionAddDispatch](automate::gateway::MessageReactionAddDispatch) : a user reacted to a message.
-//! - [MessageReactionRemoveDispatch](automate::gateway::MessageReactionRemoveDispatch) : a user's
+//! - [MessageReactionAddDispatch](automate::gateway::MessageReactionAddDispatch): a user reacted to a message.
+//! - [MessageReactionRemoveDispatch](automate::gateway::MessageReactionRemoveDispatch): a user's
 //! reaction was removed from a message.
-//! - [MessageReactionRemoveAllDispatch](automate::gateway::MessageReactionRemoveAllDispatch) : all
+//! - [MessageReactionRemoveAllDispatch](automate::gateway::MessageReactionRemoveAllDispatch): all
 //! reactions were explicitly removed from a message.
-//! - [MessageReactionRemoveEmojiDispatch](automate::gateway::MessageReactionRemoveEmojiDispatch) :
+//! - [MessageReactionRemoveEmojiDispatch](automate::gateway::MessageReactionRemoveEmojiDispatch):
 //! all reactions for a given emoji were explicitly removed from a message.
-//! - [PresenceUpdateDispatch](automate::gateway::PresenceUpdateDispatch) : user was updated.
-//! - [TypingStartDispatch](automate::gateway::TypingStartDispatch) : user started typing in a channel.
-//! - [UserUpdateDispatch](automate::gateway::UserUpdateDispatch) : properties about the user changed.
-//! - [VoiceStateUpdateDispatch](automate::gateway::VoiceStateUpdateDispatch) : a user joined, left,
+//! - [PresenceUpdateDispatch](automate::gateway::PresenceUpdateDispatch): user was updated.
+//! - [TypingStartDispatch](automate::gateway::TypingStartDispatch): user started typing in a channel.
+//! - [UserUpdateDispatch](automate::gateway::UserUpdateDispatch): properties about the user changed.
+//! - [VoiceStateUpdateDispatch](automate::gateway::VoiceStateUpdateDispatch): a user joined, left,
 //! or moved a voice channel.
-//! - [VoiceServerUpdateDispatch](automate::gateway::VoiceServerUpdateDispatch) : guild's voice
+//! - [VoiceServerUpdateDispatch](automate::gateway::VoiceServerUpdateDispatch): guild's voice
 //! server was updated.
-//! - [WebhooksUpdateDispatch](automate::gateway::WebhooksUpdateDispatch) : guild channel webhook
+//! - [WebhooksUpdateDispatch](automate::gateway::WebhooksUpdateDispatch): guild channel webhook
 //! was created, update, or deleted.
 //!
 //! A listener function can be registered in the library by sending the name of the function to the
-//! [Configuration::register](automate::Configuration::register) method using the `stateless!` macro :
+//! [Configuration::register](automate::Configuration::register) method using the `stateless!` macro:
 //! ```
 //! # use automate::{stateless, listener, Configuration, Context, Error};
 //! # use automate::gateway::MessageCreateDispatch;
@@ -146,7 +146,7 @@
 //!
 //! Stateful listeners work in the exact same way as stateless listeners except they're
 //! declared in an impl block of a struct that derives the [State](automate::events::State) trait.
-//! Structs containing stateful listeners must do 3 things :
+//! Structs containing stateful listeners must do 3 things:
 //! - Derive the [State](automate::events::State) trait which can be done automatically using
 //! the `#[derive(State)]` derive macro.
 //! - Implement [Clone](std::clone::Clone) since they need to be cloned to be used between
@@ -226,11 +226,11 @@
 //! have been created. The goal is to be able to manipulate data by dealing with usual structs
 //! and not JSON data.
 //!
-//! The data returned by discord can be of 4 kinds :
+//! The data returned by discord can be of 4 kinds:
 //! - Always present
 //! - Nullable: Field will be included but the data can either be null or present.
 //! - Optional: Field will either not be included at all or present
-//! - Optional and nullable : The field can be present, null or not included.
+//! - Optional and nullable: The field can be present, null or not included.
 //!
 //! Both nullable and optional are handled with  [Option](std::option::Option) enum, but optional
 //! nullable are wrapped in two [Option](std::option::Option)s because in some cases you may
