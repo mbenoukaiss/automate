@@ -52,9 +52,15 @@ fn main() {
 
 For examples with more details, see in the `examples` folder. You can also refer to the [documentation](https://docs.rs/automate).
 
+# Upcoming features
+While mature enough to make text bots, Automate is still missing some important features which will be implemented soon such as :
+- **Caching system**: necessary to avoid making API calls each time you need information about a member or a guild. You can still implement it manually, see the [levels example](examples/levels.rs).
+- **Voice**: it is possible to interact with members in voice channels (kicking, muting, deafening them...) but it is not possible to make the bot join a channel and receive or send sound.
+- **[Examples](examples/)**: necessary to properly show how the library works, feel free to make pull request if you want to submit one :)
+
 # Contributing
 Any kind of contribution is welcome, from issues to pull requests. For major changes, please open an issue first to discuss what you would like to change.
-Please make sure to update tests as appropriate.
+Please make sure to update documentation as appropriate.
 
 # License
 Licensed under the [MIT license](LICENSE).
