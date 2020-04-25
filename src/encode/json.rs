@@ -235,6 +235,7 @@ mod benchmarks {
     use super::*;
     use serde::Serialize;
     use test::Bencher;
+    use std::collections::HashMap;
 
     #[derive(Serialize)]
     struct Something {
