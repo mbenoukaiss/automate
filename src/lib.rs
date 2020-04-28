@@ -287,6 +287,7 @@ pub mod http;
 pub mod encode;
 pub mod gateway;
 pub mod sharding;
+pub mod storage;
 mod snowflake;
 mod macros;
 mod errors;
@@ -407,7 +408,7 @@ pub struct Configuration {
     token: String,
     logging: bool,
     log_levels: Vec<(String, LevelFilter)>,
-    listeners: ListenerStorage,
+    listeners: ListenerContainer,
     intents: Option<u32>,
     member_threshold: Option<u32>,
     presence: Option<UpdateStatus>,
@@ -432,7 +433,7 @@ impl Configuration {
             token: token.into(),
             logging: true,
             log_levels: default_levels,
-            listeners: ListenerStorage::default(),
+            listeners: ListenerContainer::default(),
             intents: None,
             member_threshold: None,
             presence: None,
@@ -649,9 +650,7 @@ impl Discord {
         }
     }
 
-    /// Registers an event listener struct that implements
-    /// the [Listener](automate::Listener) trait or
-    /// a listener function with the `̀#[listener]` attribute. 
+    /// Registers an event listener function with the `̀#[listener]` attribute.
     #[deprecated(since = "0.3.1", note = "Please use `Configuration::register` instead")]
     pub fn register(mut self, listeners: Vec<ListenerType>) -> Self {
         self.config.listeners.register(listeners);

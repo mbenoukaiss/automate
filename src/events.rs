@@ -2,11 +2,6 @@
 #![allow(deprecated)]
 //! Defines all the types and macros required to make
 //! and register listeners.
-//!
-//! This module should not be explicitly imported by
-//! projects using this library except for the
-//! [Listener](automate::Listener) trait which is
-//! re-exported in the crate root.
 
 use async_trait::async_trait;
 use crate::gateway::*;
@@ -259,7 +254,7 @@ pub enum ListenerType {
 }
 
 #[derive(Default, Clone)]
-pub(crate) struct ListenerStorage {
+pub(crate) struct ListenerContainer {
     pub(crate) stateful_listeners: Vec<Box<dyn State>>,
     pub(crate) ready: Vec<Ready>,
     pub(crate) channel_create: Vec<ChannelCreate>,
@@ -298,7 +293,7 @@ pub(crate) struct ListenerStorage {
     pub(crate) webhooks_update: Vec<WebhooksUpdate>,
 }
 
-impl ListenerStorage {
+impl ListenerContainer {
     pub(crate) fn register(&mut self, listeners: Vec<ListenerType>) {
         for l in listeners {
             match l {
@@ -419,7 +414,7 @@ pub enum StatefulListener<T> {
 }
 
 #[derive(Default, Clone)]
-pub struct StatefulListenerStorage<T> {
+pub struct StatefulListenerContainer<T> {
     pub ready: Vec<ReadySelf<T>>,
     pub channel_create: Vec<ChannelCreateSelf<T>>,
     pub channel_update: Vec<ChannelUpdateSelf<T>>,
@@ -493,7 +488,7 @@ pub struct StatefulListenerStorage<T> {
     pub webhooks_update_mut: Vec<WebhooksUpdateSelfMut<T>>,
 }
 
-impl<T> StatefulListenerStorage<T> {
+impl<T> StatefulListenerContainer<T> {
     pub fn register(&mut self, listeners: Vec<StatefulListener<T>>) {
         for l in listeners {
             match l {

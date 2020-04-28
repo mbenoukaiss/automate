@@ -19,6 +19,7 @@ use futures::channel::mpsc;
 use futures::channel::mpsc::{SendError, UnboundedSender};
 use tktungstenite::tungstenite::Message as TkMessage;
 use chrono::{NaiveDateTime, Utc, Duration as ChronoDuration};
+use crate::storage::{StorageContainer, Stored};
 
 macro_rules! call_dispatcher {
     ($data:ident as $payload:ty => $self:ident.$method:ident) => {{
@@ -35,8 +36,11 @@ macro_rules! call_dispatcher {
 macro_rules! dispatcher {
     ($fn_name:ident: $type:ty => $name:ident) => {
         async fn $fn_name(&mut self, payload: $type) -> Result<(), Error> {
+            self.storage.$fn_name(payload.clone());
+
             let context = Context {
                 sender: &self.msg_sender,
+                storage: &self.storage,
                 http: &self.http,
                 bot: self.bot.as_ref().unwrap()
             };
@@ -112,6 +116,7 @@ impl Delayer {
 /// by dereferencing to [HttpAPI](automate::http::HttpAPI).
 pub struct Context<'a> {
     sender: &'a UnboundedSender<Instruction>,
+    storage: &'a StorageContainer,
     http: &'a HttpAPI,
     pub bot: &'a User,
 }
@@ -137,6 +142,12 @@ impl<'a> Context<'a> {
     /// Request members of a guild.
     pub async fn request_guild_members(&self, data: RequestGuildMembers) -> Result<(), Error> {
         self.send_command(data).await
+    }
+
+    /// Read only reference to the storage of the
+    /// specified type.
+    pub fn storage<T: Stored>(&self) -> &T::Storage {
+        self.storage.read::<T>()
     }
 
     /// Creates a link to invite the bot to a discord server
@@ -172,12 +183,14 @@ enum Instruction {
 /// Communicates with Discord's gateway
 pub(crate) struct GatewayAPI<'a> {
     config: &'a mut Configuration,
+    storage: StorageContainer,
     session_id: Option<String>,
-    sequence_number: Arc<Mutex<Option<i32>>>,
-    heartbeat_confirmed: Arc<AtomicBool>,
     msg_sender: UnboundedSender<Instruction>,
     http: &'a HttpAPI,
     bot: Option<User>,
+
+    sequence_number: Arc<Mutex<Option<i32>>>,
+    heartbeat_confirmed: Arc<AtomicBool>,
 }
 
 impl<'a> GatewayAPI<'a> {
@@ -200,12 +213,13 @@ impl<'a> GatewayAPI<'a> {
 
                 let mut gateway = GatewayAPI {
                     config: &mut config,
+                    storage: StorageContainer::empty(),
                     session_id: None,
-                    sequence_number: Arc::clone(&sequence_number),
-                    heartbeat_confirmed: Arc::new(AtomicBool::new(true)),
                     msg_sender: tx,
                     http: &http,
                     bot: None,
+                    sequence_number: Arc::clone(&sequence_number),
+                    heartbeat_confirmed: Arc::new(AtomicBool::new(true)),
                 };
 
                 let mut select = stream::select(
@@ -441,8 +455,11 @@ impl<'a> GatewayAPI<'a> {
         self.bot = Some(payload.user.clone());
         self.session_id.replace(payload.session_id.clone());
 
+        self.storage.on_ready(payload.clone());
+
         let context = Context {
             sender: &self.msg_sender,
+            storage: &self.storage,
             http: &self.http,
             bot: &payload.user
         };

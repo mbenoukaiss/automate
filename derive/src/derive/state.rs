@@ -72,8 +72,8 @@ pub fn state(input: TokenStream) -> TokenStream {
     
     TokenStream::from(quote! {
         ::automate::lazy_static::lazy_static! {
-            static ref #methods_storage_name: ::automate::events::StatefulListenerStorage<#name #ty_generics> = {
-                let mut storage: ::automate::events::StatefulListenerStorage<#name #ty_generics> = Default::default();
+            static ref #methods_storage_name: ::automate::events::StatefulListenerContainer<#name #ty_generics> = {
+                let mut storage: ::automate::events::StatefulListenerContainer<#name #ty_generics> = Default::default();
                 storage.register(<#name::<#ty_generics> as automate::events::Initializable>::initialize());
 
                 storage

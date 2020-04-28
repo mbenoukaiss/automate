@@ -1,8 +1,8 @@
 use proc_macro2::TokenStream as TokenStream2;
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{ItemStruct, Ident, Fields, FnArg, Pat, Path, Type, Attribute, Signature};
-use syn::parse::Parser;
+use syn::{ItemStruct, Ident, Fields, FnArg, Pat, Path, PathSegment, Type, Attribute, Signature};
+use syn::parse::{Parser, ParseStream};
 use syn::spanned::Spanned;
 
 /// Read the arguments in a function's signature and
@@ -181,3 +181,25 @@ pub fn append_client_quote(input: &ItemStruct, opcode: u8, quote: &mut TokenStre
 
 #[allow(unused_variables)]
 pub fn append_server_quote(input: &ItemStruct, quote: &mut TokenStream2) {}
+
+pub fn parse_functions_list(input: &ParseStream) -> Vec<Path> {
+    let mut functions = Vec::new();
+
+    while let Ok(mut path) = input.parse::<Path>() {
+        if input.parse::<Token![,]>().is_err() && input.peek(Ident) {
+            path.span()
+                .unwrap()
+                .error("Expected `,` after listener")
+                .emit();
+        }
+
+        let original = path.segments.pop().unwrap().into_value().ident;
+
+        //take the instance of ListenerType struct for registering
+        path.segments.push(PathSegment::from(Ident::new(&format!("__register_{}", original), original.span())));
+
+        functions.push(path);
+    }
+
+    functions
+}
