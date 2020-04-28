@@ -6,10 +6,10 @@ use automate::gateway::{MessageReactionAddDispatch, MessageCreateDispatch};
 use automate::http::{CreateMessage, NewInvite};
 
 #[listener]
-async fn say_hello(ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
+async fn say_hello(ctx: &Context, data: &MessageCreateDispatch) -> Result<(), Error> {
     let message = &data.0;
 
-    if message.author.id != ctx.bot().id && message.content.to_lowercase().contains("hello") {
+    if message.author.id != ctx.bot.id && message.content.to_lowercase().contains("hello") {
         let content = Some(format!("Hello {}!", message.author.username));
 
         ctx.create_message(message.channel_id, CreateMessage {
@@ -22,10 +22,10 @@ async fn say_hello(ctx: &mut Context, data: &MessageCreateDispatch) -> Result<()
 }
 
 #[listener]
-async fn invite(ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
+async fn invite(ctx: &Context, data: &MessageCreateDispatch) -> Result<(), Error> {
     let message = &data.0;
 
-    if message.author.id != ctx.bot().id && message.content.to_lowercase().contains("invite") {
+    if message.author.id != ctx.bot.id && message.content.to_lowercase().contains("invite") {
         let invite = ctx.create_invite(message.channel_id, NewInvite {
             max_age: 3600 * 24,
             max_uses: 1,
@@ -45,8 +45,8 @@ async fn invite(ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), E
 }
 
 #[listener]
-async fn tell_reaction(ctx: &mut Context, reac: &MessageReactionAddDispatch) -> Result<(), Error> {
-    if reac.user_id != ctx.bot().id {
+async fn tell_reaction(ctx: &Context, reac: &MessageReactionAddDispatch) -> Result<(), Error> {
+    if reac.user_id != ctx.bot.id {
         let content = format!("{}?!", reac.emoji.name);
 
         let sent_msg = ctx.create_message(reac.channel_id, CreateMessage {

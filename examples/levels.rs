@@ -70,19 +70,19 @@ impl Initializable for MessageCounter {
 
 impl MessageCounter {
     #[listener]
-    async fn register_guilds(&mut self, _: &mut Context, data: &GuildCreateDispatch) -> Result<(), Error> {
+    async fn register_guilds(&mut self, _: &Context, data: &GuildCreateDispatch) -> Result<(), Error> {
         self.storage.cache_users(&data.0);
         Ok(())
     }
 
     #[listener]
-    async fn register_member(&mut self, _: &mut Context, data: &GuildMemberAddDispatch) -> Result<(), Error> {
+    async fn register_member(&mut self, _: &Context, data: &GuildMemberAddDispatch) -> Result<(), Error> {
         self.storage.add_user(data.user.clone());
         Ok(())
     }
 
     #[listener]
-    async fn leaderboard(&self, ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
+    async fn leaderboard(&self, ctx: &Context, data: &MessageCreateDispatch) -> Result<(), Error> {
         let message = &data.0;
 
         if message.content.starts_with("!leaderboard") {
@@ -109,11 +109,11 @@ impl MessageCounter {
     }
 
     #[listener]
-    async fn count(&mut self, ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
+    async fn count(&mut self, ctx: &Context, data: &MessageCreateDispatch) -> Result<(), Error> {
         let message = &data.0;
 
         //ignore messages from the bot itself
-        if message.author.id == ctx.bot().id {
+        if message.author.id == ctx.bot.id {
             return Ok(())
         }
 

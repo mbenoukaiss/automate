@@ -13,13 +13,11 @@ use std::time::Duration;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::ops::Deref;
-use futures::{SinkExt, StreamExt};
+use futures::{stream, future, SinkExt, StreamExt};
 use futures::lock::Mutex;
-use futures::stream;
 use futures::channel::mpsc;
-use futures::channel::mpsc::SendError;
-use futures::channel::mpsc::UnboundedSender;
-use tungstenite::Message as TkMessage;
+use futures::channel::mpsc::{SendError, UnboundedSender};
+use tktungstenite::tungstenite::Message as TkMessage;
 use chrono::{NaiveDateTime, Utc, Duration as ChronoDuration};
 
 macro_rules! call_dispatcher {
@@ -37,24 +35,22 @@ macro_rules! call_dispatcher {
 macro_rules! dispatcher {
     ($fn_name:ident: $type:ty => $name:ident) => {
         async fn $fn_name(&mut self, payload: $type) -> Result<(), Error> {
-            let mut context = Context::new(&self);
+            let context = Context {
+                sender: &self.msg_sender,
+                http: &self.http,
+                bot: self.bot.as_ref().unwrap()
+            };
 
-            for listener in &mut *self.config.listeners.trait_listeners {
-                if let Err(error) = (*listener).$fn_name(&mut context, &payload).await {
-                    error!("Listener to {} failed with: {}", stringify!($name), error);
-                }
-            }
+            let stateless = self.config.listeners.$name.iter()
+                .map(|l| (*l)(&context, &payload));
 
-            for listener in &*self.config.listeners.$name {
-                if let Err(error) = (*listener)(&mut context, &payload).await {
-                    error!("Listener to {} failed with: {}", stringify!($name), error);
-                }
-            }
+            let stateful = self.config.listeners.stateful_listeners.iter_mut()
+                .map(|l| (*l).$fn_name(&context, &payload));
 
-            //TODO: can be improved by splitting calls to mutable and immutable versions?
-            for listener in &mut *self.config.listeners.stateful_listeners {
-                (*listener).$fn_name(&mut context, &payload).await;
-            }
+            future::join_all(stateless.chain(stateful)).await
+                .into_iter()
+                .filter_map(|r| r.err())
+                .for_each(|err| error!("Listener to `{}` failed with: {}", stringify!($name), err));
 
             Ok(())
         }
@@ -114,73 +110,62 @@ impl Delayer {
 /// Context about the current gateway session.
 /// Provides a way to interact with Discord HTTP API
 /// by dereferencing to [HttpAPI](automate::http::HttpAPI).
-pub struct Context {
-    sender: UnboundedSender<Instruction>,
-    http: Arc<HttpAPI>,
-    bot: Option<Arc<User>>,
+pub struct Context<'a> {
+    sender: &'a UnboundedSender<Instruction>,
+    http: &'a HttpAPI,
+    pub bot: &'a User,
 }
 
-impl Context {
-    fn new(gateway: &GatewayAPI) -> Context {
-        Context {
-            sender: gateway.msg_sender.clone(),
-            http: Arc::clone(&gateway.http),
-            bot: gateway.bot.clone(),
-        }
-    }
-
+impl<'a> Context<'a> {
     /// Sends a command to the gateway.
     /// The message must be a valid payload.
     #[inline]
-    async fn send_command<M: Into<TkMessage>>(&mut self, msg: M) -> Result<(), Error> {
-        Ok(self.sender.send(Instruction::Send(msg.into(), false)).await?)
+    async fn send_command<M: Into<TkMessage>>(&self, msg: M) -> Result<(), Error> {
+        Ok(self.sender.unbounded_send(Instruction::Send(msg.into(), false))?)
     }
 
     /// Indicate a presence or status update.
-    pub async fn update_status(&mut self, data: UpdateStatus) -> Result<(), Error> {
+    pub async fn update_status(&self, data: UpdateStatus) -> Result<(), Error> {
         self.send_command(data).await
     }
 
     /// Join, move or disconnect from a voice channel.
-    pub async fn update_voice_state(&mut self, data: UpdateVoiceState) -> Result<(), Error> {
+    pub async fn update_voice_state(&self, data: UpdateVoiceState) -> Result<(), Error> {
         self.send_command(data).await
     }
 
     /// Request members of a guild.
-    pub async fn request_guild_members(&mut self, data: RequestGuildMembers) -> Result<(), Error> {
+    pub async fn request_guild_members(&self, data: RequestGuildMembers) -> Result<(), Error> {
         self.send_command(data).await
-    }
-
-    /// The user object of the bot.
-    #[inline]
-    pub fn bot(&self) -> &User {
-        self.bot.as_ref().unwrap()
     }
 
     /// Creates a link to invite the bot to a discord server
     /// and give him the specified permissions.
     #[inline]
     pub fn invite_bot(&self, permission: u32) -> String {
-        format!("https://discordapp.com/oauth2/authorize?client_id={}&scope=bot&permissions={}", self.bot().id, permission)
+        format!("https://discordapp.com/oauth2/authorize?client_id={}&scope=bot&permissions={}", self.bot.id, permission)
     }
 }
 
-impl Deref for Context {
-    type Target = Arc<HttpAPI>;
+impl<'a> Deref for Context<'a> {
+    type Target = HttpAPI;
 
     #[inline]
-    fn deref(&self) -> &Arc<HttpAPI> {
+    fn deref(&self) -> &HttpAPI {
         &self.http
     }
 }
 
 #[derive(Debug)]
 enum Instruction {
-    Receive(Result<TkMessage, tungstenite::Error>),
+    /// Receive a message sent by the gateway
+    Receive(Result<TkMessage, tktungstenite::tungstenite::Error>),
     /// The message and whether it is a necessary message or not.
     /// Necessary messages have reserved slots to keep sending
-    /// them even when it's about to reach rate-limit.
+    /// them even when it's about to reach rate-limit since they
+    /// are necessary to keep the gateway connection alive.
     Send(TkMessage, bool),
+    /// Close the connection with the gateway
     Close,
 }
 
@@ -191,8 +176,8 @@ pub(crate) struct GatewayAPI<'a> {
     sequence_number: Arc<Mutex<Option<i32>>>,
     heartbeat_confirmed: Arc<AtomicBool>,
     msg_sender: UnboundedSender<Instruction>,
-    http: Arc<HttpAPI>,
-    bot: Option<Arc<User>>,
+    http: &'a HttpAPI,
+    bot: Option<User>,
 }
 
 impl<'a> GatewayAPI<'a> {
@@ -202,7 +187,7 @@ impl<'a> GatewayAPI<'a> {
     pub(crate) async fn connect(mut config: Configuration, url: String) {
         let mut delayer = Delayer::new();
 
-        let http = Arc::new(HttpAPI::new(&config.token));
+        let http = HttpAPI::new(&config.token);
         let sequence_number = Arc::new(Mutex::new(None));
         let mut session_id = None;
 
@@ -219,7 +204,7 @@ impl<'a> GatewayAPI<'a> {
                     sequence_number: Arc::clone(&sequence_number),
                     heartbeat_confirmed: Arc::new(AtomicBool::new(true)),
                     msg_sender: tx,
-                    http: http.clone(),
+                    http: &http,
                     bot: None,
                 };
 
@@ -453,26 +438,25 @@ impl<'a> GatewayAPI<'a> {
 
         info!("Established connection for shard {}", shard_id);
 
-        self.bot = Some(Arc::new(payload.user.clone()));
+        self.bot = Some(payload.user.clone());
         self.session_id.replace(payload.session_id.clone());
 
-        let mut context = Context::new(&self);
+        let context = Context {
+            sender: &self.msg_sender,
+            http: &self.http,
+            bot: &payload.user
+        };
 
-        for listener in &mut self.config.listeners.trait_listeners {
-            if let Err(error) = (*listener).on_ready(&mut context, &payload).await {
-                error!("Listener on_ready failed with: {}", error);
-            }
-        }
+        let stateless = self.config.listeners.ready.iter()
+            .map(|l| (*l)(&context, &payload));
 
-        for listener in &*self.config.listeners.ready {
-            if let Err(error) = (*listener)(&mut context, &payload).await {
-                error!("Listener to on_ready failed with: {}", error);
-            }
-        }
+        let stateful = self.config.listeners.stateful_listeners.iter_mut()
+            .map(|l| (*l).on_ready(&context, &payload));
 
-        for listener in &mut *self.config.listeners.stateful_listeners {
-            (*listener).on_ready(&mut context, &payload).await
-        }
+        future::join_all(stateless.chain(stateful)).await
+            .into_iter()
+            .filter_map(|r| r.err())
+            .for_each(|err| error!("Listener to `ready` failed with: {}", err));
 
         Ok(())
     }

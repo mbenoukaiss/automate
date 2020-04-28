@@ -53,6 +53,12 @@ impl From<futures::channel::mpsc::SendError> for Error {
     }
 }
 
+impl<T> From<futures::channel::mpsc::TrySendError<T>> for Error {
+    fn from(err: futures::channel::mpsc::TrySendError<T>) -> Self {
+        Error::new(err.to_string())
+    }
+}
+
 impl From<tktungstenite::tungstenite::Error> for Error {
     fn from(err: tktungstenite::tungstenite::Error) -> Self {
         Error::new(err.to_string())

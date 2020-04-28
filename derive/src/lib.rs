@@ -89,7 +89,7 @@ pub fn endpoint(metadata: TokenStream, item: TokenStream) -> TokenStream {
 /// use automate::gateway::MessageCreateDispatch;
 ///
 /// #[listener]
-/// async fn hello(_: &mut Context, _: &MessageCreateDispatch) -> Result<(), Error> {
+/// async fn hello(_: &Context, _: &MessageCreateDispatch) -> Result<(), Error> {
 ///     println!("Hello!");
 ///     Ok(())
 /// }

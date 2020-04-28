@@ -48,7 +48,7 @@
 //! # use automate::gateway::MessageCreateDispatch;
 //! #
 //! #[listener]
-//! async fn print_hello(ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
+//! async fn print_hello(ctx: &Context, data: &MessageCreateDispatch) -> Result<(), Error> {
 //!     println!("Hello!");
 //!     Ok(())
 //! }
@@ -120,7 +120,7 @@
 //! # use automate::gateway::MessageCreateDispatch;
 //! #
 //! # #[listener]
-//! # async fn print_hello(ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
+//! # async fn print_hello(ctx: &Context, data: &MessageCreateDispatch) -> Result<(), Error> {
 //! #     println!("Hello!");
 //! #     Ok(())
 //! # }
@@ -177,7 +177,7 @@
 //! 
 //! impl MessageCounter {
 //!     #[listener]
-//!     async fn count(&mut self, _: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
+//!     async fn count(&mut self, _: &Context, data: &MessageCreateDispatch) -> Result<(), Error> {
 //!         self.messages += 1;
 //!         println!("A total of {} messages have been sent!", self.messages);
 //!
@@ -248,10 +248,10 @@
 //! use automate::http::CreateMessage;
 //!
 //! #[listener]
-//! async fn say_hello(ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
+//! async fn say_hello(ctx: &Context, data: &MessageCreateDispatch) -> Result<(), Error> {
 //!     let message = &data.0;
 //! 
-//!     if message.author.id != ctx.bot().id {
+//!     if message.author.id != ctx.bot.id {
 //!         let content = Some(format!("Hello {}!", message.author.username));
 //! 
 //!         ctx.create_message(message.channel_id, CreateMessage {
@@ -335,13 +335,13 @@ pub use automate_derive::functions;
 ///
 /// impl MessageCounter {
 ///     #[listener]
-///     async fn say_hello(&mut self, ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
+///     async fn say_hello(&mut self, ctx: &Context, data: &MessageCreateDispatch) -> Result<(), Error> {
 ///         println!("Hello!");
 ///         Ok(())
 ///     }
 ///
 ///     #[listener]
-///     async fn say_bye(&mut self, ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
+///     async fn say_bye(&mut self, ctx: &Context, data: &MessageCreateDispatch) -> Result<(), Error> {
 ///         println!("Bye");
 ///         Ok(())
 ///     }
@@ -357,9 +357,6 @@ pub use lazy_static;
 #[doc(no_inline)]
 pub use tokio;
 
-#[doc(inline)]
-#[allow(deprecated)]
-pub use events::Listener;
 #[doc(inline)]
 pub use http::HttpAPI;
 #[doc(inline)]
@@ -395,7 +392,7 @@ use crate::gateway::UpdateStatus;
 /// # use automate::gateway::MessageCreateDispatch;
 ///
 /// # #[listener]
-/// # async fn kick_spammer(ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
+/// # async fn kick_spammer(ctx: &Context, data: &MessageCreateDispatch) -> Result<(), Error> {
 /// #     Ok(())
 /// # }
 /// #
@@ -700,14 +697,6 @@ impl Discord {
     #[deprecated(since = "0.3.1", note = "Please use `Configuration::intents` instead")]
     pub fn set_intents(mut self, intents: u32) -> Self {
         self.config.intents = Some(intents);
-        self
-    }
-
-    /// Registers an event listener struct that implements
-    /// the [Listener](automate::events::Listener) trait
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn with<L: Listener + Send + 'static>(mut self, listener: L) -> Self {
-        self.config.listeners.trait_listeners.push(Box::new(listener));
         self
     }
 

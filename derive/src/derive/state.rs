@@ -83,7 +83,7 @@ pub fn state(input: TokenStream) -> TokenStream {
         #[::automate::async_trait]
         impl #impl_generics ::automate::events::State for #name #ty_generics #where_clause {
             #(
-                async fn #functions(&mut self, ctx: &mut ::automate::Context, event: &::automate::gateway::#dispatches) {
+                async fn #functions(&mut self, ctx: &::automate::Context<'_>, event: &::automate::gateway::#dispatches) -> Result<(), Error> {
                     for listener in &#methods_storage_name.#immutables {
                         if let Err(error) = listener(self, ctx, event).await {
                             ::automate::log::error!("Listener to {} failed with: {}", stringify!(#functions), error);
@@ -95,6 +95,8 @@ pub fn state(input: TokenStream) -> TokenStream {
                             ::automate::log::error!("Listener to {} failed with: {}", stringify!(#functions), error);
                         }
                     }
+
+                    Ok(())
                 }
             )*
         }

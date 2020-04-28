@@ -71,7 +71,7 @@ fn adapt_method(item: &ItemFn, rcv: &Receiver, arguments: (&Ident, &Ident), even
         const #reg_name: ::automate::events::StatefulListener<Self> = ::automate::events::StatefulListener::#event(Self::#func);
 
         //wrapping the function to remove the async and make it compatible with fn pointer by returning a pin
-        fn #func<'a>(#self_tokens, #ctx_name: &'a mut Context, #data_name: &'a #dispatch) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<(), Error>> + Send + 'a>> {
+        fn #func<'a>(#self_tokens, #ctx_name: &'a Context, #data_name: &'a #dispatch) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<(), Error>> + Send + 'a>> {
             Box::pin(async move {
                 #content
             })
@@ -95,7 +95,7 @@ fn adapt_function(item: &ItemFn, arguments: (&Ident, &Ident), event: String) -> 
         const #reg_name: ::automate::events::ListenerType = ::automate::events::ListenerType::#event(#func);
 
         //wrapping the function to remove the async and make it compatible with fn pointer by returning a pin
-        fn #func<'a>(#ctx_name: &'a mut Context, #data_name: &'a #dispatch) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<(), Error>> + Send + 'a>> {
+        fn #func<'a>(#ctx_name: &'a Context, #data_name: &'a #dispatch) -> ::std::pin::Pin<Box<dyn ::std::future::Future<Output = Result<(), Error>> + Send + 'a>> {
             Box::pin(async move {
                 #content
             })
@@ -151,7 +151,7 @@ pub fn listener(metadata: TokenStream, item: TokenStream) -> TokenStream {
     let data_name = &arguments.get(1).unwrap().0;
 
     if ctx_ty.to_lowercase().contains("session") {
-        compile_error!(input.sig.inputs, "&Session argument was replaced by &mut Context, see README.md for examples")
+        compile_error!(input.sig.inputs, "&Session argument was replaced by &Context, see README.md for examples")
     }
 
     let event = arguments.get(1).and_then(|(_, ty)| infer_event_type(ty).map(String::from));

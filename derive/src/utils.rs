@@ -166,14 +166,14 @@ pub fn append_client_quote(input: &ItemStruct, opcode: u8, quote: &mut TokenStre
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     quote.extend(quote! {
-        impl #impl_generics From<#struct_name #ty_generics> for ::tungstenite::Message #where_clause {
+        impl #impl_generics From<#struct_name #ty_generics> for ::tktungstenite::tungstenite::Message #where_clause {
             fn from(origin: #struct_name #ty_generics) -> Self {
                 let mut msg = String::with_capacity(14);
                 msg.push_str(concat!("{\"op\":", #opcode, ",\"d\":"));
                 msg.push_str(&serde_json::to_string(&origin).expect(concat!("Failed to serialize ", stringify!(#struct_name))));
                 msg.push('}');
 
-                ::tungstenite::Message::Text(msg)
+                ::tktungstenite::tungstenite::Message::Text(msg)
             }
         }
     });

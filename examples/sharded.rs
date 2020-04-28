@@ -6,10 +6,10 @@ use automate::gateway::MessageCreateDispatch;
 use automate::http::CreateMessage;
 
 #[listener]
-async fn say_hello(ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
+async fn say_hello(ctx: &Context, data: &MessageCreateDispatch) -> Result<(), Error> {
     let message = &data.0;
 
-    if message.author.id != ctx.bot().id && message.content.to_lowercase().contains("hello") {
+    if message.author.id != ctx.bot.id && message.content.to_lowercase().contains("hello") {
         let content = Some(format!("Hello {}!", message.author.username));
 
         ctx.create_message(message.channel_id, CreateMessage {
