@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use crate::Snowflake;
 use crate::gateway::Channel;
-use crate::storage::{Stored, StorageContainer, Storage};
+use crate::storage::{Stored, Storage};
 
 #[derive(Default)]
 pub struct ChannelStorage {
@@ -10,36 +10,35 @@ pub struct ChannelStorage {
 
 impl Stored for Channel {
     type Storage = ChannelStorage;
-
-    fn read(container: &StorageContainer) -> &Self::Storage {
-        &container.channel_storage
-    }
-
-    fn write(container: &mut StorageContainer) -> &mut Self::Storage {
-        &mut container.channel_storage
-    }
 }
 
 impl Storage for ChannelStorage {
+    type Key = Snowflake;
     type Stored = Channel;
 
-    fn get(&self, id: Snowflake) -> &Self::Stored {
+    fn get(&self, id: &Self::Key) -> &Self::Stored {
         self.find(id).unwrap()
     }
 
-    fn find(&self, id: Snowflake) -> Option<&Self::Stored> {
+    fn find(&self, id: &Self::Key) -> Option<&Self::Stored> {
         self.channels.get(&id)
     }
 
-    fn find_by<P>(&self, mut filter: P) -> Vec<&Self::Stored>
-        where P: FnMut(&Self::Stored) -> bool {
+    fn insert(&mut self, key: &Self::Key, val: &Self::Stored) {
+        self.channels.insert((*key).clone(), (*val).clone());
+    }
+}
+
+impl ChannelStorage {
+    fn find_by<P>(&self, mut filter: P) -> Vec<&Channel>
+        where P: FnMut(&Channel) -> bool {
         self.channels.values()
             .filter(|u| filter(u))
             .collect()
     }
 
-    fn find_one_by<P>(&self, mut filter: P) -> Option<&Self::Stored>
-        where P: FnMut(&Self::Stored) -> bool {
+    fn find_one_by<P>(&self, mut filter: P) -> Option<&Channel>
+        where P: FnMut(&Channel) -> bool {
         for channel in self.channels.values() {
             if filter(channel) {
                 return Some(channel);
@@ -47,9 +46,5 @@ impl Storage for ChannelStorage {
         }
 
         None
-    }
-
-    fn insert(&mut self, val: Self::Stored) {
-        self.channels.insert(val.id, val);
     }
 }

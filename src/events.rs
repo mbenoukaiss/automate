@@ -105,238 +105,122 @@ impl Clone for Box<dyn State> {
     }
 }
 
-pub type Ready = for<'a> fn(&'a Context<'_>, &'a ReadyDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type ChannelCreate = for<'a> fn(&'a Context<'_>, &'a ChannelCreateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type ChannelUpdate = for<'a> fn(&'a Context<'_>, &'a ChannelUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type ChannelDelete = for<'a> fn(&'a Context<'_>, &'a ChannelDeleteDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type ChannelPinsUpdate = for<'a> fn(&'a Context<'_>, &'a ChannelPinsUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildCreate = for<'a> fn(&'a Context<'_>, &'a GuildCreateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildUpdate = for<'a> fn(&'a Context<'_>, &'a GuildUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildDelete = for<'a> fn(&'a Context<'_>, &'a GuildDeleteDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildBanAdd = for<'a> fn(&'a Context<'_>, &'a GuildBanAddDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildBanRemove = for<'a> fn(&'a Context<'_>, &'a GuildBanRemoveDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildEmojisUpdate = for<'a> fn(&'a Context<'_>, &'a GuildEmojisUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildIntegrationsUpdate = for<'a> fn(&'a Context<'_>, &'a GuildIntegrationsUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildMemberAdd = for<'a> fn(&'a Context<'_>, &'a GuildMemberAddDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildMemberRemove = for<'a> fn(&'a Context<'_>, &'a GuildMemberRemoveDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildMemberUpdate = for<'a> fn(&'a Context<'_>, &'a GuildMemberUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildMembersChunk = for<'a> fn(&'a Context<'_>, &'a GuildMembersChunkDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildRoleCreate = for<'a> fn(&'a Context<'_>, &'a GuildRoleCreateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildRoleUpdate = for<'a> fn(&'a Context<'_>, &'a GuildRoleUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildRoleDelete = for<'a> fn(&'a Context<'_>, &'a GuildRoleDeleteDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type InviteCreate = for<'a> fn(&'a Context<'_>, &'a InviteCreateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type InviteDelete = for<'a> fn(&'a Context<'_>, &'a InviteDeleteDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type MessageCreate = for<'a> fn(&'a Context<'_>, &'a MessageCreateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type MessageUpdate = for<'a> fn(&'a Context<'_>, &'a MessageUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type MessageDelete = for<'a> fn(&'a Context<'_>, &'a MessageDeleteDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type MessageDeleteBulk = for<'a> fn(&'a Context<'_>, &'a MessageDeleteBulkDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type MessageReactionAdd = for<'a> fn(&'a Context<'_>, &'a MessageReactionAddDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type MessageReactionRemove = for<'a> fn(&'a Context<'_>, &'a MessageReactionRemoveDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type MessageReactionRemoveAll = for<'a> fn(&'a Context<'_>, &'a MessageReactionRemoveAllDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type MessageReactionRemoveEmoji = for<'a> fn(&'a Context<'_>, &'a MessageReactionRemoveEmojiDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type PresenceUpdate = for<'a> fn(&'a Context<'_>, &'a PresenceUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type TypingStart = for<'a> fn(&'a Context<'_>, &'a TypingStartDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type UserUpdate = for<'a> fn(&'a Context<'_>, &'a UserUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type VoiceStateUpdate = for<'a> fn(&'a Context<'_>, &'a VoiceStateUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type VoiceServerUpdate = for<'a> fn(&'a Context<'_>, &'a VoiceServerUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type WebhooksUpdate = for<'a> fn(&'a Context<'_>, &'a WebhooksUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-
-pub type ReadySelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a ReadyDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type ChannelCreateSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a ChannelCreateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type ChannelUpdateSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a ChannelUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type ChannelDeleteSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a ChannelDeleteDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type ChannelPinsUpdateSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a ChannelPinsUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildCreateSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a GuildCreateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildUpdateSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a GuildUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildDeleteSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a GuildDeleteDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildBanAddSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a GuildBanAddDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildBanRemoveSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a GuildBanRemoveDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildEmojisUpdateSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a GuildEmojisUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildIntegrationsUpdateSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a GuildIntegrationsUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildMemberAddSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a GuildMemberAddDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildMemberRemoveSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a GuildMemberRemoveDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildMemberUpdateSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a GuildMemberUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildMembersChunkSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a GuildMembersChunkDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildRoleCreateSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a GuildRoleCreateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildRoleUpdateSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a GuildRoleUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildRoleDeleteSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a GuildRoleDeleteDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type InviteCreateSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a InviteCreateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type InviteDeleteSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a InviteDeleteDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type MessageCreateSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a MessageCreateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type MessageUpdateSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a MessageUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type MessageDeleteSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a MessageDeleteDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type MessageDeleteBulkSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a MessageDeleteBulkDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type MessageReactionAddSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a MessageReactionAddDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type MessageReactionRemoveSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a MessageReactionRemoveDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type MessageReactionRemoveAllSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a MessageReactionRemoveAllDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type MessageReactionRemoveEmojiSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a MessageReactionRemoveEmojiDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type PresenceUpdateSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a PresenceUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type TypingStartSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a TypingStartDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type UserUpdateSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a UserUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type VoiceStateUpdateSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a VoiceStateUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type VoiceServerUpdateSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a VoiceServerUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type WebhooksUpdateSelf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a WebhooksUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-
-pub type ReadySelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a ReadyDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type ChannelCreateSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a ChannelCreateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type ChannelUpdateSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a ChannelUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type ChannelDeleteSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a ChannelDeleteDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type ChannelPinsUpdateSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a ChannelPinsUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildCreateSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a GuildCreateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildUpdateSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a GuildUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildDeleteSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a GuildDeleteDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildBanAddSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a GuildBanAddDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildBanRemoveSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a GuildBanRemoveDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildEmojisUpdateSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a GuildEmojisUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildIntegrationsUpdateSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a GuildIntegrationsUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildMemberAddSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a GuildMemberAddDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildMemberRemoveSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a GuildMemberRemoveDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildMemberUpdateSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a GuildMemberUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildMembersChunkSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a GuildMembersChunkDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildRoleCreateSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a GuildRoleCreateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildRoleUpdateSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a GuildRoleUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type GuildRoleDeleteSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a GuildRoleDeleteDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type InviteCreateSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a InviteCreateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type InviteDeleteSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a InviteDeleteDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type MessageCreateSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a MessageCreateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type MessageUpdateSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a MessageUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type MessageDeleteSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a MessageDeleteDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type MessageDeleteBulkSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a MessageDeleteBulkDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type MessageReactionAddSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a MessageReactionAddDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type MessageReactionRemoveSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a MessageReactionRemoveDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type MessageReactionRemoveAllSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a MessageReactionRemoveAllDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type MessageReactionRemoveEmojiSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a MessageReactionRemoveEmojiDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type PresenceUpdateSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a PresenceUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type TypingStartSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a TypingStartDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type UserUpdateSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a UserUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type VoiceStateUpdateSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a VoiceStateUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type VoiceServerUpdateSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a VoiceServerUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-pub type WebhooksUpdateSelfMut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a WebhooksUpdateDispatch) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
-
-#[doc(hidden)]
-pub enum ListenerType {
-    Stateful(Box<dyn State>),
-    Ready(Ready),
-    ChannelCreate(ChannelCreate),
-    ChannelUpdate(ChannelUpdate),
-    ChannelDelete(ChannelDelete),
-    ChannelPinsUpdate(ChannelPinsUpdate),
-    GuildCreate(GuildCreate),
-    GuildUpdate(GuildUpdate),
-    GuildDelete(GuildDelete),
-    GuildBanAdd(GuildBanAdd),
-    GuildBanRemove(GuildBanRemove),
-    GuildEmojisUpdate(GuildEmojisUpdate),
-    GuildIntegrationsUpdate(GuildIntegrationsUpdate),
-    GuildMemberAdd(GuildMemberAdd),
-    GuildMemberRemove(GuildMemberRemove),
-    GuildMemberUpdate(GuildMemberUpdate),
-    GuildMembersChunk(GuildMembersChunk),
-    GuildRoleCreate(GuildRoleCreate),
-    GuildRoleUpdate(GuildRoleUpdate),
-    GuildRoleDelete(GuildRoleDelete),
-    InviteCreate(InviteCreate),
-    InviteDelete(InviteDelete),
-    MessageCreate(MessageCreate),
-    MessageUpdate(MessageUpdate),
-    MessageDelete(MessageDelete),
-    MessageDeleteBulk(MessageDeleteBulk),
-    MessageReactionAdd(MessageReactionAdd),
-    MessageReactionRemove(MessageReactionRemove),
-    MessageReactionRemoveAll(MessageReactionRemoveAll),
-    MessageReactionRemoveEmoji(MessageReactionRemoveEmoji),
-    PresenceUpdate(PresenceUpdate),
-    TypingStart(TypingStart),
-    UserUpdate(UserUpdate),
-    VoiceStateUpdate(VoiceStateUpdate),
-    VoiceServerUpdate(VoiceServerUpdate),
-    WebhooksUpdate(WebhooksUpdate),
+macro_rules! fn_types {
+    (($fn:ident, $slf:ident, $slfmut: ident), $ty:ty) => {
+        pub type $fn = for<'a> fn(&'a Context<'_>, &'a $ty) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
+        pub type $slf<T> = for<'a> fn(&'a T, &'a Context<'_>, &'a $ty) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
+        pub type $slfmut<T> = for<'a> fn(&'a mut T, &'a Context<'_>, &'a $ty) -> Pin<Box<dyn Future<Output=Result<(), Error>> + Send + 'a>>;
+    }
 }
 
-#[derive(Default, Clone)]
-pub(crate) struct ListenerContainer {
-    pub(crate) stateful_listeners: Vec<Box<dyn State>>,
-    pub(crate) ready: Vec<Ready>,
-    pub(crate) channel_create: Vec<ChannelCreate>,
-    pub(crate) channel_update: Vec<ChannelUpdate>,
-    pub(crate) channel_delete: Vec<ChannelDelete>,
-    pub(crate) channel_pins_update: Vec<ChannelPinsUpdate>,
-    pub(crate) guild_create: Vec<GuildCreate>,
-    pub(crate) guild_update: Vec<GuildUpdate>,
-    pub(crate) guild_delete: Vec<GuildDelete>,
-    pub(crate) guild_ban_add: Vec<GuildBanAdd>,
-    pub(crate) guild_ban_remove: Vec<GuildBanRemove>,
-    pub(crate) guild_emojis_update: Vec<GuildEmojisUpdate>,
-    pub(crate) guild_integrations_update: Vec<GuildIntegrationsUpdate>,
-    pub(crate) guild_member_add: Vec<GuildMemberAdd>,
-    pub(crate) guild_member_remove: Vec<GuildMemberRemove>,
-    pub(crate) guild_member_update: Vec<GuildMemberUpdate>,
-    pub(crate) guild_members_chunk: Vec<GuildMembersChunk>,
-    pub(crate) guild_role_create: Vec<GuildRoleCreate>,
-    pub(crate) guild_role_update: Vec<GuildRoleUpdate>,
-    pub(crate) guild_role_delete: Vec<GuildRoleDelete>,
-    pub(crate) invite_create: Vec<InviteCreate>,
-    pub(crate) invite_delete: Vec<InviteDelete>,
-    pub(crate) message_create: Vec<MessageCreate>,
-    pub(crate) message_update: Vec<MessageUpdate>,
-    pub(crate) message_delete: Vec<MessageDelete>,
-    pub(crate) message_delete_bulk: Vec<MessageDeleteBulk>,
-    pub(crate) reaction_add: Vec<MessageReactionAdd>,
-    pub(crate) reaction_remove: Vec<MessageReactionRemove>,
-    pub(crate) reaction_remove_all: Vec<MessageReactionRemoveAll>,
-    pub(crate) reaction_remove_emoji: Vec<MessageReactionRemoveEmoji>,
-    pub(crate) presence_update: Vec<PresenceUpdate>,
-    pub(crate) typing_start: Vec<TypingStart>,
-    pub(crate) user_update: Vec<UserUpdate>,
-    pub(crate) voice_state_update: Vec<VoiceStateUpdate>,
-    pub(crate) voice_server_update: Vec<VoiceServerUpdate>,
-    pub(crate) webhooks_update: Vec<WebhooksUpdate>,
-}
+fn_types!((Ready, ReadySelf, ReadySelfMut), ReadyDispatch);
+fn_types!((ChannelCreate, ChannelCreateSelf, ChannelCreateSelfMut), ChannelCreateDispatch);
+fn_types!((ChannelUpdate, ChannelUpdateSelf, ChannelUpdateSelfMut), ChannelUpdateDispatch);
+fn_types!((ChannelDelete, ChannelDeleteSelf, ChannelDeleteSelfMut), ChannelDeleteDispatch);
+fn_types!((ChannelPinsUpdate, ChannelPinsUpdateSelf, ChannelPinsUpdateSelfMut), ChannelPinsUpdateDispatch);
+fn_types!((GuildCreate, GuildCreateSelf, GuildCreateSelfMut), GuildCreateDispatch);
+fn_types!((GuildUpdate, GuildUpdateSelf, GuildUpdateSelfMut), GuildUpdateDispatch);
+fn_types!((GuildDelete, GuildDeleteSelf, GuildDeleteSelfMut), GuildDeleteDispatch);
+fn_types!((GuildBanAdd, GuildBanAddSelf, GuildBanAddSelfMut), GuildBanAddDispatch);
+fn_types!((GuildBanRemove, GuildBanRemoveSelf, GuildBanRemoveSelfMut), GuildBanRemoveDispatch);
+fn_types!((GuildEmojisUpdate, GuildEmojisUpdateSelf, GuildEmojisUpdateSelfMut), GuildEmojisUpdateDispatch);
+fn_types!((GuildIntegrationsUpdate, GuildIntegrationsUpdateSelf, GuildIntegrationsUpdateSelfMut), GuildIntegrationsUpdateDispatch);
+fn_types!((GuildMemberAdd, GuildMemberAddSelf, GuildMemberAddSelfMut), GuildMemberAddDispatch);
+fn_types!((GuildMemberRemove, GuildMemberRemoveSelf, GuildMemberRemoveSelfMut), GuildMemberRemoveDispatch);
+fn_types!((GuildMemberUpdate, GuildMemberUpdateSelf, GuildMemberUpdateSelfMut), GuildMemberUpdateDispatch);
+fn_types!((GuildMembersChunk, GuildMembersChunkSelf, GuildMembersChunkSelfMut), GuildMembersChunkDispatch);
+fn_types!((GuildRoleCreate, GuildRoleCreateSelf, GuildRoleCreateSelfMut), GuildRoleCreateDispatch);
+fn_types!((GuildRoleUpdate, GuildRoleUpdateSelf, GuildRoleUpdateSelfMut), GuildRoleUpdateDispatch);
+fn_types!((GuildRoleDelete, GuildRoleDeleteSelf, GuildRoleDeleteSelfMut), GuildRoleDeleteDispatch);
+fn_types!((InviteCreate, InviteCreateSelf, InviteCreateSelfMut), InviteCreateDispatch);
+fn_types!((InviteDelete, InviteDeleteSelf, InviteDeleteSelfMut), InviteDeleteDispatch);
+fn_types!((MessageCreate, MessageCreateSelf, MessageCreateSelfMut), MessageCreateDispatch);
+fn_types!((MessageUpdate, MessageUpdateSelf, MessageUpdateSelfMut), MessageUpdateDispatch);
+fn_types!((MessageDelete, MessageDeleteSelf, MessageDeleteSelfMut), MessageDeleteDispatch);
+fn_types!((MessageDeleteBulk, MessageDeleteBulkSelf, MessageDeleteBulkSelfMut), MessageDeleteBulkDispatch);
+fn_types!((MessageReactionAdd, MessageReactionAddSelf, MessageReactionAddSelfMut), MessageReactionAddDispatch);
+fn_types!((MessageReactionRemove, MessageReactionRemoveSelf, MessageReactionRemoveSelfMut), MessageReactionRemoveDispatch);
+fn_types!((MessageReactionRemoveAll, MessageReactionRemoveAllSelf, MessageReactionRemoveAllSelfMut), MessageReactionRemoveAllDispatch);
+fn_types!((MessageReactionRemoveEmoji, MessageReactionRemoveEmojiSelf, MessageReactionRemoveEmojiSelfMut), MessageReactionRemoveEmojiDispatch);
+fn_types!((PresenceUpdate, PresenceUpdateSelf, PresenceUpdateSelfMut), PresenceUpdateDispatch);
+fn_types!((TypingStart, TypingStartSelf, TypingStartSelfMut), TypingStartDispatch);
+fn_types!((UserUpdate, UserUpdateSelf, UserUpdateSelfMut), UserUpdateDispatch);
+fn_types!((VoiceStateUpdate, VoiceStateUpdateSelf, VoiceStateUpdateSelfMut), VoiceStateUpdateDispatch);
+fn_types!((VoiceServerUpdate, VoiceServerUpdateSelf, VoiceServerUpdateSelfMut), VoiceServerUpdateDispatch);
+fn_types!((WebhooksUpdate, WebhooksUpdateSelf, WebhooksUpdateSelfMut), WebhooksUpdateDispatch);
 
-impl ListenerContainer {
-    pub(crate) fn register(&mut self, listeners: Vec<ListenerType>) {
-        for l in listeners {
-            match l {
-                ListenerType::Stateful(l) => self.stateful_listeners.push(l),
-                ListenerType::Ready(l) => self.ready.push(l),
-                ListenerType::ChannelCreate(l) => self.channel_create.push(l),
-                ListenerType::ChannelUpdate(l) => self.channel_update.push(l),
-                ListenerType::ChannelDelete(l) => self.channel_delete.push(l),
-                ListenerType::ChannelPinsUpdate(l) => self.channel_pins_update.push(l),
-                ListenerType::GuildCreate(l) => self.guild_create.push(l),
-                ListenerType::GuildUpdate(l) => self.guild_update.push(l),
-                ListenerType::GuildDelete(l) => self.guild_delete.push(l),
-                ListenerType::GuildBanAdd(l) => self.guild_ban_add.push(l),
-                ListenerType::GuildBanRemove(l) => self.guild_ban_remove.push(l),
-                ListenerType::GuildEmojisUpdate(l) => self.guild_emojis_update.push(l),
-                ListenerType::GuildIntegrationsUpdate(l) => self.guild_integrations_update.push(l),
-                ListenerType::GuildMemberAdd(l) => self.guild_member_add.push(l),
-                ListenerType::GuildMemberRemove(l) => self.guild_member_remove.push(l),
-                ListenerType::GuildMemberUpdate(l) => self.guild_member_update.push(l),
-                ListenerType::GuildMembersChunk(l) => self.guild_members_chunk.push(l),
-                ListenerType::GuildRoleCreate(l) => self.guild_role_create.push(l),
-                ListenerType::GuildRoleUpdate(l) => self.guild_role_update.push(l),
-                ListenerType::GuildRoleDelete(l) => self.guild_role_delete.push(l),
-                ListenerType::InviteCreate(l) => self.invite_create.push(l),
-                ListenerType::InviteDelete(l) => self.invite_delete.push(l),
-                ListenerType::MessageCreate(l) => self.message_create.push(l),
-                ListenerType::MessageUpdate(l) => self.message_update.push(l),
-                ListenerType::MessageDelete(l) => self.message_delete.push(l),
-                ListenerType::MessageDeleteBulk(l) => self.message_delete_bulk.push(l),
-                ListenerType::MessageReactionAdd(l) => self.reaction_add.push(l),
-                ListenerType::MessageReactionRemove(l) => self.reaction_remove.push(l),
-                ListenerType::MessageReactionRemoveAll(l) => self.reaction_remove_all.push(l),
-                ListenerType::MessageReactionRemoveEmoji(l) => self.reaction_remove_emoji.push(l),
-                ListenerType::PresenceUpdate(l) => self.presence_update.push(l),
-                ListenerType::TypingStart(l) => self.typing_start.push(l),
-                ListenerType::UserUpdate(l) => self.user_update.push(l),
-                ListenerType::VoiceStateUpdate(l) => self.voice_state_update.push(l),
-                ListenerType::VoiceServerUpdate(l) => self.voice_server_update.push(l),
-                ListenerType::WebhooksUpdate(l) => self.webhooks_update.push(l),
+macro_rules! container {
+    ($($ty:ident -> $var:ident),*) => {
+        #[doc(hidden)]
+        pub enum ListenerType {
+            Stateful(Box<dyn State>),
+            $(
+             $ty($ty),
+            )*
+        }
+
+        #[derive(Default, Clone)]
+        pub(crate) struct ListenerContainer {
+            pub(crate) stateful_listeners: Vec<Box<dyn State>>,
+
+            $(
+             pub(crate) $var: Vec<$ty>,
+            )*
+        }
+
+        impl ListenerContainer {
+            pub(crate) fn register(&mut self, listeners: Vec<ListenerType>) {
+                for l in listeners {
+                    match l {
+                        ListenerType::Stateful(l) => self.stateful_listeners.push(l),
+
+                        $(
+                         ListenerType::$ty(l) => self.$var.push(l),
+                        )*
+                    }
+                }
             }
         }
     }
 }
+
+container!(
+    Ready -> ready,
+    ChannelCreate -> channel_create,
+    ChannelUpdate -> channel_update,
+    ChannelDelete -> channel_delete,
+    ChannelPinsUpdate -> channel_pins_update,
+    GuildCreate -> guild_create,
+    GuildUpdate -> guild_update,
+    GuildDelete -> guild_delete,
+    GuildBanAdd -> guild_ban_add,
+    GuildBanRemove -> guild_ban_remove,
+    GuildEmojisUpdate -> guild_emojis_update,
+    GuildIntegrationsUpdate -> guild_integrations_update,
+    GuildMemberAdd -> guild_member_add,
+    GuildMemberRemove -> guild_member_remove,
+    GuildMemberUpdate -> guild_member_update,
+    GuildMembersChunk -> guild_members_chunk,
+    GuildRoleCreate -> guild_role_create,
+    GuildRoleUpdate -> guild_role_update,
+    GuildRoleDelete -> guild_role_delete,
+    InviteCreate -> invite_create,
+    InviteDelete -> invite_delete,
+    MessageCreate -> message_create,
+    MessageUpdate -> message_update,
+    MessageDelete -> message_delete,
+    MessageDeleteBulk -> message_delete_bulk,
+    MessageReactionAdd -> reaction_add,
+    MessageReactionRemove -> reaction_remove,
+    MessageReactionRemoveAll -> reaction_remove_all,
+    MessageReactionRemoveEmoji -> reaction_remove_emoji,
+    PresenceUpdate -> presence_update,
+    TypingStart -> typing_start,
+    UserUpdate -> user_update,
+    VoiceStateUpdate -> voice_state_update,
+    VoiceServerUpdate -> voice_server_update,
+    WebhooksUpdate -> webhooks_update
+);
 
 #[doc(hidden)]
 pub enum StatefulListener<T> {

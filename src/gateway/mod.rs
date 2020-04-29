@@ -14,7 +14,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::ops::Deref;
 use futures::{stream, future, SinkExt, StreamExt};
-use futures::lock::Mutex;
+use futures::lock::{Mutex, MutexGuard};
 use futures::channel::mpsc;
 use futures::channel::mpsc::{SendError, UnboundedSender};
 use tktungstenite::tungstenite::Message as TkMessage;
@@ -36,7 +36,7 @@ macro_rules! call_dispatcher {
 macro_rules! dispatcher {
     ($fn_name:ident: $type:ty => $name:ident) => {
         async fn $fn_name(&mut self, payload: $type) -> Result<(), Error> {
-            self.storage.$fn_name(payload.clone());
+            self.storage.$fn_name(&payload);
 
             let context = Context {
                 sender: &self.msg_sender,
@@ -144,10 +144,10 @@ impl<'a> Context<'a> {
         self.send_command(data).await
     }
 
-    /// Read only reference to the storage of the
+    /// Reference to the storage of the
     /// specified type.
-    pub fn storage<T: Stored>(&self) -> &T::Storage {
-        self.storage.read::<T>()
+    pub async fn storage<T: Stored + 'static>(&self) -> MutexGuard<'_, T::Storage> {
+        self.storage.lock::<T>().await
     }
 
     /// Creates a link to invite the bot to a discord server
@@ -455,7 +455,7 @@ impl<'a> GatewayAPI<'a> {
         self.bot = Some(payload.user.clone());
         self.session_id.replace(payload.session_id.clone());
 
-        self.storage.on_ready(payload.clone());
+        self.storage.on_ready(&payload);
 
         let context = Context {
             sender: &self.msg_sender,

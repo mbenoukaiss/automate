@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use crate::Snowflake;
 use crate::gateway::Guild;
-use crate::storage::{Stored, StorageContainer, Storage};
+use crate::storage::{Stored, Storage};
 
 #[derive(Default)]
 pub struct GuildStorage {
@@ -10,36 +10,35 @@ pub struct GuildStorage {
 
 impl Stored for Guild {
     type Storage = GuildStorage;
-
-    fn read(container: &StorageContainer) -> &Self::Storage {
-        &container.guild_storage
-    }
-
-    fn write(container: &mut StorageContainer) -> &mut Self::Storage {
-        &mut container.guild_storage
-    }
 }
 
 impl Storage for GuildStorage {
+    type Key = Snowflake;
     type Stored = Guild;
 
-    fn get(&self, id: Snowflake) -> &Self::Stored {
+    fn get(&self, id: &Self::Key) -> &Self::Stored {
         self.find(id).unwrap()
     }
 
-    fn find(&self, id: Snowflake) -> Option<&Self::Stored> {
+    fn find(&self, id: &Self::Key) -> Option<&Self::Stored> {
         self.guilds.get(&id)
     }
 
-    fn find_by<P>(&self, mut filter: P) -> Vec<&Self::Stored>
-        where P: FnMut(&Self::Stored) -> bool {
+    fn insert(&mut self, key: &Self::Key, val: &Self::Stored) {
+        self.guilds.insert((*key).clone(), (*val).clone());
+    }
+}
+
+impl GuildStorage {
+    fn find_by<P>(&self, mut filter: P) -> Vec<&Guild>
+        where P: FnMut(&Guild) -> bool {
         self.guilds.values()
             .filter(|u| filter(u))
             .collect()
     }
 
-    fn find_one_by<P>(&self, mut filter: P) -> Option<&Self::Stored>
-        where P: FnMut(&Self::Stored) -> bool {
+    fn find_one_by<P>(&self, mut filter: P) -> Option<&Guild>
+        where P: FnMut(&Guild) -> bool {
         for guild in self.guilds.values() {
             if filter(guild) {
                 return Some(guild);
@@ -47,9 +46,5 @@ impl Storage for GuildStorage {
         }
 
         None
-    }
-
-    fn insert(&mut self, val: Self::Stored) {
-        self.guilds.insert(val.id, val);
     }
 }

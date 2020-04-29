@@ -154,7 +154,8 @@ pub fn listener(metadata: TokenStream, item: TokenStream) -> TokenStream {
         compile_error!(input.sig.inputs, "&Session argument was replaced by &Context, see README.md for examples")
     }
 
-    let event = arguments.get(1).and_then(|(_, ty)| infer_event_type(ty).map(String::from));
+    let event = arguments.get(1)
+        .and_then(|(_, ty)| infer_event_type(ty).map(String::from));
 
     //failed to infer type, raise an error
     if event.is_none() {

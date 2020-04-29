@@ -7,98 +7,114 @@ use automate::http::CreateMessage;
 use automate::events::{Initializable, StatefulListener};
 use automate::log::LevelFilter;
 use std::collections::HashMap;
-use automate::storage::{UserStorage, Storage};
+use automate::storage::{UserStorage, Storage, Stored};
 
-#[derive(State, Default, Clone)]
-struct MessageCounter {
-    counts: HashMap<(Snowflake, Snowflake), u32>,
+#[derive(Clone)]
+struct Count(u32);
+
+impl Stored for Count {
+    type Storage = CountsStorage;
 }
 
-impl Initializable for MessageCounter {
-    fn initialize() -> Vec<StatefulListener<Self>> {
-        methods!(MessageCounter: leaderboard_command, count)
+#[derive(Default)]
+struct CountsStorage {
+    counts: HashMap<(Snowflake, Snowflake), Count>,
+}
+
+impl Storage for CountsStorage {
+    type Key = (Snowflake, Snowflake);
+    type Stored = Count;
+
+    fn get(&self, id: &Self::Key) -> &Self::Stored {
+        self.find(id).unwrap()
+    }
+
+    fn find(&self, id: &Self::Key) -> Option<&Self::Stored> {
+        self.counts.get(&id)
+    }
+
+    fn insert(&mut self, key: &Self::Key, val: &Self::Stored) {
+        self.counts.insert((*key).clone(), (*val).clone());
     }
 }
 
-impl MessageCounter {
+impl CountsStorage {
     /// Finds the 10 players with the most messages sent.
-    fn leaderboard<'a>(&self, storage: &'a UserStorage, guild: Snowflake) -> Vec<(&'a User, u32)> {
-        let mut leaderboard = self.counts
-            .clone()
-            .into_iter()
-            .filter(|((g, _), _)| *g == guild)
-            .map(|((_, u), count)| (storage.get(u), count))
+    fn leaderboard<'a>(&self, guild: Snowflake) -> Vec<(Snowflake, u32)> {
+        let mut leaderboard = self.counts.iter()
+            .filter(|((g, _), _)| *g == guild) //take only from given guild
+            .map(|((_, u), count)| (*u, count.0)) //remove the guild
             .take(10)
-            .collect::<Vec<(&User, u32)>>();
+            .collect::<Vec<(Snowflake, u32)>>();
 
         leaderboard.sort_by(|(_, v1), (_, v2)| v2.cmp(v1));
         leaderboard
     }
+}
 
-    /// Mutable reference to the message count of a user.
-    fn user_count(&mut self, guild: Snowflake, user: Snowflake) -> &mut u32 {
-        if !self.counts.contains_key(&(guild, user)) {
-            self.counts.insert((guild, user), 0);
-        }
+#[listener]
+async fn leaderboard_command(ctx: &Context, data: &MessageCreateDispatch) -> Result<(), Error> {
+    let message = &data.0;
 
-        self.counts.get_mut(&(guild, user)).unwrap()
-    }
-
-    #[listener]
-    async fn leaderboard_command(&self, ctx: &Context, data: &MessageCreateDispatch) -> Result<(), Error> {
-        let message = &data.0;
-
-        if message.content.starts_with("!leaderboard") {
-            if let Some(guild) = message.guild_id {
-                let leaderboard = self.leaderboard(ctx.storage::<User>(), guild);
-                let mut output = String::from("These are the top 10 players:\n");
-
-                for (position, (user, count)) in leaderboard.iter().enumerate() {
-                    output.push_str(&format!("{}. {} is **level {}** and posted a total of **{} messages**\n",
-                                             position,
-                                             user.username,
-                                             level(*count).0,
-                                             count));
-                }
-
-                ctx.create_message(message.channel_id, CreateMessage {
-                    content: Some(output),
-                    ..Default::default()
-                }).await?;
-            }
-        }
-
-        Ok(())
-    }
-
-    #[listener]
-    async fn count(&mut self, ctx: &Context, data: &MessageCreateDispatch) -> Result<(), Error> {
-        let message = &data.0;
-
-        //ignore messages from the bot itself
-        if message.author.id == ctx.bot.id {
-            return Ok(())
-        }
-
-        //don't count messages outside of guilds
+    if message.content.starts_with("!leaderboard") {
         if let Some(guild) = message.guild_id {
-            let count = self.user_count(guild, message.author.id);
-            *count += 1;
+            let users = ctx.storage::<User>().await;
+            let leaderboard = ctx.storage::<Count>().await.leaderboard(guild);
+            let mut output = String::from("These are the top 10 players:\n");
 
-            let (level, levelled_up) = level(*count);
-
-            if levelled_up && level != 0 {
-                let content = format!("<@{}> you just advanced to **level {}**!", message.author.id, level);
-
-                ctx.create_message(message.channel_id, CreateMessage {
-                    content: Some(content),
-                    ..Default::default()
-                }).await?;
+            for (position, (user, count)) in leaderboard.iter().enumerate() {
+                output.push_str(&format!("{}. {} is **level {}** and posted a total of **{} messages**\n",
+                                         position,
+                                         users.get(user).username,
+                                         level(*count).0,
+                                         count));
             }
-        }
 
-        Ok(())
+            ctx.create_message(message.channel_id, CreateMessage {
+                content: Some(output),
+                ..Default::default()
+            }).await?;
+        }
     }
+
+    Ok(())
+}
+
+#[listener]
+async fn count(ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
+    let message = &data.0;
+
+    //ignore messages from the bot itself
+    if message.author.id == ctx.bot.id {
+        return Ok(());
+    }
+
+    //don't count messages outside of guilds
+    if let Some(guild) = message.guild_id {
+        let key = (guild, message.author.id);
+
+        let count = {
+            let mut storage = ctx.storage::<Count>().await;
+
+            let count = storage.find(&key).unwrap_or(&Count(0)).0;
+            storage.insert(&key, &Count(count + 1));
+
+            count
+        };
+
+        let (level, levelled_up) = level(count);
+
+        if levelled_up && level != 0 {
+            let content = format!("<@{}> you just advanced to **level {}**!", message.author.id, level);
+
+            ctx.create_message(message.channel_id, CreateMessage {
+                content: Some(content),
+                ..Default::default()
+            }).await?;
+        }
+    }
+
+    Ok(())
 }
 
 fn level(msg: u32) -> (u32, bool) {
@@ -128,7 +144,7 @@ fn main() {
             }),
             since: None,
         })
-        .register(stateful!(MessageCounter::default()));
+        .register(stateless!(leaderboard_command, count));
 
     Automate::launch(config);
 }
