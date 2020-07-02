@@ -36,6 +36,18 @@ fn generate_request(item: &ItemFn, args: Args, major_parameter: TokenStream2) ->
 
     let return_value = if args.empty {
         quote!(Ok(()))
+    } else if cfg!(feature = "trace-endpoints") {
+        quote! {{
+            let body = hyper::body::aggregate(response).await?;
+
+            let mut body_string = String::new();
+            let mut reader = bytes::buf::ext::BufExt::reader(body);
+            std::io::Read::read_to_string(&mut reader, &mut body_string)?;
+
+            log::trace!("Endpoint `{}` responded: {}", stringify!(#fn_name), body_string);
+
+            Ok(::serde_json::from_str(&body_string)?)
+        }}
     } else {
         quote! {{
             let body = ::hyper::body::aggregate(response).await?;

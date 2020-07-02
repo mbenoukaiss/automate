@@ -4,46 +4,36 @@ extern crate automate;
 use automate::{Context, Error, Snowflake, Configuration, Automate};
 use automate::gateway::{MessageCreateDispatch, UpdateStatus, StatusType, ActivityType, ActivityUpdate, User};
 use automate::http::CreateMessage;
-use automate::events::{Initializable, StatefulListener};
 use automate::log::LevelFilter;
 use std::collections::HashMap;
-use automate::storage::{UserStorage, Storage, Stored};
+use automate::storage::{Stored, Storage};
 
-#[derive(Clone)]
-struct Count(u32);
+struct Count;
 
 impl Stored for Count {
     type Storage = CountsStorage;
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 struct CountsStorage {
-    counts: HashMap<(Snowflake, Snowflake), Count>,
+    counts: HashMap<(Snowflake, Snowflake), u32>,
 }
 
-impl Storage for CountsStorage {
-    type Key = (Snowflake, Snowflake);
-    type Stored = Count;
-
-    fn get(&self, id: &Self::Key) -> &Self::Stored {
-        self.find(id).unwrap()
-    }
-
-    fn find(&self, id: &Self::Key) -> Option<&Self::Stored> {
-        self.counts.get(&id)
-    }
-
-    fn insert(&mut self, key: &Self::Key, val: &Self::Stored) {
-        self.counts.insert((*key).clone(), (*val).clone());
-    }
-}
+impl Storage for CountsStorage {}
 
 impl CountsStorage {
+    fn increment(&mut self, guild: Snowflake, user: Snowflake) -> u32 {
+        let count = self.counts.get(&(guild, user)).map_or(1, |v| v + 1);
+        self.counts.insert((guild, user), count);
+
+        count
+    }
+
     /// Finds the 10 players with the most messages sent.
     fn leaderboard<'a>(&self, guild: Snowflake) -> Vec<(Snowflake, u32)> {
         let mut leaderboard = self.counts.iter()
             .filter(|((g, _), _)| *g == guild) //take only from given guild
-            .map(|((_, u), count)| (*u, count.0)) //remove the guild
+            .map(|((_, u), count)| (*u, *count)) //remove the guild
             .take(10)
             .collect::<Vec<(Snowflake, u32)>>();
 
@@ -60,12 +50,13 @@ async fn leaderboard_command(ctx: &Context, data: &MessageCreateDispatch) -> Res
         if let Some(guild) = message.guild_id {
             let users = ctx.storage::<User>().await;
             let leaderboard = ctx.storage::<Count>().await.leaderboard(guild);
+
             let mut output = String::from("These are the top 10 players:\n");
 
             for (position, (user, count)) in leaderboard.iter().enumerate() {
                 output.push_str(&format!("{}. {} is **level {}** and posted a total of **{} messages**\n",
                                          position,
-                                         users.get(user).username,
+                                         users.get(*user).username,
                                          level(*count).0,
                                          count));
             }
@@ -91,17 +82,7 @@ async fn count(ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Er
 
     //don't count messages outside of guilds
     if let Some(guild) = message.guild_id {
-        let key = (guild, message.author.id);
-
-        let count = {
-            let mut storage = ctx.storage::<Count>().await;
-
-            let count = storage.find(&key).unwrap_or(&Count(0)).0;
-            storage.insert(&key, &Count(count + 1));
-
-            count
-        };
-
+        let count = ctx.storage::<Count>().await.increment(guild, message.author.id);
         let (level, levelled_up) = level(count);
 
         if levelled_up && level != 0 {
@@ -144,6 +125,7 @@ fn main() {
             }),
             since: None,
         })
+        .add_initializer(|ctn| ctn.initialize::<Count>())
         .register(stateless!(leaderboard_command, count));
 
     Automate::launch(config);

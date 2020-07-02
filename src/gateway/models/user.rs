@@ -50,7 +50,7 @@ pub struct PartialUser {
 #[object(server)]
 pub struct MentionnedUser {
     pub id: Snowflake,
-    pub member: PartialGuildMember,
+    pub member: Option<PartialGuildMember>,
     pub username: String,
     pub discriminator: String,
     #[nullable]

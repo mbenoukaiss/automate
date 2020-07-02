@@ -182,7 +182,7 @@ pub fn append_client_quote(input: &ItemStruct, opcode: u8, quote: &mut TokenStre
 #[allow(unused_variables)]
 pub fn append_server_quote(input: &ItemStruct, quote: &mut TokenStream2) {}
 
-pub fn parse_functions_list(input: &ParseStream) -> Vec<Path> {
+pub fn parse_functions_list(input: ParseStream) -> Vec<Path> {
     let mut functions = Vec::new();
 
     while let Ok(mut path) = input.parse::<Path>() {

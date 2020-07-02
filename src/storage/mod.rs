@@ -12,53 +12,69 @@ use std::collections::HashMap;
 use std::any::{TypeId, Any};
 
 pub trait Stored {
-    type Storage: Default + Send + Sync;
+    type Storage: Storage;
 }
 
-pub trait Storage: Any + Send + Sync {
-    type Key;
-    type Stored: Clone;
-
-    /// Finds an element by its id. If the element does not
-    /// exist, the function will panic. If you are not sure
-    /// whether the element is in the storage, you should
-    /// use [Storage::find](automate::storage::Storage::find)
-    /// instead.
-    fn get(&self, id: &Self::Key) -> &Self::Stored;
-
-    /// Finds an element by its id. If the element does not
-    /// exist, none will be returned.
-    fn find(&self, id: &Self::Key) -> Option<&Self::Stored>;
-
-    fn insert(&mut self, key: &Self::Key, val: &Self::Stored);
-}
+pub trait Storage: Send + Sync {}
 
 pub struct StorageContainer {
+    init: Vec<Box<dyn Fn(&mut StorageContainer) + Send + Sync>>,
     storages: HashMap<TypeId, Box<dyn Any + Send + Sync>>
 }
 
+/// This implementation of clone is a bit special since
+/// instead of cloning the storages which is not possible
+/// since they are behind a mutex, it clones the  ̀init`
+/// field into the `storages` field.
+impl Clone for StorageContainer {
+    fn clone(&self) -> Self {
+        let mut container = StorageContainer::for_use(self.init.len());
+
+        for callback in &self.init {
+            callback(&mut container);
+        }
+
+        container
+    }
+}
+
 impl StorageContainer {
-    pub(crate) fn empty() -> StorageContainer {
+    pub(crate) fn for_initialization() -> StorageContainer {
         StorageContainer {
-            storages: HashMap::with_capacity(5)
+            init: Vec::with_capacity(5),
+            storages: HashMap::new()
         }
     }
 
-    pub async fn initialize<T: Stored + 'static>(&mut self) {
-        if !self.storages.contains_key(&TypeId::of::<T>()) {
-            self.storages.insert(TypeId::of::<T>(), Box::new(Mutex::new(T::Storage::default())));
+    pub(crate) fn for_use(capacity: usize) -> StorageContainer {
+        StorageContainer {
+            init: Vec::new(),
+            storages: HashMap::with_capacity(capacity)
         }
+    }
+
+    pub fn add_initializer<F: Fn(&mut StorageContainer) + Send + Sync + 'static>(&mut self, initializer: F) {
+        self.init.push(Box::new(initializer));
     }
 
     pub async fn lock<T: Stored + 'static>(&self) -> MutexGuard<'_, T::Storage> {
         self.storages
             .get(&TypeId::of::<T>()).expect("Storage has never been initialized")
-            .downcast_ref::<Mutex<T::Storage>>().unwrap()
+            .downcast_ref::<Mutex<T::Storage>>().expect("Failed to downcast storage")
             .lock().await
     }
 
-    fn write_in<T: Stored + 'static, F>(&mut self, callback: F)
-        where F: FnOnce(&mut T::Storage) {
+    pub fn initialize<T: Stored + 'static>(&mut self) where T::Storage: Default {
+        self.storages.insert(TypeId::of::<T>(), Box::new(Mutex::new(T::Storage::default())));
+    }
+
+    pub fn existing<T: Stored + 'static>(&mut self, storage: T::Storage) {
+        self.storages.insert(TypeId::of::<T>(), Box::new(Mutex::new(storage)));
+    }
+
+    fn write<T: Stored + 'static, F>(&mut self, callback: F)
+        where T::Storage: Default,
+              F: FnOnce(&mut T::Storage) {
         if let Some(storage) = self.storages.get_mut(&TypeId::of::<T>()) {
             callback(storage.downcast_mut::<Mutex<T::Storage>>().unwrap().get_mut());
         } else {
@@ -68,48 +84,64 @@ impl StorageContainer {
             self.storages.insert(TypeId::of::<T>(), Box::new(Mutex::new(storage)));
         }
     }
+}
 
+impl StorageContainer {
     pub fn on_ready(&mut self, event: &ReadyDispatch) {
-        self.write_in::<Guild, _>(|_| {});
+        self.write::<Guild, _>(|_| {});
 
-        self.write_in::<Channel, _>(|storage| {
+        self.write::<Channel, _>(|storage| {
             for channel in &event.private_channels {
-                storage.insert(&channel.id, channel)
+                storage.insert(channel)
             }
         });
 
-        self.write_in::<User, _>(|storage| {
-            storage.insert(&event.user.id, &event.user);
+        self.write::<User, _>(|storage| {
+            storage.insert(&event.user);
         });
     }
 
-    pub fn on_channel_create(&mut self, event: &ChannelCreateDispatch) {}
+    pub fn on_channel_create(&mut self, event: &ChannelCreateDispatch) {
+        self.write::<Channel, _>(|storage| {
+            storage.insert(&event.0);
+        });
+    }
 
-    pub fn on_channel_update(&mut self, event: &ChannelUpdateDispatch) {}
+    pub fn on_channel_update(&mut self, event: &ChannelUpdateDispatch) {
+        self.write::<Channel, _>(|storage| {
+            storage.insert(&event.0); //insert replaces the previous channel
+        });
+    }
 
-    pub fn on_channel_delete(&mut self, event: &ChannelDeleteDispatch) {}
+    pub fn on_channel_delete(&mut self, event: &ChannelDeleteDispatch) {
+        self.write::<Channel, _>(|storage| {
+            storage.remove(&event.0);
+        });
+    }
 
-    pub fn on_channel_pins_update(&mut self, event: &ChannelPinsUpdateDispatch) {}
+    pub fn on_channel_pins_update(&mut self, event: &ChannelPinsUpdateDispatch) {
+        //TODO: figure out what this event does
+    }
 
     pub fn on_guild_create(&mut self, event: &GuildCreateDispatch) {
         let guild = &event.0;
 
-        self.write_in::<Guild, _>(|storage| {
-            storage.insert(&guild.id, &guild);
+        self.write::<Guild, _>(|storage| {
+            storage.insert(guild);
         });
 
-        self.write_in::<Channel, _>(|storage| {
+        self.write::<Channel, _>(|storage| {
             if let Some(channels) = &guild.channels {
                 for channel in channels {
-                    storage.insert(&channel.id, channel)
+                    storage.insert(channel)
                 }
             }
         });
 
-        self.write_in::<User, _>(|storage| {
+        self.write::<User, _>(|storage| {
             if let Some(members) = &guild.members {
                 for member in members {
-                    storage.insert(&guild.id, &member.user);
+                    storage.insert(&member.user);
                 }
             }
         });

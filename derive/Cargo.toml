@@ -21,3 +21,4 @@ darling = "0.10"
 [features]
 default = []
 strict-deserializer = []
+trace-endpoints = []

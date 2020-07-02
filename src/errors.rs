@@ -71,6 +71,12 @@ impl From<std::fmt::Error> for Error {
     }
 }
 
+impl From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Self {
+        Error::new(err.to_string())
+    }
+}
+
 impl From<std::num::ParseIntError> for Error {
     fn from(err: std::num::ParseIntError) -> Self {
         Error::new(err.to_string())

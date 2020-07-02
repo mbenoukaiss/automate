@@ -378,6 +378,7 @@ use std::env;
 use log::LevelFilter;
 use std::future::Future;
 use crate::gateway::UpdateStatus;
+use crate::storage::StorageContainer;
 
 /// Allows specifying API token, registering
 /// stateful and stateless listeners, stating
@@ -409,6 +410,7 @@ pub struct Configuration {
     logging: bool,
     log_levels: Vec<(String, LevelFilter)>,
     listeners: ListenerContainer,
+    storages: StorageContainer,
     intents: Option<u32>,
     member_threshold: Option<u32>,
     presence: Option<UpdateStatus>,
@@ -434,6 +436,7 @@ impl Configuration {
             logging: true,
             log_levels: default_levels,
             listeners: ListenerContainer::default(),
+            storages: StorageContainer::for_initialization(),
             intents: None,
             member_threshold: None,
             presence: None,
@@ -503,6 +506,16 @@ impl Configuration {
     /// listener function with the `̀#[listener]` attribute.
     pub fn register(mut self, listeners: Vec<ListenerType>) -> Self {
         self.listeners.register(listeners);
+        self
+    }
+
+    /// Registers a function that initializes a storage by either calling
+    /// [StorageContainer::initialize](automate::storage::StorageContainer)
+    /// which accepts an existing storage or
+    /// [StorageContainer::write](automate::storage::StorageContainer)
+    /// which creates an empty storage and calls the provided callback function.
+    pub fn add_initializer<F: Fn(&mut StorageContainer) + Send + Sync + 'static>(mut self, initializer: F) -> Self {
+        self.storages.add_initializer::<F>(initializer);
         self
     }
 

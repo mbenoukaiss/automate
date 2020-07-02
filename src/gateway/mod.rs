@@ -36,11 +36,11 @@ macro_rules! call_dispatcher {
 macro_rules! dispatcher {
     ($fn_name:ident: $type:ty => $name:ident) => {
         async fn $fn_name(&mut self, payload: $type) -> Result<(), Error> {
-            self.storage.$fn_name(&payload);
+            self.config.storages.$fn_name(&payload);
 
             let context = Context {
                 sender: &self.msg_sender,
-                storage: &self.storage,
+                storage: &self.config.storages,
                 http: &self.http,
                 bot: self.bot.as_ref().unwrap()
             };
@@ -183,7 +183,6 @@ enum Instruction {
 /// Communicates with Discord's gateway
 pub(crate) struct GatewayAPI<'a> {
     config: &'a mut Configuration,
-    storage: StorageContainer,
     session_id: Option<String>,
     msg_sender: UnboundedSender<Instruction>,
     http: &'a HttpAPI,
@@ -213,7 +212,6 @@ impl<'a> GatewayAPI<'a> {
 
                 let mut gateway = GatewayAPI {
                     config: &mut config,
-                    storage: StorageContainer::empty(),
                     session_id: None,
                     msg_sender: tx,
                     http: &http,
@@ -455,11 +453,11 @@ impl<'a> GatewayAPI<'a> {
         self.bot = Some(payload.user.clone());
         self.session_id.replace(payload.session_id.clone());
 
-        self.storage.on_ready(&payload);
+        self.config.storages.on_ready(&payload);
 
         let context = Context {
             sender: &self.msg_sender,
-            storage: &self.storage,
+            storage: &self.config.storages,
             http: &self.http,
             bot: &payload.user
         };

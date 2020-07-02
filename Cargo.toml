@@ -41,3 +41,10 @@ default = []
 #
 # Re-exported to the derive crate.
 strict-deserializer = ["automate-derive/strict-deserializer"]
+
+# Trace data returned from HTTP endpoints. More
+# costly since it requires storing the data in a
+# string before deserializing it.
+#
+# Re-exported to the derive crate.
+trace-endpoints = ["automate-derive/trace-endpoints"]

@@ -3,41 +3,38 @@ use crate::Snowflake;
 use crate::gateway::User;
 use crate::storage::{Stored, Storage};
 
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 pub struct UserStorage {
     users: HashMap<Snowflake, User>
 }
+
+impl Storage for UserStorage {}
 
 impl Stored for User {
     type Storage = UserStorage;
 }
 
-impl Storage for UserStorage {
-    type Key = Snowflake;
-    type Stored = User;
+impl UserStorage {
+    pub fn all(&self) -> Vec<&User> {
+        self.users.values().collect()
+    }
 
-    fn get(&self, id: &Self::Key) -> &Self::Stored {
+    pub fn get(&self, id: Snowflake) -> &User {
         self.find(id).unwrap()
     }
 
-    fn find(&self, id: &Self::Key) -> Option<&Self::Stored> {
+    pub fn find(&self, id: Snowflake) -> Option<&User> {
         self.users.get(&id)
     }
 
-    fn insert(&mut self, key: &Self::Key, val: &Self::Stored) {
-        self.users.insert(*key, (*val).clone());
-    }
-}
-
-impl UserStorage {
-    fn find_by<P>(&self, mut filter: P) -> Vec<&User>
+    pub fn find_by<P>(&self, mut filter: P) -> Vec<&User>
         where P: FnMut(&User) -> bool {
         self.users.values()
             .filter(|u| filter(u))
             .collect()
     }
 
-    fn find_one_by<P>(&self, mut filter: P) -> Option<&User>
+    pub fn find_one_by<P>(&self, mut filter: P) -> Option<&User>
         where P: FnMut(&User) -> bool {
         for user in self.users.values() {
             if filter(user) {
@@ -46,5 +43,9 @@ impl UserStorage {
         }
 
         None
+    }
+
+    pub fn insert(&mut self, user: &User) {
+        self.users.insert(user.id, Clone::clone(user));
     }
 }

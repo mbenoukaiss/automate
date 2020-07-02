@@ -24,7 +24,7 @@ impl Parse for Listeners {
 
         Ok(Listeners {
             strct,
-            methods: utils::parse_functions_list(&input)
+            methods: utils::parse_functions_list(input)
         })
     }
 }

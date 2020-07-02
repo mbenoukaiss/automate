@@ -10,7 +10,7 @@ struct Listeners(Vec<Path>);
 
 impl Parse for Listeners {
     fn parse(input: ParseStream) -> Result<Self> {
-        Ok(Listeners(utils::parse_functions_list(&input)))
+        Ok(Listeners(utils::parse_functions_list(input)))
     }
 }
 
