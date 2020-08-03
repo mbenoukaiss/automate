@@ -5,6 +5,11 @@ use serde::de::Visitor;
 use serde::de::Error as DeError;
 use core::fmt;
 
+/// Any object that has an id
+pub trait Identifiable {
+    fn id(&self) -> Snowflake;
+}
+
 /// Twitter's [snowflake](https://github.com/twitter/snowflake/tree/snowflake-2010)
 /// used by discord API to provide unique IDs for guilds, channels, users, etc.
 /// Since a snowflake is 64bits in size, it is stored as a u64 in the

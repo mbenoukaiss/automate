@@ -1,5 +1,8 @@
 use std::fmt::{Display, Formatter, Error, Debug};
 use serde::{Deserialize, Deserializer};
+use std::collections::HashMap;
+use crate::snowflake::Identifiable;
+use crate::Snowflake;
 
 /// A value that has to be included in the JSON
 /// string but can contain the value null.
@@ -14,6 +17,19 @@ pub fn double_option<'de, T, D>(de: D) -> Result<Option<Option<T>>, D::Error>
           D: Deserializer<'de>
 {
     Deserialize::deserialize(de).map(Some)
+}
+
+/// Deserializes an array of objects that have an id
+/// into a hashmap associating the id to the object.
+pub fn as_hashmap<'de, T, D>(deserializer: D) -> Result<HashMap<Snowflake, T>, D::Error>
+    where D: Deserializer<'de>,
+          T: Identifiable + Deserialize<'de> {
+    let mut map = HashMap::new();
+    for data in Vec::<T>::deserialize(deserializer)? {
+        map.insert(T::id(&data), data);
+    }
+
+    Ok(map)
 }
 
 /// Represents an error relative to a JSON string.

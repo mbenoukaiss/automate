@@ -23,7 +23,7 @@ use crate::storage::{StorageContainer, Stored};
 
 macro_rules! call_dispatcher {
     ($data:ident as $payload:ty => $self:ident.$method:ident) => {{
-        let payload: $payload = ::serde_json::from_str(&$data)?;
+        let payload: $payload = serde_json::from_str(&$data)?;
 
         if let Some(val) = payload.s {
             *$self.sequence_number.lock().await = Some(val);
@@ -36,7 +36,7 @@ macro_rules! call_dispatcher {
 macro_rules! dispatcher {
     ($fn_name:ident: $type:ty => $name:ident) => {
         async fn $fn_name(&mut self, payload: $type) -> Result<(), Error> {
-            self.config.storages.$fn_name(&payload);
+            self.config.storages.$fn_name(&payload).await;
 
             let context = Context {
                 sender: &self.msg_sender,
@@ -453,7 +453,7 @@ impl<'a> GatewayAPI<'a> {
         self.bot = Some(payload.user.clone());
         self.session_id.replace(payload.session_id.clone());
 
-        self.config.storages.on_ready(&payload);
+        self.config.storages.on_ready(&payload).await;
 
         let context = Context {
             sender: &self.msg_sender,

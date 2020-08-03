@@ -34,7 +34,7 @@ pub fn convert(metadata: TokenStream, item: TokenStream) -> TokenStream {
 
     let (fields_ident, fields_expr) = unwrap!(extract_variants(&item));
 
-    let mut output: TokenStream2 = quote!(#[derive(Clone, Debug)]);
+    let mut output: TokenStream2 = quote!(#[derive(Copy, Clone, Debug)]);
     item.to_tokens(&mut output);
 
     output.extend(quote! {

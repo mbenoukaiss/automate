@@ -1,4 +1,4 @@
-use crate::{HttpAPI, Snowflake, Configuration, logger};
+use crate::{HttpAPI, Snowflake, Configuration, logger, Error};
 use crate::gateway::GatewayAPI;
 use futures::future;
 use tokio::task::JoinHandle;
@@ -26,17 +26,17 @@ pub struct ShardManager {
 impl ShardManager {
     /// Creates a shard manager where all the shards
     /// will use the given config.
-    pub async fn with_config(config: Configuration) -> ShardManager {
+    pub async fn with_config(config: Configuration) -> Result<ShardManager, Error> {
         let http = HttpAPI::new(&config.token);
-        let gateway_bot = http.gateway_bot().await.expect("Failed to get gateway information from Discord");
+        let gateway_bot = http.gateway_bot().await?;
 
-        ShardManager {
+        Ok(ShardManager {
             config,
             total_shards: gateway_bot.shards,
             recommended_shards: gateway_bot.shards,
             gateway_url: gateway_bot.url,
             managed_shards: Vec::new(),
-        }
+        })
     }
 
     /// Sets up the given shard
@@ -104,7 +104,7 @@ impl ShardManager {
     /// Sets the amount of shards the bot will have.
     pub fn set_total_shards(&mut self, total_shards: u32) -> &mut Self {
         if !self.managed_shards.is_empty() {
-            panic!("Changing total shards count after a shard has been launched is forbidden");
+            panic!("Changing total shards count after a shard has been launched is not possible");
         }
 
         self.total_shards = total_shards;

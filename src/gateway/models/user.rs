@@ -1,5 +1,6 @@
 use crate::gateway::PartialGuildMember;
 use crate::Snowflake;
+use crate::snowflake::Identifiable;
 
 /// Users in Discord are generally considered the
 /// base entity. Users can spawn across the entire
@@ -27,6 +28,12 @@ pub struct User {
     pub email: Option<String>,
     pub flags: Option<i32>,
     pub premium_type: Option<i32>
+}
+
+impl Identifiable for User {
+    fn id(&self) -> Snowflake {
+        self.id
+    }
 }
 
 /// A [User] object with all fields optional

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use crate::Snowflake;
-use crate::gateway::Guild;
+use crate::gateway::*;
 use crate::storage::{Stored, Storage};
 
 #[derive(Default, Debug, Clone)]
@@ -19,11 +19,11 @@ impl GuildStorage {
         self.guilds.values().collect()
     }
 
-    pub fn get(&self, id: Snowflake) -> &Guild {
+    pub fn get(&self, id: &Snowflake) -> &Guild {
         self.find(id).unwrap()
     }
 
-    pub fn find(&self, id: Snowflake) -> Option<&Guild> {
+    pub fn find(&self, id: &Snowflake) -> Option<&Guild> {
         self.guilds.get(&id)
     }
 
@@ -45,7 +45,11 @@ impl GuildStorage {
         None
     }
 
-    pub fn insert(&mut self, guild: &Guild) {
-        self.guilds.insert(guild.id, Clone::clone(guild));
+    pub(crate) fn insert(&mut self, guild: Guild) {
+        self.guilds.insert(guild.id, guild);
+    }
+
+    pub(crate) fn remove(&mut self, guild: &Snowflake) {
+        self.guilds.remove(guild);
     }
 }

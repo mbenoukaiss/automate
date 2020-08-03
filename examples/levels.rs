@@ -111,7 +111,7 @@ fn level(msg: u32) -> (u32, bool) {
     (level, previous_level < level)
 }
 
-fn main() {
+fn main() -> Result<(), Error> {
     let config = Configuration::from_env("DISCORD_API_TOKEN")
         .enable_logging()
         .level_for("automate", LevelFilter::Trace)
@@ -128,5 +128,5 @@ fn main() {
         .add_initializer(|ctn| ctn.initialize::<Count>())
         .register(stateless!(leaderboard_command, count));
 
-    Automate::launch(config);
+    Automate::launch(config)
 }

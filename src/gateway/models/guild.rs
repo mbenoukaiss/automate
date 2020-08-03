@@ -1,5 +1,8 @@
 use crate::gateway::{User, PartialUser, PartialVoiceState, Channel};
 use crate::Snowflake;
+use std::collections::HashMap;
+use crate::snowflake::Identifiable;
+use chrono::NaiveDateTime;
 
 #[object(server)]
 pub struct Guild {
@@ -39,8 +42,10 @@ pub struct Guild {
     pub unavailable: Option<bool>,
     pub member_count: Option<i32>,
     pub voice_states: Option<Vec<PartialVoiceState>>,
-    pub members: Option<Vec<GuildMember>>,
-    pub channels: Option<Vec<Channel>>,
+    #[serde(deserialize_with = "automate::encode::json::as_hashmap")]
+    pub members: HashMap<Snowflake, GuildMember>,
+    #[serde(deserialize_with = "automate::encode::json::as_hashmap")]
+    pub channels: HashMap<Snowflake, Channel>,
     pub presences: Option<Vec<PartialPresenceUpdate>>,
     #[option_nullable]
     pub max_presences: Option<Option<i32>>,
@@ -210,10 +215,16 @@ pub struct GuildMember {
     pub roles: Vec<Snowflake>,
     pub joined_at: String,
     #[option_nullable]
-    pub premium_since: Option<Option<String>>,
+    pub premium_since: Option<Option<NaiveDateTime>>,
     pub hoisted_role: Option<Snowflake>,
     pub deaf: bool,
     pub mute: bool,
+}
+
+impl Identifiable for GuildMember {
+    fn id(&self) -> Snowflake {
+        self.user.id
+    }
 }
 
 #[object(server)]
@@ -255,7 +266,7 @@ pub struct PresenceUpdate {
     pub activities: Vec<Activity>,
     pub client_status: ClientStatus,
     #[option_nullable]
-    pub premium_since: Option<Option<String>>,
+    pub premium_since: Option<Option<NaiveDateTime>>,
 }
 
 /// A user's presence is their current state on a guild.

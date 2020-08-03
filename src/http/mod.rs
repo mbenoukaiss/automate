@@ -68,13 +68,14 @@ impl HttpAPI {
     pub async fn channels<S: ExtractSnowflake>(&self, guild: S) -> Result<Vec<Channel>, Error> {}
 
     #[endpoint(get, route = "/channels/{#channel}", status = 200)]
-    pub async fn channel<S: ExtractSnowflake>(&self, channel: S) -> Result<Channel, Error> {}
+    pub async fn channel<S: ExtractSnowflake>(&self, channel: S) -> Result<AnyChannel, Error> {}
 
     #[endpoint(post, route = "/guilds/{#guild}/channels", body = "new_channel", status = 200)]
     pub async fn create_channel<S: ExtractSnowflake>(&self, guild: S, new_channel: NewChannel) -> Result<Channel, Error> {}
 
+    //TODO: is it possible to modify DM channels?
     #[endpoint(patch, route = "/channels/{#channel}", body = "modification", status = 200)]
-    pub async fn modify_channel<S: ExtractSnowflake>(&self, channel: S, modification: ModifyChannel) -> Result<Channel, Error> {}
+    pub async fn modify_channel<S: ExtractSnowflake>(&self, channel: S, modification: ModifyChannel) -> Result<AnyChannel, Error> {}
 
     //TODO: Check if there are at least 2 channels
     #[endpoint(patch, route = "/guilds/{#guild}/channels", body = "moves", status = 204, empty)]
@@ -317,7 +318,16 @@ impl HttpAPI {
     #[endpoint(get, route = "/users/{#user}", status = 200)]
     pub async fn user<S: ExtractSnowflake>(&self, user: S) -> Result<User, Error> {}
 
-    //TODO: create a dm channel type
     #[endpoint(post, route = "/users/@me/channels", body = "recipient", status = 200)]
     pub async fn create_dm<S: ExtractSnowflake>(&self, recipient: Recipient) -> Result<Channel, Error> {}
+
+    #[endpoint(put, route = "/channels/{#channel}/recipients/{#user}", body = "recipient", status = 204)]
+    pub async fn add_dm_recipient<S: ExtractSnowflake>(&self, channel: S, user: S, recipient: Recipient) -> Result<(), Error> {}
+
+    #[endpoint(delete, route = "/channels/{#channel}/recipients/{#user}", status = 204)]
+    pub async fn remove_dm_recipient<S: ExtractSnowflake>(&self, channel: S, user: S) -> Result<(), Error> {}
+
+    #[endpoint(delete, route = "/channels/{#channel}", status = 200)]
+    pub async fn close_dm<S: ExtractSnowflake>(&self, channel: S) -> Result<PrivateChannel, Error> {}
+
 }

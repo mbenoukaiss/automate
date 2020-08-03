@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use crate::Snowflake;
-use crate::gateway::Channel;
+use crate::gateway::*;
 use crate::storage::{Stored, Storage};
 
 #[derive(Default, Debug, Clone)]
@@ -45,11 +45,11 @@ impl ChannelStorage {
         None
     }
 
-    pub fn insert(&mut self, channel: &Channel) {
-        self.channels.insert(channel.id, Clone::clone(channel));
+    pub(crate) fn insert(&mut self, channel: Channel) {
+        self.channels.insert(channel.id, channel);
     }
 
-    pub fn remove(&mut self, channel: &Channel) {
-        self.channels.remove(&channel.id);
+    pub(crate) fn remove(&mut self, channel: &Snowflake) {
+        self.channels.remove(channel);
     }
 }

@@ -23,7 +23,7 @@ pub struct Payload<D> {
 pub struct ReadyDispatch {
     pub v: u16,
     pub user: User,
-    pub private_channels: Vec<Channel>,
+    pub private_channels: Vec<PrivateChannel>,
     pub guilds: Vec<UnavailableGuild>,
     pub session_id: String,
     pub shard: Option<[u32; 2]>,
@@ -33,13 +33,13 @@ pub struct ReadyDispatch {
 pub struct ResumedDispatch(Value);
 
 #[payload(op = 0, event = "CHANNEL_CREATE", server)]
-pub struct ChannelCreateDispatch(pub Channel);
+pub struct ChannelCreateDispatch(pub AnyChannel);
 
 #[payload(op = 0, event = "CHANNEL_UPDATE", server)]
-pub struct ChannelUpdateDispatch(pub Channel);
+pub struct ChannelUpdateDispatch(pub AnyChannel);
 
 #[payload(op = 0, event = "CHANNEL_DELETE", server)]
-pub struct ChannelDeleteDispatch(pub Channel);
+pub struct ChannelDeleteDispatch(pub AnyChannel);
 
 #[payload(op = 0, event = "CHANNEL_PINS_UPDATE", server)]
 pub struct ChannelPinsUpdateDispatch {
@@ -86,15 +86,8 @@ pub struct GuildIntegrationsUpdateDispatch {
 #[payload(op = 0, event = "GUILD_MEMBER_ADD", server)]
 pub struct GuildMemberAddDispatch {
     pub guild_id: Snowflake,
-    pub user: User,
-    pub nick: Option<String>,
-    pub roles: Vec<Snowflake>,
-    pub joined_at: String,
-    #[option_nullable]
-    pub premium_since: Option<Option<String>>,
-    pub hoisted_role: Option<Snowflake>,
-    pub deaf: bool,
-    pub mute: bool,
+    #[serde(flatten)]
+    pub member: GuildMember
 }
 
 #[payload(op = 0, event = "GUILD_MEMBER_REMOVE", server)]
@@ -109,7 +102,8 @@ pub struct GuildMemberUpdateDispatch {
     pub roles: Vec<Snowflake>,
     pub user: User,
     pub nick: Option<String>,
-    pub premium_since: Option<NaiveDateTime>
+    #[option_nullable]
+    pub premium_since: Option<Option<NaiveDateTime>>
 }
 
 /// Sent in response to [RequestGuildMembers](RequestGuildMembers)

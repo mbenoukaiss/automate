@@ -10,3 +10,9 @@ pub struct ModifyBot {
 pub struct Recipient {
     pub recipient_id: Snowflake
 }
+
+#[object(client)]
+pub struct AddRecipient {
+    pub access_token: String,
+    pub nick: String
+}

@@ -1,5 +1,5 @@
 use proc_macro::TokenStream;
-use syn::{parse_macro_input, AttributeArgs, ItemStruct};
+use syn::{parse_macro_input, AttributeArgs, Item};
 use darling::FromMeta;
 use quote::ToTokens;
 use crate::utils;
@@ -42,15 +42,20 @@ pub fn object(metadata: TokenStream, item: TokenStream) -> TokenStream {
         Err(e) => { return e.write_errors().into(); }
     };
 
-    let mut item: ItemStruct = parse_macro_input!(item);
-    utils::replace_attributes(&mut item);
-
+    let item: Item = parse_macro_input!(item);
     let side: StructSide = unwrap!(args.side());
 
     let mut output = side.appropriate_derive(args.default);
-    item.to_tokens(&mut output);
 
-    unwrap!(utils::extend_with_deref(&item, &mut output));
+    match item {
+        Item::Struct(mut item) => {
+            utils::replace_attributes(&mut item);
+
+            unwrap!(utils::extend_with_deref(&item, &mut output));
+            item.to_tokens(&mut output);
+        },
+        any => any.to_tokens(&mut output)
+    }
 
     TokenStream::from(output)
 }

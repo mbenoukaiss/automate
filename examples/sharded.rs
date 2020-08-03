@@ -21,14 +21,14 @@ async fn say_hello(ctx: &Context, data: &MessageCreateDispatch) -> Result<(), Er
     Ok(())
 }
 
-fn main() {
+fn main() -> Result<(), Error> {
     let config = Configuration::from_env("DISCORD_API_TOKEN")
         .register(stateless!(say_hello));
 
     Automate::block_on(async move {
-        ShardManager::with_config(config).await
+        ShardManager::with_config(config).await?
             .set_total_shards(2)
             .auto_setup()
             .launch().await;
-    });
+    })
 }

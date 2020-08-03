@@ -1,5 +1,14 @@
 use crate::gateway::{User, PartialUser, PartialGuild};
 use crate::Snowflake;
+use std::collections::HashMap;
+use crate::snowflake::Identifiable;
+
+#[object(server)]
+#[serde(untagged)]
+pub enum AnyChannel {
+    Guild(Channel),
+    Private(PrivateChannel)
+}
 
 #[object(server)]
 pub struct Channel {
@@ -7,24 +16,44 @@ pub struct Channel {
     #[serde(rename = "type")]
     pub _type: ChannelType,
     pub guild_id: Option<Snowflake>,
-    pub position: Option<i32>,
+    pub position: i32,
     pub permission_overwrites: Option<Vec<Overwrite>>,
-    pub name: Option<String>,
-    #[option_nullable]
-    pub topic: Option<Option<String>>,
+    pub name: String,
+    #[nullable]
+    pub topic: Option<String>,
     pub nsfw: Option<bool>,
     #[option_nullable]
     pub last_message_id: Option<Option<Snowflake>>,
     pub bitrate: Option<i32>,
     pub user_limit: Option<i32>,
     pub rate_limit_per_user: Option<i32>,
-    pub recipients: Option<Vec<User>>,
     #[option_nullable]
     pub icon: Option<Option<String>>,
-    pub owner_id: Option<Snowflake>,
-    pub application_id: Option<Snowflake>,
+    #[nullable]
+    pub parent_id: Option<Snowflake>,
+    pub last_pin_timestamp: Option<String>,
+}
+
+impl Identifiable for Channel {
+    fn id(&self) -> Snowflake {
+        self.id
+    }
+}
+
+#[object(server)]
+pub struct PrivateChannel {
+    pub id: Snowflake,
+    #[serde(rename = "type")]
+    pub _type: ChannelType,
+    pub name: Option<String>,
     #[option_nullable]
-    pub parent_id: Option<Option<Snowflake>>,
+    pub last_message_id: Option<Option<Snowflake>>,
+    #[serde(deserialize_with = "automate::encode::json::as_hashmap")]
+    pub recipients: HashMap<Snowflake, User>,
+    #[nullable]
+    pub icon: Option<String>,
+    pub owner_id: Snowflake,
+    pub application_id: Option<Snowflake>,
     pub last_pin_timestamp: Option<String>,
 }
 

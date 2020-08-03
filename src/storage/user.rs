@@ -45,7 +45,7 @@ impl UserStorage {
         None
     }
 
-    pub fn insert(&mut self, user: &User) {
-        self.users.insert(user.id, Clone::clone(user));
+    pub fn insert(&mut self, user: User) {
+        self.users.insert(user.id, user);
     }
 }

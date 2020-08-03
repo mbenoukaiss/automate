@@ -1,6 +1,7 @@
 #![feature(test)]
 #![feature(try_blocks)]
 #![feature(proc_macro_hygiene)]
+#![feature(async_closure)]
 #![allow(clippy::identity_op)] //because clippy forbides 1 << 0 in c-like enums
 #![allow(clippy::option_option)] //opt<opt<>> is required to properly handle nullables
 
@@ -426,15 +427,12 @@ impl Configuration {
     /// logging enabled and outputting all logs with
     /// a level higher or equal to `LevelFiler::Info`
     pub fn new<S: Into<String>>(token: S) -> Configuration {
-        let mut default_levels = Vec::new();
-        default_levels.push((String::from("automate"), LevelFilter::Info));
-
         Configuration {
             shard_id: None,
             total_shards: None,
             token: token.into(),
             logging: true,
-            log_levels: default_levels,
+            log_levels: Vec::new(),
             listeners: ListenerContainer::default(),
             storages: StorageContainer::for_initialization(),
             intents: None,
@@ -619,12 +617,14 @@ pub struct Automate;
 impl Automate {
     /// Launches a basic bot with the given configuration
     /// and the amount of shards recommended by Discord.
-    pub fn launch(config: Configuration) {
+    pub fn launch(config: Configuration) -> Result<(), Error> {
         Automate::block_on(async move {
-            ShardManager::with_config(config).await
+            ShardManager::with_config(config).await?
                 .auto_setup()
                 .launch().await;
-        });
+
+            Ok(())
+        })
     }
 
     /// Creates a tokio runtime and runs the
