@@ -30,5 +30,7 @@ fn main() -> Result<(), Error> {
             .set_total_shards(2)
             .auto_setup()
             .launch().await;
+
+        Ok(())
     })
 }

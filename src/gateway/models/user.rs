@@ -1,6 +1,5 @@
 use crate::gateway::PartialGuildMember;
-use crate::Snowflake;
-use crate::snowflake::Identifiable;
+use crate::{Snowflake, Identifiable};
 
 /// Users in Discord are generally considered the
 /// base entity. Users can spawn across the entire

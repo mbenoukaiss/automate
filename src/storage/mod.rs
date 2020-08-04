@@ -1,5 +1,4 @@
 mod guild;
-mod guild_member;
 mod channel;
 mod private_channel;
 mod user;
@@ -13,6 +12,7 @@ use crate::gateway::*;
 use futures::lock::{Mutex, MutexGuard};
 use std::collections::HashMap;
 use std::any::{TypeId, Any};
+use crate::Identifiable;
 
 //TODO: proc macro to auto derive
 pub trait Stored {
@@ -101,13 +101,7 @@ impl StorageContainer {
 
         self.write::<Channel, _>(|storage| {
             for channel in guild.channels.values() {
-                storage.insert(Clone::clone(channel));
-            }
-        });
-
-        self.write::<GuildMember, _>(|storage| {
-            for member in guild.members.values() {
-                storage.insert(guild.id, Clone::clone(member));
+                storage.insert(Channel::from_guild(channel));
             }
         });
 
@@ -135,36 +129,21 @@ impl StorageContainer {
     }
 
     pub async fn on_channel_create(&mut self, event: &ChannelCreateDispatch) {
-        match &event.0 {
-            AnyChannel::Guild(channel) => self.write::<Channel, _>(|storage| {
-                storage.insert(Clone::clone(&channel));
-            }),
-            AnyChannel::Private(channel) => self.write::<PrivateChannel, _>(|storage| {
-                storage.insert(Clone::clone(&channel));
-            }),
-        };
+        self.write::<Channel, _>(|storage| {
+            storage.insert(Clone::clone(&event.0));
+        });
     }
 
     pub async fn on_channel_update(&mut self, event: &ChannelUpdateDispatch) {
-        match &event.0 {
-            AnyChannel::Guild(channel) => self.write::<Channel, _>(|storage| {
-                storage.insert(Clone::clone(&channel));
-            }),
-            AnyChannel::Private(channel) => self.write::<PrivateChannel, _>(|storage| {
-                storage.insert(Clone::clone(&channel));
-            }),
-        };
+        self.write::<Channel, _>(|storage| {
+            storage.insert(Clone::clone(&event.0));
+        });
     }
 
     pub async fn on_channel_delete(&mut self, event: &ChannelDeleteDispatch) {
-        match &event.0 {
-            AnyChannel::Guild(channel) => {
-                self.write::<Channel, _>(|storage| storage.remove(&channel.id))
-            }
-            AnyChannel::Private(channel) => {
-                self.write::<PrivateChannel, _>(|storage| storage.remove(&channel.id))
-            }
-        };
+        self.write::<Channel, _>(|storage| {
+            storage.remove(event.0.id());
+        });
     }
 
     pub async fn on_channel_pins_update(&mut self, event: &ChannelPinsUpdateDispatch) {
@@ -179,20 +158,14 @@ impl StorageContainer {
         self.insert_guild(&event.0);
     }
 
+    //users are not removed because they can be in many guilds
     pub async fn on_guild_delete(&mut self, event: &GuildDeleteDispatch) {
-        let id = &event.id;
-        let guild: Guild = self.lock::<Guild>().await.get(id).clone();
+        let id = event.id;
+        let guild: Guild = Guild::clone(self.lock::<Guild>().await.get(id));
 
         self.write::<Channel, _>(|storage| {
             for channel in guild.channels.keys() {
-                storage.remove(channel);
-            }
-        });
-
-        //users are not removed because they can be in many guilds
-        self.write::<GuildMember, _>(|storage| {
-            for member in guild.members.keys() {
-                storage.remove(id, member);
+                storage.remove(*channel);
             }
         });
 
@@ -201,45 +174,33 @@ impl StorageContainer {
         });
     }
 
-    pub async fn on_guild_ban_add(&mut self, event: &GuildBanAddDispatch) {
-        self.write::<GuildMember, _>(|storage| {
-            storage.remove(&event.guild_id, &event.user.id);
-        });
-    }
+    pub async fn on_guild_ban_add(&mut self, event: &GuildBanAddDispatch) {}
 
-    pub async fn on_guild_ban_remove(&mut self, event: &GuildBanRemoveDispatch) {
-
-    }
+    pub async fn on_guild_ban_remove(&mut self, event: &GuildBanRemoveDispatch) {}
 
     pub async fn on_guild_emojis_update(&mut self, event: &GuildEmojisUpdateDispatch) {}
 
     pub async fn on_guild_integrations_update(&mut self, event: &GuildIntegrationsUpdateDispatch) {}
 
     pub async fn on_guild_member_add(&mut self, event: &GuildMemberAddDispatch) {
-        self.write::<GuildMember, _>(|storage| {
-            storage.insert(event.guild_id, Clone::clone(&event.member));
-        });
-
         self.write::<User, _>(|storage| {
             storage.insert(Clone::clone(&event.member.user));
         });
     }
 
-    pub async fn on_guild_member_remove(&mut self, event: &GuildMemberRemoveDispatch) {
-        self.write::<GuildMember, _>(|storage| {
-            storage.remove(&event.guild_id, &event.user.id);
-        });
-    }
+    pub async fn on_guild_member_remove(&mut self, event: &GuildMemberRemoveDispatch) {}
 
     pub async fn on_guild_member_update(&mut self, event: &GuildMemberUpdateDispatch) {
-        let mut current_member: GuildMember = self.lock::<GuildMember>().await.get(&event.guild_id, &event.user.id).clone();
-        current_member.user = event.user.clone();
-        current_member.nick = event.nick.clone();
-        current_member.roles = event.roles.clone();
-        current_member.premium_since = event.premium_since.clone();
+        self.write::<Guild, _>(|storage| {
+            let mut member = storage.get_mut(event.guild_id)
+            .members
+            .get_mut(&event.user.id)
+            .unwrap();
 
-        self.write::<GuildMember, _>(|storage| {
-            storage.insert(event.guild_id, current_member);
+            member.user = event.user.clone();
+            member.nick = event.nick.clone();
+            member.roles = event.roles.clone();
+            member.premium_since = event.premium_since;
         });
 
         self.write::<User, _>(|storage| {
@@ -278,23 +239,26 @@ impl StorageContainer {
     pub async fn on_presence_update(&mut self, event: &PresenceUpdateDispatch) {
         let update = &event.0;
 
-        let mut current_member: GuildMember = self.lock::<GuildMember>().await.get(&event.guild_id, &event.user.id).clone();
-        current_member.user = update.user.clone();
-        current_member.roles = update.roles.clone();
-        current_member.premium_since = update.premium_since.clone();
+        self.write::<Guild, _>(|storage| {
+            let mut member = storage.get_mut(update.guild_id)
+                .members
+                .get_mut(&update.user.id)
+                .unwrap();
 
-        if let Some(nick) = &update.nick {
-            current_member.nick = nick.clone();
-        }
+            //not updating user because we only receive a partial one
+            member.roles = update.roles.clone();
+            member.premium_since = update.premium_since;
 
-        self.write::<GuildMember, _>(|storage| {
-            storage.insert(event.0.guild_id, current_member);
+            if let Some(nick) = &update.nick {
+                member.nick = nick.clone();
+            }
         });
     }
 
     pub async fn on_typing_start(&mut self, event: &TypingStartDispatch) {}
 
     pub async fn on_user_update(&mut self, event: &UserUpdateDispatch) {
+        //TODO: guild members don't get updated?
         self.write::<User, _>(|storage| {
             storage.insert(Clone::clone(&event.0));
         });

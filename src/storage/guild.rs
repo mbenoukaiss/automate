@@ -19,37 +19,23 @@ impl GuildStorage {
         self.guilds.values().collect()
     }
 
-    pub fn get(&self, id: &Snowflake) -> &Guild {
-        self.find(id).unwrap()
+    pub fn get(&self, id: Snowflake) -> &Guild {
+        self.get_opt(id).unwrap()
     }
 
-    pub fn find(&self, id: &Snowflake) -> Option<&Guild> {
+    pub fn get_opt(&self, id: Snowflake) -> Option<&Guild> {
         self.guilds.get(&id)
     }
 
-    pub fn find_by<P>(&self, mut filter: P) -> Vec<&Guild>
-        where P: FnMut(&Guild) -> bool {
-        self.guilds.values()
-            .filter(|u| filter(u))
-            .collect()
-    }
-
-    pub fn find_one_by<P>(&self, mut filter: P) -> Option<&Guild>
-        where P: FnMut(&Guild) -> bool {
-        for guild in self.guilds.values() {
-            if filter(guild) {
-                return Some(guild);
-            }
-        }
-
-        None
+    pub(crate) fn get_mut(&mut self, id: Snowflake) -> &mut Guild {
+        self.guilds.get_mut(&id).unwrap()
     }
 
     pub(crate) fn insert(&mut self, guild: Guild) {
         self.guilds.insert(guild.id, guild);
     }
 
-    pub(crate) fn remove(&mut self, guild: &Snowflake) {
-        self.guilds.remove(guild);
+    pub(crate) fn remove(&mut self, guild: Snowflake) {
+        self.guilds.remove(&guild);
     }
 }

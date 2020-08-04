@@ -19,30 +19,13 @@ impl UserStorage {
         self.users.values().collect()
     }
 
+    #[inline]
     pub fn get(&self, id: Snowflake) -> &User {
-        self.find(id).unwrap()
+        self.get_opt(id).unwrap()
     }
 
-    pub fn find(&self, id: Snowflake) -> Option<&User> {
+    pub fn get_opt(&self, id: Snowflake) -> Option<&User> {
         self.users.get(&id)
-    }
-
-    pub fn find_by<P>(&self, mut filter: P) -> Vec<&User>
-        where P: FnMut(&User) -> bool {
-        self.users.values()
-            .filter(|u| filter(u))
-            .collect()
-    }
-
-    pub fn find_one_by<P>(&self, mut filter: P) -> Option<&User>
-        where P: FnMut(&User) -> bool {
-        for user in self.users.values() {
-            if filter(user) {
-                return Some(user);
-            }
-        }
-
-        None
     }
 
     pub fn insert(&mut self, user: User) {

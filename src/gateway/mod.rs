@@ -36,6 +36,8 @@ macro_rules! call_dispatcher {
 macro_rules! dispatcher {
     ($fn_name:ident: $type:ty => $name:ident) => {
         async fn $fn_name(&mut self, payload: $type) -> Result<(), Error> {
+            trace!(concat!("Received gateway event `", stringify!($fn_name), "`"));
+
             self.config.storages.$fn_name(&payload).await;
 
             let context = Context {

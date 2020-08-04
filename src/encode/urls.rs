@@ -1,4 +1,4 @@
-use crate::{Error, Snowflake};
+use crate::{Error, Snowflake, Identifiable};
 use crate::gateway::*;
 use percent_encoding::NON_ALPHANUMERIC;
 use std::fmt::Write;
@@ -33,15 +33,39 @@ macro_rules! automate_types {
     }
 }
 
+macro_rules! automate_enums {
+    ($($struct:ty),*) => {
+        $(
+            impl ExtractSnowflake for $struct {
+                fn extract_snowflake(&self) -> Result<Snowflake, Error> {
+                    Ok(self.id())
+                }
+            }
+
+            impl ExtractSnowflake for &$struct {
+                fn extract_snowflake(&self) -> Result<Snowflake, Error> {
+                    Ok(self.id())
+                }
+            }
+        )*
+    }
+}
+
 automate_types! {
     AuditLogEntry,
-    Channel, ChannelMention,
+    Category, TextChannel, VoiceChannel, NewsChannel, StoreChannel,
+    DirectChannel, GroupChannel,
+    ChannelMention,
     Overwrite,
     Webhook,
     Guild, PartialGuild, UnavailableGuild,
     Role, PartialRole,
     Message, Attachment, MessageApplication,
     User, PartialUser, MentionnedUser
+}
+
+automate_enums! {
+    Channel, GuildChannel, PrivateChannel
 }
 
 impl ExtractSnowflake for Snowflake {

@@ -369,7 +369,7 @@ pub use gateway::Intent;
 #[allow(deprecated)]
 pub use logger::setup_logging;
 pub use sharding::ShardManager;
-pub use snowflake::Snowflake;
+pub use snowflake::{Identifiable, Snowflake};
 pub use errors::Error;
 
 use events::*;

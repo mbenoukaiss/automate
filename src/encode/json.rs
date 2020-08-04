@@ -1,8 +1,7 @@
 use std::fmt::{Display, Formatter, Error, Debug};
 use serde::{Deserialize, Deserializer};
 use std::collections::HashMap;
-use crate::snowflake::Identifiable;
-use crate::Snowflake;
+use crate::{Snowflake, Identifiable};
 
 /// A value that has to be included in the JSON
 /// string but can contain the value null.

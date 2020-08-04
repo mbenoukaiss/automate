@@ -65,17 +65,17 @@ impl HttpAPI {
     pub async fn delete_guild<S: ExtractSnowflake>(&self, guild: S) -> Result<(), Error> {}
 
     #[endpoint(get, route = "/guilds/{#guild}/channels", status = 200)]
-    pub async fn channels<S: ExtractSnowflake>(&self, guild: S) -> Result<Vec<Channel>, Error> {}
+    pub async fn channels<S: ExtractSnowflake>(&self, guild: S) -> Result<Vec<GuildChannel>, Error> {}
 
     #[endpoint(get, route = "/channels/{#channel}", status = 200)]
-    pub async fn channel<S: ExtractSnowflake>(&self, channel: S) -> Result<AnyChannel, Error> {}
+    pub async fn channel<S: ExtractSnowflake>(&self, channel: S) -> Result<Channel, Error> {}
 
     #[endpoint(post, route = "/guilds/{#guild}/channels", body = "new_channel", status = 200)]
-    pub async fn create_channel<S: ExtractSnowflake>(&self, guild: S, new_channel: NewChannel) -> Result<Channel, Error> {}
+    pub async fn create_channel<S: ExtractSnowflake>(&self, guild: S, new_channel: NewChannel) -> Result<GuildChannel, Error> {}
 
     //TODO: is it possible to modify DM channels?
     #[endpoint(patch, route = "/channels/{#channel}", body = "modification", status = 200)]
-    pub async fn modify_channel<S: ExtractSnowflake>(&self, channel: S, modification: ModifyChannel) -> Result<AnyChannel, Error> {}
+    pub async fn modify_channel<S: ExtractSnowflake>(&self, channel: S, modification: ModifyChannel) -> Result<Channel, Error> {}
 
     //TODO: Check if there are at least 2 channels
     #[endpoint(patch, route = "/guilds/{#guild}/channels", body = "moves", status = 204, empty)]
@@ -319,7 +319,7 @@ impl HttpAPI {
     pub async fn user<S: ExtractSnowflake>(&self, user: S) -> Result<User, Error> {}
 
     #[endpoint(post, route = "/users/@me/channels", body = "recipient", status = 200)]
-    pub async fn create_dm<S: ExtractSnowflake>(&self, recipient: Recipient) -> Result<Channel, Error> {}
+    pub async fn create_dm<S: ExtractSnowflake>(&self, recipient: Recipient) -> Result<DirectChannel, Error> {}
 
     #[endpoint(put, route = "/channels/{#channel}/recipients/{#user}", body = "recipient", status = 204)]
     pub async fn add_dm_recipient<S: ExtractSnowflake>(&self, channel: S, user: S, recipient: Recipient) -> Result<(), Error> {}

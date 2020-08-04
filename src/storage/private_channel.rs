@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::Snowflake;
+use crate::{Snowflake, Identifiable};
 use crate::gateway::PrivateChannel;
 use crate::storage::{Stored, Storage};
 
@@ -19,37 +19,20 @@ impl PrivateChannelStorage {
         self.channels.values().collect()
     }
 
+    #[inline]
     pub fn get(&self, id: Snowflake) -> &PrivateChannel {
-        self.find(id).unwrap()
+        self.get_opt(id).unwrap()
     }
 
-    pub fn find(&self, id: Snowflake) -> Option<&PrivateChannel> {
+    pub fn get_opt(&self, id: Snowflake) -> Option<&PrivateChannel> {
         self.channels.get(&id)
     }
 
-    pub fn find_by<P>(&self, mut filter: P) -> Vec<&PrivateChannel>
-        where P: FnMut(&PrivateChannel) -> bool {
-        self.channels.values()
-            .filter(|u| filter(u))
-            .collect()
-    }
-
-    pub fn find_one_by<P>(&self, mut filter: P) -> Option<&PrivateChannel>
-        where P: FnMut(&PrivateChannel) -> bool {
-        for channel in self.channels.values() {
-            if filter(channel) {
-                return Some(channel);
-            }
-        }
-
-        None
-    }
-
     pub fn insert(&mut self, channel: PrivateChannel) {
-        self.channels.insert(channel.id, channel);
+        self.channels.insert(channel.id(), channel);
     }
 
-    pub fn remove(&mut self, channel: &Snowflake) {
-        self.channels.remove(channel);
+    pub fn remove(&mut self, channel: Snowflake) {
+        self.channels.remove(&channel);
     }
 }

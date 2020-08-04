@@ -33,13 +33,13 @@ pub struct ReadyDispatch {
 pub struct ResumedDispatch(Value);
 
 #[payload(op = 0, event = "CHANNEL_CREATE", server)]
-pub struct ChannelCreateDispatch(pub AnyChannel);
+pub struct ChannelCreateDispatch(pub Channel);
 
 #[payload(op = 0, event = "CHANNEL_UPDATE", server)]
-pub struct ChannelUpdateDispatch(pub AnyChannel);
+pub struct ChannelUpdateDispatch(pub Channel);
 
 #[payload(op = 0, event = "CHANNEL_DELETE", server)]
-pub struct ChannelDeleteDispatch(pub AnyChannel);
+pub struct ChannelDeleteDispatch(pub Channel);
 
 #[payload(op = 0, event = "CHANNEL_PINS_UPDATE", server)]
 pub struct ChannelPinsUpdateDispatch {

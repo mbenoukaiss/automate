@@ -1,7 +1,6 @@
-use crate::gateway::{User, PartialUser, PartialVoiceState, Channel};
-use crate::Snowflake;
+use crate::gateway::{User, PartialUser, PartialVoiceState, GuildChannel};
+use crate::{Snowflake, Identifiable};
 use std::collections::HashMap;
-use crate::snowflake::Identifiable;
 use chrono::NaiveDateTime;
 
 #[object(server)]
@@ -45,7 +44,7 @@ pub struct Guild {
     #[serde(deserialize_with = "automate::encode::json::as_hashmap")]
     pub members: HashMap<Snowflake, GuildMember>,
     #[serde(deserialize_with = "automate::encode::json::as_hashmap")]
-    pub channels: HashMap<Snowflake, Channel>,
+    pub channels: HashMap<Snowflake, GuildChannel>,
     pub presences: Option<Vec<PartialPresenceUpdate>>,
     #[option_nullable]
     pub max_presences: Option<Option<i32>>,
