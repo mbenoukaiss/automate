@@ -1,3 +1,7 @@
+//! Example demonstrating the custom storage
+//! feature by creating a `Count` storage and
+//! using the provided ones.
+
 #[macro_use]
 extern crate automate;
 

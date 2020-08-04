@@ -1,3 +1,5 @@
+//! Example that demonstrates the sharding API.
+
 #[macro_use]
 extern crate automate;
 

@@ -1,3 +1,7 @@
+//! Basic example with a few stateless listeners
+//! listening to messages and reactions and that
+//! responds by sending messages and creating invites.
+
 #[macro_use]
 extern crate automate;
 
