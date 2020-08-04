@@ -63,7 +63,6 @@ async fn tell_reaction(ctx: &Context, reac: &MessageReactionAddDispatch) -> Resu
 
 fn main() -> Result<(), Error> {
     let config = Configuration::from_env("DISCORD_API_TOKEN")
-        .level_for("automate", LevelFilter::Info)
         .register(stateless!(say_hello, invite, tell_reaction));
 
     Automate::launch(config)
