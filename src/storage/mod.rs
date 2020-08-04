@@ -135,8 +135,9 @@ impl StorageContainer {
     #[inline]
     fn insert_role(&mut self, role: &Role, guild: Snowflake) {
         self.write::<Guild, _>(|storage| {
-            let guild = storage.get_mut(guild).unwrap();
-            guild.roles.insert(role.id, Clone::clone(&role));
+            if let Some(guild) = storage.get_mut(guild) {
+                guild.roles.insert(role.id, Clone::clone(&role));
+            }
         });
     }
 
@@ -233,8 +234,9 @@ impl StorageContainer {
 
     pub async fn on_guild_emojis_update(&mut self, event: &GuildEmojisUpdateDispatch) {
         self.write::<Guild, _>(|storage| {
-            let guild = storage.get_mut(event.guild_id).unwrap();
-            guild.emojis = event.emojis.clone();
+            if let Some(guild) = storage.get_mut(event.guild_id) {
+                guild.emojis = event.emojis.clone();
+            }
         });
     }
 
@@ -242,8 +244,9 @@ impl StorageContainer {
 
     pub async fn on_guild_member_add(&mut self, event: &GuildMemberAddDispatch) {
         self.write::<Guild, _>(|storage| {
-            let guild = storage.get_mut(event.guild_id).unwrap();
-            guild.members.insert(event.member.user.id, event.member.clone());
+            if let Some(guild) = storage.get_mut(event.guild_id) {
+                guild.members.insert(event.member.user.id, event.member.clone());
+            }
         });
 
         self.write::<User, _>(|storage| {
@@ -253,23 +256,24 @@ impl StorageContainer {
 
     pub async fn on_guild_member_remove(&mut self, event: &GuildMemberRemoveDispatch) {
         self.write::<Guild, _>(|storage| {
-            let guild = storage.get_mut(event.guild_id).unwrap();
-            guild.members.remove(&event.user.id);
+            if let Some(guild) = storage.get_mut(event.guild_id) {
+                guild.members.remove(&event.user.id);
+            }
         });
     }
 
     pub async fn on_guild_member_update(&mut self, event: &GuildMemberUpdateDispatch) {
         self.write::<Guild, _>(|storage| {
-            let mut member = storage.get_mut(event.guild_id)
-                .unwrap()
-                .members
-                .get_mut(&event.user.id)
-                .unwrap();
+            if let Some(guild) = storage.get_mut(event.guild_id) {
+                let member = guild.members
+                    .get_mut(&event.user.id)
+                    .unwrap();
 
-            member.user = event.user.clone();
-            member.nick = event.nick.clone();
-            member.roles = event.roles.clone();
-            member.premium_since = event.premium_since;
+                member.user = event.user.clone();
+                member.nick = event.nick.clone();
+                member.roles = event.roles.clone();
+                member.premium_since = event.premium_since;
+            }
         });
     }
 
@@ -285,8 +289,9 @@ impl StorageContainer {
 
     pub async fn on_guild_role_delete(&mut self, event: &GuildRoleDeleteDispatch) {
         self.write::<Guild, _>(|storage| {
-            let guild = storage.get_mut(event.guild_id).unwrap();
-            guild.roles.remove(&event.role_id);
+            if let Some(guild) = storage.get_mut(event.guild_id) {
+                guild.roles.remove(&event.role_id);
+            }
         })
     }
 
@@ -314,17 +319,17 @@ impl StorageContainer {
         let update = &event.0;
 
         self.write::<Guild, _>(|storage| {
-            let mut member = storage.get_mut(update.guild_id)
-                .unwrap()
-                .members
-                .get_mut(&update.user.id)
-                .unwrap();
+            if let Some(guild) = storage.get_mut(update.guild_id) {
+                let mut member = guild.members
+                    .get_mut(&update.user.id)
+                    .unwrap();
 
-            member.roles = update.roles.clone();
-            member.premium_since = update.premium_since;
+                member.roles = update.roles.clone();
+                member.premium_since = update.premium_since;
 
-            if let Some(nick) = &update.nick {
-                member.nick = nick.clone();
+                if let Some(nick) = &update.nick {
+                    member.nick = nick.clone();
+                }
             }
         });
     }
@@ -341,25 +346,26 @@ impl StorageContainer {
         //update the guild member's user
         self.write::<Guild, _>(|storage| {
             for guild in guilds {
-                let guild = storage.get_mut(guild).unwrap();
-                let member = guild.members.get_mut(&user.id).unwrap();
-
-                member.user = Clone::clone(&user);
+                if let Some(guild) = storage.get_mut(guild) {
+                    let member = guild.members.get_mut(&user.id).unwrap();
+                    member.user = Clone::clone(&user);
+                }
             }
         });
 
         self.write::<User, _>(|storage| {
-            let current_user = storage.get_mut(user.id).unwrap();
-            current_user.username = user.username.clone();
-            current_user.discriminator = user.discriminator.clone();
-            current_user.avatar = user.avatar.clone();
-            current_user.bot = user.bot;
-            current_user.mfa_enabled = user.mfa_enabled;
-            current_user.locale = user.locale.clone();
-            current_user.verified = user.verified;
-            current_user.email = user.email.clone();
-            current_user.flags = user.flags;
-            current_user.premium_type = user.premium_type;
+            if let Some(current_user) = storage.get_mut(user.id) {
+                current_user.username = user.username.clone();
+                current_user.discriminator = user.discriminator.clone();
+                current_user.avatar = user.avatar.clone();
+                current_user.bot = user.bot;
+                current_user.mfa_enabled = user.mfa_enabled;
+                current_user.locale = user.locale.clone();
+                current_user.verified = user.verified;
+                current_user.email = user.email.clone();
+                current_user.flags = user.flags;
+                current_user.premium_type = user.premium_type;
+            }
         });
     }
 
