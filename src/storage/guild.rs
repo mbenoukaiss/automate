@@ -27,8 +27,8 @@ impl GuildStorage {
         self.guilds.get(&id)
     }
 
-    pub(crate) fn get_mut(&mut self, id: Snowflake) -> &mut Guild {
-        self.guilds.get_mut(&id).unwrap()
+    pub(crate) fn get_mut(&mut self, id: Snowflake) -> Option<&mut Guild> {
+        self.guilds.get_mut(&id)
     }
 
     pub(crate) fn insert(&mut self, guild: Guild) {

@@ -1,5 +1,6 @@
 use crate::gateway::PartialGuildMember;
 use crate::{Snowflake, Identifiable};
+use std::collections::HashSet;
 
 /// Users in Discord are generally considered the
 /// base entity. Users can spawn across the entire
@@ -26,7 +27,9 @@ pub struct User {
     pub verified: Option<bool>,
     pub email: Option<String>,
     pub flags: Option<i32>,
-    pub premium_type: Option<i32>
+    pub premium_type: Option<i32>,
+    #[serde(default)]
+    pub guilds: HashSet<Snowflake>
 }
 
 impl Identifiable for User {

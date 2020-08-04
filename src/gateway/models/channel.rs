@@ -214,7 +214,7 @@ pub enum WebhookType {
 }
 
 mod channels {
-    use crate::{Snowflake, Identifiable};
+    use crate::{Snowflake, Identifiable, Error};
     use super::{Channel, GuildChannel, PrivateChannel};
 
     impl Identifiable for Channel {
@@ -267,6 +267,29 @@ mod channels {
             match channel {
                 PrivateChannel::Direct(c) => Channel::Direct(Clone::clone(c)),
                 PrivateChannel::Group(c) => Channel::Group(Clone::clone(c)),
+            }
+        }
+    }
+
+    impl GuildChannel {
+        pub fn from_channel(channel: &Channel) -> Result<Self, Error> {
+            match channel {
+                Channel::Category(c) => Ok(GuildChannel::Category(Clone::clone(c))),
+                Channel::Text(c) => Ok(GuildChannel::Text(Clone::clone(c))),
+                Channel::Voice(c) => Ok(GuildChannel::Voice(Clone::clone(c))),
+                Channel::News(c) => Ok(GuildChannel::News(Clone::clone(c))),
+                Channel::Store(c) => Ok(GuildChannel::Store(Clone::clone(c))),
+                _ => Error::err("Can't convert private channel to guild channel")
+            }
+        }
+    }
+
+    impl PrivateChannel {
+        pub fn from_channel(channel: &Channel) -> Result<Self, Error> {
+            match channel {
+                Channel::Direct(c) => Ok(PrivateChannel::Direct(Clone::clone(c))),
+                Channel::Group(c) => Ok(PrivateChannel::Group(Clone::clone(c))),
+                _ => Error::err("Can't convert guild channel to private channel")
             }
         }
     }

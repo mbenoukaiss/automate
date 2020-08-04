@@ -1,18 +1,16 @@
 mod guild;
 mod channel;
-mod private_channel;
 mod user;
 
 pub use guild::*;
 pub use channel::*;
-pub use private_channel::*;
 pub use user::*;
 
 use crate::gateway::*;
 use futures::lock::{Mutex, MutexGuard};
 use std::collections::HashMap;
 use std::any::{TypeId, Any};
-use crate::Identifiable;
+use crate::{Identifiable, Snowflake};
 
 //TODO: proc macro to auto derive
 pub trait Stored {
@@ -94,6 +92,9 @@ impl StorageContainer {
 /// Implementation of the utility functions
 /// to insert objects
 impl StorageContainer {
+    /// Insert a guild, its channels and users in
+    /// the respective storages.
+    #[inline]
     fn insert_guild(&mut self, guild: &Guild) {
         self.write::<Guild, _>(|storage| {
             storage.insert(Clone::clone(guild));
@@ -107,9 +108,55 @@ impl StorageContainer {
 
         self.write::<User, _>(|storage| {
             for member in guild.members.values() {
-                storage.insert(Clone::clone(&member.user));
+                Self::insert_user(storage, &member.user, Some(guild.id))
             }
         });
+    }
+
+    /// Adds a channel and insert its recipients in
+    /// the user storage if it is a group channel.
+    #[inline]
+    fn insert_channel(&mut self, channel: &Channel) {
+        self.write::<Channel, _>(|storage| {
+            storage.insert(Clone::clone(&channel));
+        });
+
+        //insert group channel recipients
+        if let Channel::Group(channel) = &channel {
+            self.write::<User, _>(|storage| {
+                for user in channel.recipients.values() {
+                    Self::insert_user(storage, user, None)
+                }
+            })
+        }
+    }
+
+    /// Adds a new role to its guild.
+    #[inline]
+    fn insert_role(&mut self, role: &Role, guild: Snowflake) {
+        self.write::<Guild, _>(|storage| {
+            let guild = storage.get_mut(guild).unwrap();
+            guild.roles.insert(role.id, Clone::clone(&role));
+        });
+    }
+
+    /// Inserts the user and add it to the given guild
+    /// if the user was not already saved, else just add
+    /// the guild to the currently saved user.
+    #[inline]
+    fn insert_user(storage: &mut UserStorage, user: &User, guild: Option<Snowflake>) {
+        if let Some(user) = storage.get_mut(user.id) {
+            if let Some(guild) = guild {
+                user.guilds.insert(guild);
+            }
+        } else {
+            let mut user = Clone::clone(user);
+            if let Some(guild) = guild {
+                user.guilds.insert(guild);
+            }
+
+            storage.insert(user);
+        }
     }
 }
 
@@ -117,9 +164,9 @@ impl StorageContainer {
     pub async fn on_ready(&mut self, event: &ReadyDispatch) {
         self.initialize::<Guild>();
 
-        self.write::<PrivateChannel, _>(|storage| {
+        self.write::<Channel, _>(|storage| {
             for channel in &event.private_channels {
-                storage.insert(Clone::clone(channel));
+                storage.insert(Channel::from_private(channel));
             }
         });
 
@@ -129,15 +176,11 @@ impl StorageContainer {
     }
 
     pub async fn on_channel_create(&mut self, event: &ChannelCreateDispatch) {
-        self.write::<Channel, _>(|storage| {
-            storage.insert(Clone::clone(&event.0));
-        });
+        self.insert_channel(&event.0);
     }
 
     pub async fn on_channel_update(&mut self, event: &ChannelUpdateDispatch) {
-        self.write::<Channel, _>(|storage| {
-            storage.insert(Clone::clone(&event.0));
-        });
+        self.insert_channel(&event.0);
     }
 
     pub async fn on_channel_delete(&mut self, event: &ChannelDeleteDispatch) {
@@ -147,7 +190,16 @@ impl StorageContainer {
     }
 
     pub async fn on_channel_pins_update(&mut self, event: &ChannelPinsUpdateDispatch) {
-        //TODO: figure out what this event does
+        self.write::<Channel, _>(|storage| {
+            match storage.get_mut(event.channel_id) {
+                Some(Channel::Text(c)) => c.last_pin_timestamp = event.last_pin_timestamp.clone(),
+                Some(Channel::News(c)) => c.last_pin_timestamp = event.last_pin_timestamp.clone(),
+                Some(Channel::Direct(c)) => c.last_pin_timestamp = event.last_pin_timestamp.clone(),
+                Some(Channel::Group(c)) => c.last_pin_timestamp = event.last_pin_timestamp.clone(),
+                None => (), //the DM was not loaded yet so we can't update it
+                _ => panic!("Message-less channel received a pin update")
+            };
+        });
     }
 
     pub async fn on_guild_create(&mut self, event: &GuildCreateDispatch) {
@@ -158,7 +210,6 @@ impl StorageContainer {
         self.insert_guild(&event.0);
     }
 
-    //users are not removed because they can be in many guilds
     pub async fn on_guild_delete(&mut self, event: &GuildDeleteDispatch) {
         let id = event.id;
         let guild: Guild = Guild::clone(self.lock::<Guild>().await.get(id));
@@ -174,78 +225,101 @@ impl StorageContainer {
         });
     }
 
-    pub async fn on_guild_ban_add(&mut self, event: &GuildBanAddDispatch) {}
+    /// Removal of the user will be handled
+    /// by an upcoming member remove event.
+    pub async fn on_guild_ban_add(&mut self, _event: &GuildBanAddDispatch) {}
 
-    pub async fn on_guild_ban_remove(&mut self, event: &GuildBanRemoveDispatch) {}
+    pub async fn on_guild_ban_remove(&mut self, _event: &GuildBanRemoveDispatch) {}
 
-    pub async fn on_guild_emojis_update(&mut self, event: &GuildEmojisUpdateDispatch) {}
-
-    pub async fn on_guild_integrations_update(&mut self, event: &GuildIntegrationsUpdateDispatch) {}
-
-    pub async fn on_guild_member_add(&mut self, event: &GuildMemberAddDispatch) {
-        self.write::<User, _>(|storage| {
-            storage.insert(Clone::clone(&event.member.user));
+    pub async fn on_guild_emojis_update(&mut self, event: &GuildEmojisUpdateDispatch) {
+        self.write::<Guild, _>(|storage| {
+            let guild = storage.get_mut(event.guild_id).unwrap();
+            guild.emojis = event.emojis.clone();
         });
     }
 
-    pub async fn on_guild_member_remove(&mut self, event: &GuildMemberRemoveDispatch) {}
+    pub async fn on_guild_integrations_update(&mut self, _event: &GuildIntegrationsUpdateDispatch) {}
+
+    pub async fn on_guild_member_add(&mut self, event: &GuildMemberAddDispatch) {
+        self.write::<Guild, _>(|storage| {
+            let guild = storage.get_mut(event.guild_id).unwrap();
+            guild.members.insert(event.member.user.id, event.member.clone());
+        });
+
+        self.write::<User, _>(|storage| {
+            Self::insert_user(storage, &event.member.user, Some(event.guild_id))
+        });
+    }
+
+    pub async fn on_guild_member_remove(&mut self, event: &GuildMemberRemoveDispatch) {
+        self.write::<Guild, _>(|storage| {
+            let guild = storage.get_mut(event.guild_id).unwrap();
+            guild.members.remove(&event.user.id);
+        });
+    }
 
     pub async fn on_guild_member_update(&mut self, event: &GuildMemberUpdateDispatch) {
         self.write::<Guild, _>(|storage| {
             let mut member = storage.get_mut(event.guild_id)
-            .members
-            .get_mut(&event.user.id)
-            .unwrap();
+                .unwrap()
+                .members
+                .get_mut(&event.user.id)
+                .unwrap();
 
             member.user = event.user.clone();
             member.nick = event.nick.clone();
             member.roles = event.roles.clone();
             member.premium_since = event.premium_since;
         });
-
-        self.write::<User, _>(|storage| {
-            storage.insert(Clone::clone(&event.user));
-        });
     }
 
-    pub async fn on_guild_members_chunk(&mut self, event: &GuildMembersChunkDispatch) {}
+    pub async fn on_guild_members_chunk(&mut self, _event: &GuildMembersChunkDispatch) {}
 
-    pub async fn on_guild_role_create(&mut self, event: &GuildRoleCreateDispatch) {}
+    pub async fn on_guild_role_create(&mut self, event: &GuildRoleCreateDispatch) {
+        self.insert_role(&event.role, event.guild_id);
+    }
 
-    pub async fn on_guild_role_update(&mut self, event: &GuildRoleUpdateDispatch) {}
+    pub async fn on_guild_role_update(&mut self, event: &GuildRoleUpdateDispatch) {
+        self.insert_role(&event.role, event.guild_id);
+    }
 
-    pub async fn on_guild_role_delete(&mut self, event: &GuildRoleDeleteDispatch) {}
+    pub async fn on_guild_role_delete(&mut self, event: &GuildRoleDeleteDispatch) {
+        self.write::<Guild, _>(|storage| {
+            let guild = storage.get_mut(event.guild_id).unwrap();
+            guild.roles.remove(&event.role_id);
+        })
+    }
 
-    pub async fn on_invite_create(&mut self, event: &InviteCreateDispatch) {}
+    pub async fn on_invite_create(&mut self, _event: &InviteCreateDispatch) {}
 
-    pub async fn on_invite_delete(&mut self, event: &InviteDeleteDispatch) {}
+    pub async fn on_invite_delete(&mut self, _event: &InviteDeleteDispatch) {}
 
-    pub async fn on_message_create(&mut self, event: &MessageCreateDispatch) {}
+    pub async fn on_message_create(&mut self, _event: &MessageCreateDispatch) {}
 
-    pub async fn on_message_update(&mut self, event: &MessageUpdateDispatch) {}
+    pub async fn on_message_update(&mut self, _event: &MessageUpdateDispatch) {}
 
-    pub async fn on_message_delete(&mut self, event: &MessageDeleteDispatch) {}
+    pub async fn on_message_delete(&mut self, _event: &MessageDeleteDispatch) {}
 
-    pub async fn on_message_delete_bulk(&mut self, event: &MessageDeleteBulkDispatch) {}
+    pub async fn on_message_delete_bulk(&mut self, _event: &MessageDeleteBulkDispatch) {}
 
-    pub async fn on_reaction_add(&mut self, event: &MessageReactionAddDispatch) {}
+    pub async fn on_reaction_add(&mut self, _event: &MessageReactionAddDispatch) {}
 
-    pub async fn on_reaction_remove(&mut self, event: &MessageReactionRemoveDispatch) {}
+    pub async fn on_reaction_remove(&mut self, _event: &MessageReactionRemoveDispatch) {}
 
-    pub async fn on_reaction_remove_all(&mut self, event: &MessageReactionRemoveAllDispatch) {}
+    pub async fn on_reaction_remove_all(&mut self, _event: &MessageReactionRemoveAllDispatch) {}
 
-    pub async fn on_reaction_remove_emoji(&mut self, event: &MessageReactionRemoveEmojiDispatch) {}
+    pub async fn on_reaction_remove_emoji(&mut self, _event: &MessageReactionRemoveEmojiDispatch) {}
 
     pub async fn on_presence_update(&mut self, event: &PresenceUpdateDispatch) {
         let update = &event.0;
 
         self.write::<Guild, _>(|storage| {
             let mut member = storage.get_mut(update.guild_id)
+                .unwrap()
                 .members
                 .get_mut(&update.user.id)
                 .unwrap();
 
-            //not updating user because we only receive a partial one
             member.roles = update.roles.clone();
             member.premium_since = update.premium_since;
 
@@ -255,18 +329,43 @@ impl StorageContainer {
         });
     }
 
-    pub async fn on_typing_start(&mut self, event: &TypingStartDispatch) {}
+    pub async fn on_typing_start(&mut self, _event: &TypingStartDispatch) {}
 
     pub async fn on_user_update(&mut self, event: &UserUpdateDispatch) {
-        //TODO: guild members don't get updated?
+        let user = &event.0;
+        let guilds = self.lock::<User>().await
+            .get(user.id)
+            .guilds
+            .clone();
+
+        //update the guild member's user
+        self.write::<Guild, _>(|storage| {
+            for guild in guilds {
+                let guild = storage.get_mut(guild).unwrap();
+                let member = guild.members.get_mut(&user.id).unwrap();
+
+                member.user = Clone::clone(&user);
+            }
+        });
+
         self.write::<User, _>(|storage| {
-            storage.insert(Clone::clone(&event.0));
+            let current_user = storage.get_mut(user.id).unwrap();
+            current_user.username = user.username.clone();
+            current_user.discriminator = user.discriminator.clone();
+            current_user.avatar = user.avatar.clone();
+            current_user.bot = user.bot;
+            current_user.mfa_enabled = user.mfa_enabled;
+            current_user.locale = user.locale.clone();
+            current_user.verified = user.verified;
+            current_user.email = user.email.clone();
+            current_user.flags = user.flags;
+            current_user.premium_type = user.premium_type;
         });
     }
 
-    pub async fn on_voice_state_update(&mut self, event: &VoiceStateUpdateDispatch) {}
+    pub async fn on_voice_state_update(&mut self, _event: &VoiceStateUpdateDispatch) {}
 
-    pub async fn on_voice_server_update(&mut self, event: &VoiceServerUpdateDispatch) {}
+    pub async fn on_voice_server_update(&mut self, _event: &VoiceServerUpdateDispatch) {}
 
-    pub async fn on_webhooks_update(&mut self, event: &WebhooksUpdateDispatch) {}
+    pub async fn on_webhooks_update(&mut self, _event: &WebhooksUpdateDispatch) {}
 }

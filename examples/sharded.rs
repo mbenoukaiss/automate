@@ -4,6 +4,7 @@ extern crate automate;
 use automate::{Error, Context, Configuration, Automate, ShardManager};
 use automate::gateway::MessageCreateDispatch;
 use automate::http::CreateMessage;
+use automate::log::LevelFilter;
 
 #[listener]
 async fn say_hello(ctx: &Context, data: &MessageCreateDispatch) -> Result<(), Error> {
@@ -23,6 +24,7 @@ async fn say_hello(ctx: &Context, data: &MessageCreateDispatch) -> Result<(), Er
 
 fn main() -> Result<(), Error> {
     let config = Configuration::from_env("DISCORD_API_TOKEN")
+        .level_for("automate", LevelFilter::Info)
         .register(stateless!(say_hello));
 
     Automate::block_on(async move {

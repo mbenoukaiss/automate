@@ -75,7 +75,8 @@ pub struct GuildBanRemoveDispatch {
 #[payload(op = 0, event = "GUILD_EMOJIS_UPDATE", server)]
 pub struct GuildEmojisUpdateDispatch {
     pub guild_id: Snowflake,
-    pub emojis: Vec<Emoji>,
+    #[serde(deserialize_with = "automate::encode::json::as_hashmap")]
+    pub emojis: HashMap<Snowflake, GuildEmoji>,
 }
 
 #[payload(op = 0, event = "GUILD_INTEGRATIONS_UPDATE", server)]

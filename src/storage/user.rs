@@ -28,7 +28,11 @@ impl UserStorage {
         self.users.get(&id)
     }
 
-    pub fn insert(&mut self, user: User) {
+    pub(crate) fn get_mut(&mut self, id: Snowflake) -> Option<&mut User> {
+        self.users.get_mut(&id)
+    }
+
+    pub(crate) fn insert(&mut self, user: User) {
         self.users.insert(user.id, user);
     }
 }

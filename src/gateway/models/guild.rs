@@ -25,8 +25,10 @@ pub struct Guild {
     pub verification_level: VerificationLevel,
     pub default_message_notifications: MessageNotificationLevel,
     pub explicit_content_filter: ExplicitContentFilterLevel,
-    pub roles: Vec<Role>,
-    pub emojis: Vec<Emoji>,
+    #[serde(deserialize_with = "automate::encode::json::as_hashmap")]
+    pub roles: HashMap<Snowflake, Role>,
+    #[serde(deserialize_with = "automate::encode::json::as_hashmap")]
+    pub emojis: HashMap<Snowflake, GuildEmoji>,
     pub features: Vec<GuildFeature>,
     pub mfa_level: MFALevel,
     #[nullable]
@@ -62,6 +64,7 @@ pub struct Guild {
     pub rules_channel_id: Option<Snowflake>,
     #[nullable]
     pub public_updates_channel_id: Option<Snowflake>,
+    pub max_video_channel_users: Option<i32>
 }
 
 #[object(server)]
@@ -176,6 +179,12 @@ pub struct Role {
     pub mentionable: bool,
 }
 
+impl Identifiable for Role {
+    fn id(&self) -> Snowflake {
+        self.id
+    }
+}
+
 #[object(server)]
 pub struct PartialRole {
     pub id: Snowflake,
@@ -192,7 +201,25 @@ pub struct Emoji {
     pub require_colons: Option<bool>,
     pub managed: Option<bool>,
     pub animated: Option<bool>,
+    pub available: Option<bool>,
+}
+
+#[object(both)]
+pub struct GuildEmoji {
+    pub id: Snowflake,
+    pub name: String,
+    pub roles: Vec<Role>,
+    pub user: Option<User>,
+    pub require_colons: bool,
+    pub managed: bool,
+    pub animated: bool,
     pub available: bool,
+}
+
+impl Identifiable for GuildEmoji {
+    fn id(&self) -> Snowflake {
+        self.id
+    }
 }
 
 #[object(both)]

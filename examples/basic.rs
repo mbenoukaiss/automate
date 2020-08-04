@@ -4,6 +4,7 @@ extern crate automate;
 use automate::{Error, Context, Configuration, Automate};
 use automate::gateway::{MessageReactionAddDispatch, MessageCreateDispatch};
 use automate::http::{CreateMessage, NewInvite};
+use automate::log::LevelFilter;
 
 #[listener]
 async fn say_hello(ctx: &Context, data: &MessageCreateDispatch) -> Result<(), Error> {
@@ -62,6 +63,7 @@ async fn tell_reaction(ctx: &Context, reac: &MessageReactionAddDispatch) -> Resu
 
 fn main() -> Result<(), Error> {
     let config = Configuration::from_env("DISCORD_API_TOKEN")
+        .level_for("automate", LevelFilter::Info)
         .register(stateless!(say_hello, invite, tell_reaction));
 
     Automate::launch(config)

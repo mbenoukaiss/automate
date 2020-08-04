@@ -55,13 +55,14 @@ automate_types! {
     AuditLogEntry,
     Category, TextChannel, VoiceChannel, NewsChannel, StoreChannel,
     DirectChannel, GroupChannel,
-    ChannelMention,
+    ChannelMention, MentionnedUser,
     Overwrite,
     Webhook,
     Guild, PartialGuild, UnavailableGuild,
     Role, PartialRole,
     Message, Attachment, MessageApplication,
-    User, PartialUser, MentionnedUser
+    User, PartialUser,
+    GuildEmoji
 }
 
 automate_enums! {
