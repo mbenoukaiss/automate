@@ -31,7 +31,7 @@ version = "0.3"
 optional = true
 
 [features]
-default = []
+default = ["storage"]
 
 # Enables the storage system
 storage = ["automate-derive/storage"]

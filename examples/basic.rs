@@ -58,7 +58,7 @@ async fn tell_reaction(ctx: &Context, reac: &MessageReactionAddDispatch) -> Resu
             ..Default::default()
         }).await?;
 
-        ctx.create_reaction(sent_msg.channel_id, sent_msg.id, &reac.emoji.name).await?;
+        ctx.create_reaction(sent_msg.channel_id, sent_msg.id, &reac.emoji).await?;
     }
 
     Ok(())

@@ -10,7 +10,8 @@ pub trait ExtractSnowflake {
 }
 
 /// Any type that can be put in a URL
-/// but requires some kind of encoding
+/// but requires some kind of encoding.
+/// Currently only useful for emojis.
 pub trait WriteUrl {
     fn write_url(&self, buf: &mut String) -> Result<(), Error>;
 }
@@ -92,24 +93,6 @@ impl ExtractSnowflake for PartialEmoji {
         } else {
             Error::err("Emoji's id field is empty")
         }
-    }
-}
-
-impl WriteUrl for &str {
-    fn write_url(&self, buf: &mut String) -> Result<(), Error> {
-        let penc = percent_encoding::percent_encode(self.as_bytes(), NON_ALPHANUMERIC);
-        buf.write_fmt(format_args!("{}", penc))?;
-
-        Ok(())
-    }
-}
-
-impl WriteUrl for String {
-    fn write_url(&self, buf: &mut String) -> Result<(), Error> {
-        let penc = percent_encoding::percent_encode(self.as_bytes(), NON_ALPHANUMERIC);
-        buf.write_fmt(format_args!("{}", penc))?;
-
-        Ok(())
     }
 }
 

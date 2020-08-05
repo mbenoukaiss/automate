@@ -62,7 +62,7 @@ impl MessageCounter {
 #[listener]
 async fn copy_reaction(ctx: &mut Context, reac: &MessageReactionAddDispatch) -> Result<(), Error> {
     if reac.user_id != ctx.bot.id {
-        ctx.create_reaction(reac.channel_id, reac.message_id, &reac.emoji.name).await?;
+        ctx.create_reaction(reac.channel_id, reac.message_id, &reac.emoji).await?;
     }
 
     Ok(())

@@ -211,14 +211,17 @@
 //!
 //! More advanced examples can be found in the  ̀examples/counter.rs` example file.
 //!
-//! # Storages
+//! # Storage API
 //! When receiving events, you will usually need more data than the event sends you. For
 //! example, you may need to know what the role of the user who sent a message is. This data
 //! can be fetched through the storages using the [Context::storage](automate::Context::storage)
 //! and [Context::storage_mut](automate::Context::storage_mut) to fetch mutable data.
 //!
-//! ## Discord storages
-//! By default, automate stores 3 types which you can **not** mutate, they only get mutated
+//! That can be achieved by fetching the data from Discord API each time you need it, but you will
+//! quickly get rate limited. That is why the storage API caches some of the data discord sends.
+//!
+//! ## Caching storages
+//! Automate creates 3 storages which you can **not** mutate, they only get mutated
 //! through gateway events:
 //! - [Guilds](automate::gateway::Guild)
 //! - [Channels](automate::gateway::Channel)
@@ -257,6 +260,12 @@
 //!
 //! See [examples/levels.rs](https://github.com/mbenoukaiss/automate/blob/master/examples/levels.rs)
 //! for a detailed example.
+//!
+//! ## Deactivating storages
+//! The storages API is by default enabled but you might not want it because you simply
+//! do not need to cache the data sent by discord or because you do not have a lot of RAM
+//! available to run the bot. In that case, you can disable the feature by setting the
+//! `default-features` key to `false` for `automate` in your `Cargo.toml` file.
 //!
 //! # Sharding
 //! Automate implements support for sharding through the [ShardManager](automate::ShardManager)

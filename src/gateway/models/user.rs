@@ -27,6 +27,12 @@ pub struct User {
     pub email: Option<String>,
     pub flags: Option<i32>,
     pub premium_type: Option<i32>,
+
+    /// List of the guilds the user is in. This list only contains the
+    /// guils in which both the bot and the user are in. Guilds in which
+    /// the user is but not the bot can not be known.
+    ///
+    /// **Only for stored users**
     #[cfg(feature = "storage")]
     #[serde(default)]
     pub guilds: std::collections::HashSet<Snowflake>
