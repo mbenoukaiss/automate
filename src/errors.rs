@@ -3,6 +3,7 @@ use crate::encode::json::JsonError;
 
 /// Represents an error that occurred while using
 /// Automate library.
+#[derive(Debug)]
 pub struct Error {
     pub msg: String,
 }
@@ -23,68 +24,14 @@ impl fmt::Display for Error {
     }
 }
 
-impl fmt::Debug for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> result::Result<(), fmt::Error> {
-        write!(f, "{{ msg: {} }}", self.msg)
-    }
-}
-
 impl From<JsonError> for Error {
     fn from(err: JsonError) -> Self {
         Error::new(err.msg)
     }
 }
 
-impl From<hyper::Error> for Error {
-    fn from(err: hyper::Error) -> Self {
-        Error::new(err.to_string())
-    }
-}
-
-impl From<hyper::header::ToStrError> for Error {
-    fn from(err: hyper::header::ToStrError) -> Self {
-        Error::new(err.to_string())
-    }
-}
-
-impl From<futures::channel::mpsc::SendError> for Error {
-    fn from(err: futures::channel::mpsc::SendError) -> Self {
-        Error::new(err.to_string())
-    }
-}
-
-impl<T> From<futures::channel::mpsc::TrySendError<T>> for Error {
-    fn from(err: futures::channel::mpsc::TrySendError<T>) -> Self {
-        Error::new(err.to_string())
-    }
-}
-
-impl From<tktungstenite::tungstenite::Error> for Error {
-    fn from(err: tktungstenite::tungstenite::Error) -> Self {
-        Error::new(err.to_string())
-    }
-}
-
-impl From<std::fmt::Error> for Error {
-    fn from(err: std::fmt::Error) -> Self {
-        Error::new(err.to_string())
-    }
-}
-
-impl From<std::io::Error> for Error {
-    fn from(err: std::io::Error) -> Self {
-        Error::new(err.to_string())
-    }
-}
-
-impl From<std::num::ParseIntError> for Error {
-    fn from(err: std::num::ParseIntError) -> Self {
-        Error::new(err.to_string())
-    }
-}
-
-impl From<serde_json::Error> for Error {
-    fn from(err: serde_json::Error) -> Self {
+impl<T: std::error::Error> From<T> for Error {
+    fn from(err: T) -> Self {
         Error::new(err.to_string())
     }
 }
