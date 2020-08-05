@@ -19,5 +19,6 @@ darling = "0.10"
 
 [features]
 default = []
+storage = []
 strict-deserializer = []
 trace-endpoints = []

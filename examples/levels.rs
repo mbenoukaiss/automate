@@ -133,7 +133,7 @@ fn main() -> Result<(), Error> {
         .enable_logging()
         .level_for("automate", LevelFilter::Trace)
         .presence(UpdateStatus {
-            status: StatusType::Idle,
+            status: StatusType::Dnd,
             game: None,
             afk: false,
             since: None,

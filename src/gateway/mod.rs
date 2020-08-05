@@ -19,7 +19,10 @@ use futures::channel::mpsc;
 use futures::channel::mpsc::{SendError, UnboundedSender};
 use tktungstenite::tungstenite::Message as TkMessage;
 use chrono::{NaiveDateTime, Utc, Duration as ChronoDuration};
+
+#[cfg(feature = "storage")]
 use crate::storage::{StorageContainer, Stored};
+#[cfg(feature = "storage")]
 use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
 
 macro_rules! call_dispatcher {
@@ -39,10 +42,12 @@ macro_rules! call_dispatcher {
 macro_rules! dispatcher {
     ($fn_name:ident: $type:ty => $name:ident) => {
         async fn $fn_name(&mut self, payload: $type) -> Result<(), Error> {
+            #[cfg(feature = "storage")]
             self.config.storages.$fn_name(&payload).await;
 
             let context = Context {
                 sender: &self.msg_sender,
+                #[cfg(feature = "storage")]
                 storage: &self.config.storages,
                 http: &self.http,
                 bot: self.bot.as_ref().unwrap()
@@ -119,6 +124,7 @@ impl Delayer {
 /// by dereferencing to [HttpAPI](automate::http::HttpAPI).
 pub struct Context<'a> {
     sender: &'a UnboundedSender<Instruction>,
+    #[cfg(feature = "storage")]
     storage: &'a StorageContainer,
     http: &'a HttpAPI,
     pub bot: &'a User,
@@ -153,6 +159,7 @@ impl<'a> Context<'a> {
     /// Read only reference to the storage of the
     /// specified type.
     #[inline]
+    #[cfg(feature = "storage")]
     pub async fn storage<T: Stored + 'static>(&self) -> RwLockReadGuard<'_, T::Storage> {
         self.storage.read::<T>().await
     }
@@ -164,6 +171,7 @@ impl<'a> Context<'a> {
     /// [UserStorage](automate::storage::UserStorage)
     /// is useless since they are not mutable
     #[inline]
+    #[cfg(feature = "storage")]
     pub async fn storage_mut<T: Stored + 'static>(&self) -> RwLockWriteGuard<'_, T::Storage> {
         self.storage.write::<T>().await
     }
@@ -471,10 +479,12 @@ impl<'a> GatewayAPI<'a> {
         self.bot = Some(payload.user.clone());
         self.session_id.replace(payload.session_id.clone());
 
-        self.config.storages.on_ready(&payload).await;
+        #[cfg(feature = "storage")]
+            self.config.storages.on_ready(&payload).await;
 
         let context = Context {
             sender: &self.msg_sender,
+            #[cfg(feature = "storage")]
             storage: &self.config.storages,
             http: &self.http,
             bot: &payload.user

@@ -49,12 +49,14 @@ pub fn state(input: TokenStream) -> TokenStream {
 }
 
 //doc in automate's lib.rs
+#[cfg(feature = "storage")]
 #[proc_macro_derive(Stored, attributes(storage))]
 pub fn stored(input: TokenStream) -> TokenStream {
     derive::stored(input)
 }
 
 //doc in automate's lib.rs
+#[cfg(feature = "storage")]
 #[proc_macro_derive(Storage)]
 pub fn storage(input: TokenStream) -> TokenStream {
     derive::storage(input)

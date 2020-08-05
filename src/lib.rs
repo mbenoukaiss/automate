@@ -330,6 +330,7 @@ pub mod http;
 pub mod encode;
 pub mod gateway;
 pub mod sharding;
+#[cfg(feature = "storage")]
 pub mod storage;
 mod snowflake;
 mod macros;
@@ -368,9 +369,11 @@ pub use automate_derive::State;
 /// #[derive(Storage)]
 /// struct Counter;
 /// ```
+#[cfg(feature = "storage")]
 pub use automate_derive::Stored;
 
 /// Derive macro for a storage struct.
+#[cfg(feature = "storage")]
 pub use automate_derive::Storage;
 
 /// Parses a list of stateless function listeners before sending them
@@ -449,6 +452,7 @@ use std::env;
 use log::LevelFilter;
 use std::future::Future;
 use crate::gateway::UpdateStatus;
+#[cfg(feature = "storage")]
 use crate::storage::StorageContainer;
 
 /// Allows specifying API token, registering
@@ -481,6 +485,7 @@ pub struct Configuration {
     logging: bool,
     log_levels: Vec<(String, LevelFilter)>,
     listeners: ListenerContainer,
+    #[cfg(feature = "storage")]
     storages: StorageContainer,
     intents: Option<u32>,
     member_threshold: Option<u32>,
@@ -507,6 +512,7 @@ impl Configuration {
             logging: true,
             log_levels: default_levels,
             listeners: ListenerContainer::default(),
+            #[cfg(feature = "storage")]
             storages: StorageContainer::for_initialization(),
             intents: None,
             member_threshold: None,
@@ -595,6 +601,7 @@ impl Configuration {
     /// which accepts an existing storage or
     /// [StorageContainer::write](automate::storage::StorageContainer)
     /// which creates an empty storage and calls the provided callback function.
+    #[cfg(feature = "storage")]
     pub fn add_initializer<F: Fn(&mut StorageContainer) + Send + Sync + 'static>(mut self, initializer: F) -> Self {
         self.storages.add_initializer::<F>(initializer);
         self

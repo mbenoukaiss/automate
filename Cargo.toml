@@ -33,6 +33,9 @@ optional = true
 [features]
 default = []
 
+# Enables the storage system
+storage = ["automate-derive/storage"]
+
 # Returns error when deserialized data does not
 # have a corresponding field in the struct.
 # Only useful in development/debug to find data
