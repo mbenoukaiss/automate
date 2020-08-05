@@ -137,13 +137,16 @@ pub enum GuildFeature {
     VanityUrl,
     Verified,
     Partnered,
-    Lurkable,
+    Public,
     Commerce,
     News,
     Discoverable,
     Featurable,
     AnimatedIcon,
     Banner,
+    PublicDisabled,
+    WelcomeScreenEnabled,
+    Community,
 }
 
 #[convert(u8)]
@@ -341,6 +344,7 @@ pub enum ActivityType {
     Game = 0,
     Streaming = 1,
     Listening = 2,
+    Watching = 3,
     Custom = 4,
 }
 
