@@ -2,7 +2,7 @@
 Automate is a low level and asynchronous rust library for interacting with the Discord API
 
 # Getting started
-Automate currently only works with Rust nightly. The usually tested version and the one used in CI is
+Automate currently only works with Rust nightly starting from `1.45`. The usually tested version and the one used in CI is
 `nightly-2020-08-03`, you can use more recent versions but please swich back to this version 
 if you get a compile error. Refer to [rust edition guide](https://doc.rust-lang.org/edition-guide/rust-2018/rustup-for-managing-rust-versions.html)
 to learn how to switch to rust nightly.

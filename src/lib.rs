@@ -1,6 +1,5 @@
 #![feature(test)]
 #![feature(try_blocks)]
-#![feature(proc_macro_hygiene)]
 #![allow(clippy::identity_op)] //because clippy forbides 1 << 0 in c-like enums
 #![allow(clippy::option_option)] //opt<opt<>> is required to properly handle nullables
 
@@ -233,7 +232,8 @@
 //! #[listener]
 //! async fn greet_multiple_roles(ctx: &Context, data: &MessageCreateDispatch) -> Result<(), Error> {
 //!     if let Some(guild) = data.0.guild_id {
-//!         let guild = ctx.storage::<Guild>().await.get(guild);
+//!         let storage = ctx.storage::<Guild>().await;
+//!         let guild = storage.get(guild);
 //!         let member = guild.members.get(&data.0.author.id).unwrap();
 //!
 //!         //print hello if the user has at least 2 roles
@@ -318,8 +318,6 @@
 extern crate self as automate;
 extern crate test;
 #[macro_use]
-extern crate proc_macro_hack;
-#[macro_use]
 extern crate automate_derive;
 #[macro_use]
 pub extern crate log;
@@ -361,6 +359,8 @@ pub use automate_derive::State;
 /// It is possible to change the storage struct by
 /// using the storage helper attribute like this :
 /// ```
+/// use automate::{Stored, Storage};
+///
 /// #[derive(Stored)]
 /// #[storage(Counter)] //the storage is now the `Counter` struct
 /// struct Count(i32);
@@ -375,10 +375,8 @@ pub use automate_derive::Storage;
 
 /// Parses a list of stateless function listeners before sending them
 /// to the [Configuration::register](automate::Configuration::register) method.
-#[proc_macro_hack]
 pub use automate_derive::stateless;
 
-#[proc_macro_hack]
 #[deprecated(since = "0.3.1", note = "Use `automate::stateless!` instead")]
 pub use automate_derive::functions;
 
@@ -416,7 +414,6 @@ pub use automate_derive::functions;
 ///     }
 /// }
 /// ```
-#[proc_macro_hack]
 pub use automate_derive::methods;
 
 /// Used internally for procedural macros, don't

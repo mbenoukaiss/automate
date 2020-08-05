@@ -3,7 +3,6 @@
 #[macro_use]
 extern crate syn;
 
-use proc_macro_hack::proc_macro_hack;
 use proc_macro::TokenStream;
 
 macro_rules! compile_error {
@@ -112,19 +111,19 @@ pub fn listener(metadata: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 //doc in automate's lib.rs
-#[proc_macro_hack]
+#[proc_macro]
 pub fn functions(input: TokenStream) -> TokenStream {
     macros::functions(input)
 }
 
 //doc in automate's lib.rs
-#[proc_macro_hack]
+#[proc_macro]
 pub fn stateless(input: TokenStream) -> TokenStream {
     macros::functions(input)
 }
 
 //doc in automate's lib.rs
-#[proc_macro_hack]
+#[proc_macro]
 pub fn methods(input: TokenStream) -> TokenStream {
     macros::methods(input)
 }
