@@ -1,7 +1,6 @@
 #![feature(test)]
 #![feature(try_blocks)]
 #![feature(proc_macro_hygiene)]
-#![feature(async_closure)]
 #![allow(clippy::identity_op)] //because clippy forbides 1 << 0 in c-like enums
 #![allow(clippy::option_option)] //opt<opt<>> is required to properly handle nullables
 
@@ -130,7 +129,8 @@
 //!         .register(stateless!(print_hello));
 //! ```
 //!
-//! More advanced examples can be found in the `examples/basic.rs` example file.
+//! More advanced examples can be found in the
+//! [examples](https://github.com/mbenoukaiss/automate/tree/master/examples) folder.
 //! If you want to keep data between calls, you probably want to use a stateful listener.
 //!
 //! It is possible to use `̀lazy_static!` to store data across calls but this is **probably not what
@@ -212,6 +212,52 @@
 //!
 //! More advanced examples can be found in the  ̀examples/counter.rs` example file.
 //!
+//! # Storages
+//! When receiving events, you will usually need more data than the event sends you. For
+//! example, you may need to know what the role of the user who sent a message is. This data
+//! can be fetched through the storages using the [Context::storage](automate::Context::storage)
+//! and [Context::storage_mut](automate::Context::storage_mut) to fetch mutable data.
+//!
+//! ## Discord storages
+//! By default, automate stores 3 types which you can **not** mutate, they only get mutated
+//! through gateway events:
+//! - [Guilds](automate::gateway::Guild)
+//! - [Channels](automate::gateway::Channel)
+//! - [Users](automate::gateway::User)
+//!
+//! ```
+//! # use automate::listener;
+//! use automate::{Context, Error};
+//! use automate::gateway::{MessageCreateDispatch, User, Guild};
+//!
+//! #[listener]
+//! async fn greet_multiple_roles(ctx: &Context, data: &MessageCreateDispatch) -> Result<(), Error> {
+//!     if let Some(guild) = data.0.guild_id {
+//!         let guild = ctx.storage::<Guild>().await.get(guild);
+//!         let member = guild.members.get(&data.0.author.id).unwrap();
+//!
+//!         //print hello if the user has at least 2 roles
+//!         if member.roles.len() >= 2 {
+//!             println!("Hello!");
+//!         }
+//!     }
+//!
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ## Custom storages
+//! You can also create your own storages. Having your own custom storages will usually allow you
+//! to store data without using stateful listeners and in a simpler way.
+//!
+//! In order to do that, you will need to create two structs
+//! one being the stored struct which should implement [Stored](automate::storage::Stored) and
+//! a storage struct which should keep the stored values in memory and provide ways to retrieve
+//! and inserts objects. The storage struct should implement [Storage](automate::storage::Storage).
+//!
+//! See [examples/levels.rs](https://github.com/mbenoukaiss/automate/blob/master/examples/levels.rs)
+//! for a detailed example.
+//!
 //! # Sharding
 //! Automate implements support for sharding through the [ShardManager](automate::ShardManager)
 //! struct. However, you will not need to use the [ShardManager](automate::ShardManager) directly
@@ -223,9 +269,7 @@
 //! shards than what Discord recommends.
 //!
 //! # Models
-//! In order to deal with the data sent by Discord, [model structs and enums](automate::gateway::models)
-//! have been created. The goal is to be able to manipulate data by dealing with usual structs
-//! and not JSON data.
+//! All the data sent by discord is deserialized into [model structs and enums](automate::gateway::models).
 //!
 //! The data returned by discord can be of 4 kinds:
 //! - Always present
@@ -234,8 +278,8 @@
 //! - Optional and nullable: The field can be present, null or not included.
 //!
 //! Both nullable and optional are handled with  [Option](std::option::Option) enum, but optional
-//! nullable are wrapped in two [Option](std::option::Option)s because in some cases you may
-//! need to know or specify if the data was not present or null.
+//! nullable are wrapped in a double [Option](std::option::Option)s because in some cases you may
+//! need to know whether the data was not present, null or both.
 //!
 //! For example, when editing a guild member, if you need to modify some fields but NOT the
 //! nickname (which is optional and nullable), you will set the `nick` field to `None`.
@@ -306,6 +350,29 @@ pub use automate_derive::listener;
 /// with `#[listener]`
 pub use automate_derive::State;
 
+/// Derive macro for a stored struct.
+///
+/// Simply implements the Stored trait on the given type.
+/// If not specified, the storage will be assumed to be
+/// the name of the struct concatenated with `Storage`.
+/// So a stored `Count` struct would define its storage
+/// to be `CountStorage`.
+///
+/// It is possible to change the storage struct by
+/// using the storage helper attribute like this :
+/// ```
+/// #[derive(Stored)]
+/// #[storage(Counter)] //the storage is now the `Counter` struct
+/// struct Count(i32);
+///
+/// #[derive(Storage)]
+/// struct Counter;
+/// ```
+pub use automate_derive::Stored;
+
+/// Derive macro for a storage struct.
+pub use automate_derive::Storage;
+
 /// Parses a list of stateless function listeners before sending them
 /// to the [Configuration::register](automate::Configuration::register) method.
 #[proc_macro_hack]
@@ -352,8 +419,14 @@ pub use automate_derive::functions;
 #[proc_macro_hack]
 pub use automate_derive::methods;
 
+/// Used internally for procedural macros, don't
+/// rely on it's presence and import it manually in
+/// your `Cargo.toml` instead
 #[doc(no_inline)]
 pub use async_trait::async_trait;
+/// Used internally for procedural macros, don't
+/// rely on it's presence and import it manually in
+/// your `Cargo.toml` instead
 #[doc(no_inline)]
 pub use lazy_static;
 #[doc(no_inline)]

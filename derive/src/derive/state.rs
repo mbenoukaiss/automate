@@ -80,6 +80,7 @@ pub fn state(input: TokenStream) -> TokenStream {
             };
         }
 
+        #[automatically_derived]
         #[::automate::async_trait]
         impl #impl_generics ::automate::events::State for #name #ty_generics #where_clause {
             #(

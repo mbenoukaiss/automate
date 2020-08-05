@@ -1,7 +1,7 @@
 //! Tools to interact with Discord's gateway API
 #![allow(deprecated)]
 
-mod models;
+pub mod models;
 
 pub use models::*;
 
@@ -24,6 +24,8 @@ use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
 
 macro_rules! call_dispatcher {
     ($data:ident as $payload:ty => $self:ident.$method:ident) => {{
+        trace!(concat!("Received gateway event `", stringify!($method), "`: {}"), $data);
+
         let payload: $payload = serde_json::from_str(&$data)?;
 
         if let Some(val) = payload.s {
@@ -37,8 +39,6 @@ macro_rules! call_dispatcher {
 macro_rules! dispatcher {
     ($fn_name:ident: $type:ty => $name:ident) => {
         async fn $fn_name(&mut self, payload: $type) -> Result<(), Error> {
-            trace!(concat!("Received gateway event `", stringify!($fn_name), "`"));
-
             self.config.storages.$fn_name(&payload).await;
 
             let context = Context {
@@ -133,22 +133,26 @@ impl<'a> Context<'a> {
     }
 
     /// Indicate a presence or status update.
+    #[inline]
     pub async fn update_status(&self, data: UpdateStatus) -> Result<(), Error> {
         self.send_command(data).await
     }
 
     /// Join, move or disconnect from a voice channel.
+    #[inline]
     pub async fn update_voice_state(&self, data: UpdateVoiceState) -> Result<(), Error> {
         self.send_command(data).await
     }
 
     /// Request members of a guild.
+    #[inline]
     pub async fn request_guild_members(&self, data: RequestGuildMembers) -> Result<(), Error> {
         self.send_command(data).await
     }
 
     /// Read only reference to the storage of the
     /// specified type.
+    #[inline]
     pub async fn storage<T: Stored + 'static>(&self) -> RwLockReadGuard<'_, T::Storage> {
         self.storage.read::<T>().await
     }
@@ -159,6 +163,7 @@ impl<'a> Context<'a> {
     /// [ChannelStorage](automate::storage::ChannelStorage) or
     /// [UserStorage](automate::storage::UserStorage)
     /// is useless since they are not mutable
+    #[inline]
     pub async fn storage_mut<T: Stored + 'static>(&self) -> RwLockWriteGuard<'_, T::Storage> {
         self.storage.write::<T>().await
     }

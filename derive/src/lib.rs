@@ -43,10 +43,22 @@ mod derive;
 mod macros;
 mod utils;
 
-//doc in automae's lib.rs
+//doc in automate's lib.rs
 #[proc_macro_derive(State)]
 pub fn state(input: TokenStream) -> TokenStream {
     derive::state(input)
+}
+
+//doc in automate's lib.rs
+#[proc_macro_derive(Stored, attributes(storage))]
+pub fn stored(input: TokenStream) -> TokenStream {
+    derive::stored(input)
+}
+
+//doc in automate's lib.rs
+#[proc_macro_derive(Storage)]
+pub fn storage(input: TokenStream) -> TokenStream {
+    derive::storage(input)
 }
 
 #[proc_macro_attribute]

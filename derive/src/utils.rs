@@ -39,6 +39,7 @@ pub fn extend_with_deref(input: &ItemStruct, quote: &mut TokenStream2) -> Result
             let underlying = &unnamed.unnamed.first().unwrap().ty;
 
             quote.extend(quote! {
+                #[automatically_derived]
                 impl #impl_generics ::std::ops::Deref for #name #ty_generics #where_clause {
                     type Target = #underlying;
 
@@ -48,6 +49,7 @@ pub fn extend_with_deref(input: &ItemStruct, quote: &mut TokenStream2) -> Result
                     }
                 }
 
+                #[automatically_derived]
                 impl #impl_generics ::std::ops::DerefMut for #name #ty_generics #where_clause {
 
                     #[inline]
@@ -166,6 +168,7 @@ pub fn append_client_quote(input: &ItemStruct, opcode: u8, quote: &mut TokenStre
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
 
     quote.extend(quote! {
+        #[automatically_derived]
         impl #impl_generics From<#struct_name #ty_generics> for ::tktungstenite::tungstenite::Message #where_clause {
             fn from(origin: #struct_name #ty_generics) -> Self {
                 let mut msg = String::with_capacity(14);

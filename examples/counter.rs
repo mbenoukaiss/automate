@@ -1,5 +1,8 @@
 //! An example with a simple per guild and per user message
 //! counter, an invite generator and simple use of reactions.
+//!
+//! A state is used but this could also work with a custom
+//! storage and stateless listeners.
 
 #[macro_use]
 extern crate automate;

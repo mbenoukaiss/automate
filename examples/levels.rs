@@ -1,39 +1,49 @@
 //! Example demonstrating the custom storage
-//! feature by creating a `Count` storage and
-//! using the provided ones.
+//! feature by creating a stored `Count` object
+//! and using the provided ones.
 
 #[macro_use]
 extern crate automate;
 
 use automate::{Context, Error, Snowflake, Configuration, Automate};
-use automate::gateway::{MessageCreateDispatch, UpdateStatus, StatusType, ActivityType, ActivityUpdate, User};
+use automate::gateway::{MessageCreateDispatch, UpdateStatus, StatusType, User};
 use automate::http::CreateMessage;
 use automate::log::LevelFilter;
 use std::collections::HashMap;
-use automate::storage::{Stored, Storage};
 
+/// This is a special case: because the type we are storing is
+/// not defined in our example because it is a u32, we can't
+/// implement `Stored` on it.
+/// A way to go around that problem would be to create a
+/// [newtype struct](https://doc.rust-lang.org/stable/rust-by-example/generics/new_types.html)
+/// and make it the `Stored` value. However, since we are only
+/// storing a `u32` and not a whole struct, it would be quite
+/// annoying to use a newtype struct.
+///
+/// Therefore, we make this empty `Count` struct that is only used
+/// to fetch the `CountStorage` through `ctx.storage::<Count>().await`
+/// and we directly deal with `u32`s when calling the storage's methods.
+#[derive(Stored, Copy, Clone)]
 struct Count;
 
-impl Stored for Count {
-    type Storage = CountsStorage;
-}
-
-#[derive(Default, Debug, Clone)]
-struct CountsStorage {
+/// The storage struct is responsible for keeping the
+/// stored objects in memory and providing methods
+/// for retrieving and inserting objects.
+#[derive(Storage, Default, Clone)]
+struct CountStorage {
     counts: HashMap<(Snowflake, Snowflake), u32>,
 }
 
-impl Storage for CountsStorage {}
-
-impl CountsStorage {
+impl CountStorage {
+    /// Increments the message count of the given user
     fn increment(&mut self, guild: Snowflake, user: Snowflake) -> u32 {
-        let count = self.counts.get(&(guild, user)).map_or(1, |v| v + 1);
-        self.counts.insert((guild, user), count);
+        let value = self.counts.get(&(guild, user)).map_or(1, |v| v + 1);
+        self.counts.insert((guild, user), value);
 
-        count
+        value
     }
 
-    /// Finds the 10 players with the most messages sent.
+    /// Finds the 10 users with the most messages sent.
     fn leaderboard<'a>(&self, guild: Snowflake) -> Vec<(Snowflake, u32)> {
         let mut leaderboard = self.counts.iter()
             .filter(|((g, _), _)| *g == guild) //take only from given guild
@@ -55,7 +65,7 @@ async fn leaderboard_command(ctx: &Context, data: &MessageCreateDispatch) -> Res
             let users = ctx.storage::<User>().await;
             let leaderboard = ctx.storage::<Count>().await.leaderboard(guild);
 
-            let mut output = String::from("These are the top 10 players:\n");
+            let mut output = String::from("These are the top 10 users:\n");
 
             for (position, (user, count)) in leaderboard.iter().enumerate() {
                 output.push_str(&format!("{}. {} is **level {}** and posted a total of **{} messages**\n",
@@ -86,7 +96,8 @@ async fn count(ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Er
 
     //don't count messages outside of guilds
     if let Some(guild) = message.guild_id {
-        let count = ctx.storage::<Count>().await.increment(guild, message.author.id);
+        //get the storage and increment for the message author
+        let count = ctx.storage_mut::<Count>().await.increment(guild, message.author.id);
         let (level, levelled_up) = level(count);
 
         if levelled_up && level != 0 {
@@ -102,6 +113,8 @@ async fn count(ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Er
     Ok(())
 }
 
+/// Calculates the level of a user based on the
+/// amount of messages he has sent.
 fn level(msg: u32) -> (u32, bool) {
     let level = 0.4 * f64::from(msg).sqrt();
     let level = level.round() as u32;
@@ -120,13 +133,9 @@ fn main() -> Result<(), Error> {
         .enable_logging()
         .level_for("automate", LevelFilter::Trace)
         .presence(UpdateStatus {
-            status: StatusType::Dnd,
+            status: StatusType::Idle,
+            game: None,
             afk: false,
-            game: Some(ActivityUpdate {
-                name: String::from("counting messages..."),
-                _type: ActivityType::Game,
-                url: None,
-            }),
             since: None,
         })
         .add_initializer(|ctn| ctn.initialize::<Count>())

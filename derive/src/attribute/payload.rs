@@ -84,6 +84,7 @@ pub fn payload(metadata: TokenStream, item: TokenStream) -> TokenStream {
                     #derives
                     struct #trace_ident #ty_generics #fields
 
+                    #[automatically_derived]
                     impl #impl_generics core::convert::From<#trace_ident #ty_generics> for #struct_name #ty_generics {
                         fn from(trace: #trace_ident #ty_generics) -> Self {
                             #struct_name #ty_generics {
@@ -108,6 +109,7 @@ pub fn payload(metadata: TokenStream, item: TokenStream) -> TokenStream {
 
     if let Some(event_name) = args.event {
         output.extend(quote! {
+            #[automatically_derived]
             impl #impl_generics #struct_name #ty_generics #where_clause {
                 pub const EVENT_NAME: &'static str = #event_name;
             }

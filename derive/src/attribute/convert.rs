@@ -38,6 +38,7 @@ pub fn convert(metadata: TokenStream, item: TokenStream) -> TokenStream {
     item.to_tokens(&mut output);
 
     output.extend(quote! {
+        #[automatically_derived]
         impl serde::Serialize for #struct_name {
             fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error> where S: serde::Serializer {
                 let value = match self {
@@ -48,6 +49,7 @@ pub fn convert(metadata: TokenStream, item: TokenStream) -> TokenStream {
             }
         }
 
+        #[automatically_derived]
         impl<'de> serde::Deserialize<'de> for #struct_name {
             #[allow(non_upper_case_globals)]
             fn deserialize<D>(deserializer: D) -> core::result::Result<Self, D::Error> where D: serde::Deserializer<'de> {
