@@ -56,19 +56,19 @@ fn generate_request(item: &ItemFn, args: Args, major_parameter: TokenStream2) ->
     };
 
     Ok(quote! {
-        use futures::lock::Mutex;
+        use tokio::sync::RwLock;
         use rate_limit::{Key, Bucket, BUCKETS};
 
         ::lazy_static::lazy_static! {
-            static ref BUCKET_ID: Mutex<Option<String>> = Mutex::default();
+            static ref BUCKET_ID: RwLock<Option<String>> = RwLock::default();
         }
 
-        if let Some(bucket_id) = BUCKET_ID.lock().await.as_ref() {
+        if let Some(bucket_id) = BUCKET_ID.read().await.as_ref() {
             if let Some(bucket) = BUCKETS.lock().await.get(&Key::lookup(&self.token, &bucket_id, #major_parameter)) {
                 trace!("Endpoint {}#{} allows for {} more calls (limit {})", stringify!(#fn_name), bucket.id, bucket.remaining, bucket.limit);
 
                 if bucket.remaining == 0 && ::chrono::Utc::now().naive_utc() < bucket.reset {
-                    return Error::err(format!("Cancelled to avoid reaching rate limit for endpoint `{}`", stringify!(#fn_name)));
+                    return Error::rate_limited(stringify!(#fn_name), bucket.reset, true);
                 }
             }
         }
@@ -80,14 +80,15 @@ fn generate_request(item: &ItemFn, args: Args, major_parameter: TokenStream2) ->
             .method(::hyper::Method::#method)
             .header("Content-Type", "application/json")
             .header("Authorization", &self.token)
-            .header("User-Agent", #USER_AGENT);
+            .header("User-Agent", #USER_AGENT)
+            .header("X-RateLimit-Precision", "millisecond");
 
         #zero_content_length
 
         let response = self.client.request(request.body(#body).unwrap()).await?;
 
         if let Some(bucket) = Bucket::new(response.headers())? {
-            BUCKET_ID.lock().await.replace(bucket.id.clone());
+            BUCKET_ID.write().await.replace(bucket.id.clone());
             BUCKETS.lock().await.insert(Key::insert(self.token.clone(), bucket.id.clone(), #major_parameter), bucket);
         }
 
@@ -95,14 +96,30 @@ fn generate_request(item: &ItemFn, args: Args, major_parameter: TokenStream2) ->
 
         match code {
             #status => #return_value,
-            400 => Error::err(format!("Bad request (endpoint `̀{}`)", stringify!(#fn_name))),
-            401 => Error::err(format!("Authorization token was missing or invalid (endpoint `̀{}`)", stringify!(#fn_name))),
-            403 => Error::err(format!("Authorization token did not have the permission (endpoint `̀{}`)", stringify!(#fn_name))),
-            404 => Error::err(format!("Endpoint  ̀{}` not found", stringify!(#fn_name))),
-            405 => Error::err(format!("Method {} not allowed (endpoint `̀{}`)", stringify!(#method), stringify!(#fn_name))),
-            429 => Error::err(format!("Reached rate limit (endpoint `̀{}`)", stringify!(#fn_name))),
-            502 => Error::err(format!("Gateway unavailable (endpoint `̀{}`)", stringify!(#fn_name))),
-            _ => Error::err(format!("Expected status code {}, got {} when requesting {}", #status, code, uri)),
+            400 => Error::http(format!("Bad request (endpoint `̀{}`)", stringify!(#fn_name))),
+            401 => Error::invalid_token(stringify!(#fn_name), &self.token),
+            403 => Error::no_permission(stringify!(#fn_name), &self.token),
+            404 => Error::http(format!("Endpoint  ̀{}` not found", stringify!(#fn_name))),
+            405 => Error::http(format!("Method {} not allowed (endpoint `̀{}`)", stringify!(#method), stringify!(#fn_name))),
+            429 => {
+                use chrono::NaiveDateTime;
+
+                let reset = {
+                    let reset = response.headers().get("x-ratelimit-reset").unwrap().to_str().unwrap();
+                    let mut split_reset = reset.split('.');
+                    let secs = split_reset.next().unwrap().parse::<i64>().unwrap();
+
+                    if let Some(m) = split_reset.next() {
+                        NaiveDateTime::from_timestamp(secs, m.parse::<u32>().unwrap() * 1_000_000)
+                    } else {
+                        NaiveDateTime::from_timestamp(secs, 0)
+                    }
+                };
+
+                Error::rate_limited(stringify!(#fn_name), reset, false)
+            },
+            502 => Error::http(format!("Gateway unavailable (endpoint `̀{}`)", stringify!(#fn_name))),
+            _ => Error::http(format!("Expected status code {}, got {} when requesting {}", #status, code, uri)),
         }
     })
 }

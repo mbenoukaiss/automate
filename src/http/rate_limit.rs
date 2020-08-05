@@ -55,6 +55,7 @@ impl<'a> Key<'a> {
 /// Bucket data provided by discord
 /// in HTTP endpoint headers.
 /// More information on [Discord's rate-limit documentation](https://discordapp.com/developers/docs/topics/rate-limits).
+#[derive(Debug)] //TODO: remove debug derive
 pub struct Bucket {
     pub id: String,
     pub limit: u16,
@@ -72,11 +73,23 @@ impl Bucket {
         let reset: Option<&HeaderValue> = headers.get("x-ratelimit-reset");
 
         if let (Some(bucket), Some(limit), Some(remaining), Some(reset)) = (bucket, limit, remaining, reset) {
+            let reset = {
+                let reset = reset.to_str().unwrap();
+                let mut split_reset = reset.split('.');
+                let secs = split_reset.next().unwrap().parse::<i64>().unwrap();
+
+                if let Some(m) = split_reset.next() {
+                    NaiveDateTime::from_timestamp(secs, m.parse::<u32>().unwrap() * 1_000_000)
+                } else {
+                    NaiveDateTime::from_timestamp(secs, 0)
+                }
+            };
+
             let bucket = Bucket {
                 id: bucket.to_str()?.to_owned(),
                 limit: limit.to_str()?.parse::<u16>()?,
                 remaining: remaining.to_str()?.parse::<u16>()?,
-                reset: NaiveDateTime::parse_from_str(reset.to_str()?, "%s").unwrap(),
+                reset,
             };
 
             Ok(Some(bucket))

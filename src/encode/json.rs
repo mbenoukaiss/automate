@@ -1,7 +1,6 @@
-use std::fmt::{Display, Formatter, Error, Debug};
 use serde::{Deserialize, Deserializer};
 use std::collections::HashMap;
-use crate::{Snowflake, Identifiable};
+use crate::{Snowflake, Identifiable, Error};
 
 /// A value that has to be included in the JSON
 /// string but can contain the value null.
@@ -31,50 +30,6 @@ pub fn as_hashmap<'de, T, D>(deserializer: D) -> Result<HashMap<Snowflake, T>, D
     Ok(map)
 }
 
-/// Represents an error relative to a JSON string.
-/// The error usually means that the provided JSON is
-/// not a correctly formatted JSON string.
-pub struct JsonError {
-    pub msg: String,
-
-    #[cfg(feature = "backtrace")]
-    pub backtrace: String,
-}
-
-impl JsonError {
-    pub fn new<S>(msg: S) -> JsonError where S: Into<String> {
-        JsonError {
-            msg: msg.into(),
-
-            #[cfg(feature = "backtrace")]
-            backtrace: format!("{:#?}", backtrace::Backtrace::new()),
-        }
-    }
-
-    pub fn err<S, T>(msg: S) -> Result<T, JsonError> where S: Into<String> {
-        Err(JsonError {
-            msg: msg.into(),
-
-            #[cfg(feature = "backtrace")]
-            backtrace: format!("{:#?}", backtrace::Backtrace::new()),
-        })
-    }
-}
-
-impl Display for JsonError {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
-        #[cfg(not(feature = "backtrace"))] return write!(f, "{}", self.msg);
-        #[cfg(feature = "backtrace")] return write!(f, "{}\n{}", self.msg, self.backtrace);
-    }
-}
-
-impl Debug for JsonError {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
-        #[cfg(not(feature = "backtrace"))] return write!(f, "{{ msg: {} }}", self.msg);
-        #[cfg(feature = "backtrace")] return write!(f, "{{ msg: {}, backtrace: {} }}", self.msg, self.backtrace);
-    }
-}
-
 /// Searches for a key through the root JSON object of the
 /// candidate string and returns a parsed value.
 ///
@@ -84,12 +39,12 @@ impl Debug for JsonError {
 /// for example, you search for a key "a" which is only present
 /// in a nested JSON object, the function will fail.
 ///
-/// Returns a JsonError if the candidate string is not a correct
+/// Returns an error if the candidate string is not a correct
 /// JSON string or if the function failed to find the key and
 /// its associated value in the string.
-pub fn root_search<'de, T>(key: &str, candidate: &'de str) -> Result<T, JsonError> where T: Deserialize<'de> {
+pub fn root_search<'de, T>(key: &str, candidate: &'de str) -> Result<T, Error> where T: Deserialize<'de> {
     if key.is_empty() {
-        return JsonError::err("The searched key can't be empty");
+        return Error::json("The searched key can't be empty");
     }
 
     //get candidate slice starting at the first character of the value
@@ -107,7 +62,7 @@ pub fn root_search<'de, T>(key: &str, candidate: &'de str) -> Result<T, JsonErro
 
         while key_end.is_none() {
             if nesting_level < 0 {
-                return JsonError::err("Incorrectly formatted JSON string");
+                return Error::json("Incorrectly formatted JSON string");
             }
 
             if let Some(next) = iter.next() {
@@ -130,17 +85,17 @@ pub fn root_search<'de, T>(key: &str, candidate: &'de str) -> Result<T, JsonErro
 
                 prev_index += 1;
             } else {
-                return JsonError::err("Could not find key in candidate");
+                return Error::json("Could not find key in candidate");
             }
         }
 
         if key_end.is_none() {
-            return JsonError::err("Could not find key in candidate");
+            return Error::json("Could not find key in candidate");
         }
 
         match candidate[key_end.unwrap()..].find(|c: char| c.is_numeric() || c == '"') {
             Some(i) => &candidate[key_end.unwrap() + i..],
-            None => return JsonError::err("Could not find value in candidate")
+            None => return Error::json("Could not find value in candidate")
         }
     };
 
@@ -163,23 +118,32 @@ pub fn root_search<'de, T>(key: &str, candidate: &'de str) -> Result<T, JsonErro
 
             prev_index += 1;
         } else {
-            return JsonError::err("Unexpected end of string");
+            return Error::json("Unexpected end of string");
         }
     }
 
     if let Some(value) = value {
         return match serde_json::from_str(value) {
             Ok(value) => Ok(value),
-            Err(e) => JsonError::err(format!("Failed to parse JSON: {}", e))
+            Err(e) => Error::json(e)
         };
     }
 
-    JsonError::err("An error occurred while searching for key")
+    Error::json("An error occurred while searching for key")
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    impl Error {
+        fn backtrace_less(&self) -> String {
+            match self {
+                Error::Json(ctx) => ctx.message.clone(),
+                _ => panic!("Function only works on JSON errors")
+            }
+        }
+    }
 
     #[test]
     fn test_root_search() {
@@ -196,17 +160,17 @@ mod tests {
     fn test_root_search_key_not_found() {
         let simple = r#"{"key":"value"}"#;
 
-        assert_eq!(root_search::<String>("ke", simple).err().unwrap().msg, "Could not find key in candidate");
-        assert_eq!(root_search::<String>("ey", simple).err().unwrap().msg, "Could not find key in candidate");
-        assert_eq!(root_search::<String>("aaa", simple).err().unwrap().msg, "Could not find key in candidate");
-        assert_eq!(root_search::<String>("value", simple).err().unwrap().msg, "Could not find key in candidate");
+        assert_eq!(root_search::<String>("ke", simple).err().unwrap().backtrace_less(), "Could not find key in candidate");
+        assert_eq!(root_search::<String>("ey", simple).err().unwrap().backtrace_less(), "Could not find key in candidate");
+        assert_eq!(root_search::<String>("aaa", simple).err().unwrap().backtrace_less(), "Could not find key in candidate");
+        assert_eq!(root_search::<String>("value", simple).err().unwrap().backtrace_less(), "Could not find key in candidate");
     }
 
     #[test]
     fn test_root_search_empty_key() {
         let simple = r#"{"key":"value"}"#;
 
-        assert_eq!(root_search::<String>("", simple).err().unwrap().msg, "The searched key can't be empty");
+        assert_eq!(root_search::<String>("", simple).err().unwrap().backtrace_less(), "The searched key can't be empty");
     }
 
     #[test]
@@ -214,7 +178,7 @@ mod tests {
         let contains_array = r#"{"array":["a","b","c"],"b":40}"#;
 
         assert_eq!(root_search::<u8>("b", contains_array).unwrap(), 40);
-        assert_eq!(root_search::<String>("c", contains_array).err().unwrap().msg, "Could not find key in candidate");
+        assert_eq!(root_search::<String>("c", contains_array).err().unwrap().backtrace_less(), "Could not find key in candidate");
     }
 
     #[test]

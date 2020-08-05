@@ -279,7 +279,7 @@ impl<'a> GatewayAPI<'a> {
             }
 
             if let Err(err) = execution {
-                error!("Connection was interrupted with '{}'", err.msg);
+                error!("Connection was interrupted: {}", err.to_string());
             }
 
             delayer.delay(&session_id).await
@@ -305,14 +305,14 @@ impl<'a> GatewayAPI<'a> {
         match msg {
             TkMessage::Text(data) => {
                 if let Err(err) = self.dispatch_payload(&data).await {
-                    error!("An error occurred while reading message: {}\n{}", err.msg, data);
+                    error!("An error occurred while reading message: {}", err.to_string());
                 }
             }
             TkMessage::Close(close) => {
                 return if let Some(cf) = close {
-                    Error::err(format!("Gateway unexpectedly closed with code {}: {}", Into::<u16>::into(cf.code), cf.reason))
+                    Error::gateway(format!("Gateway unexpectedly closed with code {}: {}", Into::<u16>::into(cf.code), cf.reason))
                 } else {
-                    Error::err("Gateway unexpectedly closed")
+                    Error::gateway("Gateway unexpectedly closed")
                 };
             }
             unknown => trace!("Unknown message type received: {:?}", unknown)
@@ -379,7 +379,7 @@ impl<'a> GatewayAPI<'a> {
             VoiceStateUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<VoiceStateUpdateDispatch> => self.on_voice_state_update),
             VoiceServerUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<VoiceServerUpdateDispatch> => self.on_voice_server_update),
             WebhooksUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<WebhooksUpdateDispatch> => self.on_webhooks_update),
-            unknown_event => return Error::err(format!("Unknown event {}", unknown_event))
+            unknown_event => return Error::gateway(format!("Unknown event {}", unknown_event))
         }
 
         Ok(())

@@ -433,11 +433,19 @@ pub use automate_derive::methods;
 /// your `Cargo.toml` instead
 #[doc(no_inline)]
 pub use async_trait::async_trait;
+
+/// Used internally for procedural macros, don't
+/// rely on it's presence and import it manually in
+/// your `Cargo.toml` instead
+#[doc(no_inline)]
+pub use chrono;
+
 /// Used internally for procedural macros, don't
 /// rely on it's presence and import it manually in
 /// your `Cargo.toml` instead
 #[doc(no_inline)]
 pub use lazy_static;
+
 #[doc(no_inline)]
 pub use tokio;
 
