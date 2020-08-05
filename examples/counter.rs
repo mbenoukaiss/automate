@@ -6,7 +6,7 @@ extern crate automate;
 
 use automate::{Context, Error, Snowflake, Configuration, Automate};
 use automate::gateway::{MessageCreateDispatch, MessageReactionAddDispatch, UpdateStatus, StatusType, ActivityUpdate, ActivityType};
-use automate::http::{CreateMessage, NewInvite};
+use automate::http::CreateMessage;
 use automate::events::{Initializable, StatefulListener};
 use automate::log::LevelFilter;
 use std::collections::HashMap;
@@ -79,7 +79,7 @@ fn main() -> Result<(), Error> {
             }),
             since: None
         })
-        .register(stateless!(invite, copy_reaction))
+        .register(stateless!(copy_reaction))
         .register(stateful!(MessageCounter::default()));
 
     Automate::launch(config)

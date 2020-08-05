@@ -14,12 +14,13 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::ops::Deref;
 use futures::{stream, future, SinkExt, StreamExt};
-use futures::lock::{Mutex, MutexGuard};
+use futures::lock::Mutex;
 use futures::channel::mpsc;
 use futures::channel::mpsc::{SendError, UnboundedSender};
 use tktungstenite::tungstenite::Message as TkMessage;
 use chrono::{NaiveDateTime, Utc, Duration as ChronoDuration};
 use crate::storage::{StorageContainer, Stored};
+use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
 
 macro_rules! call_dispatcher {
     ($data:ident as $payload:ty => $self:ident.$method:ident) => {{
@@ -146,10 +147,20 @@ impl<'a> Context<'a> {
         self.send_command(data).await
     }
 
-    /// Reference to the storage of the
+    /// Read only reference to the storage of the
     /// specified type.
-    pub async fn storage<T: Stored + 'static>(&self) -> MutexGuard<'_, T::Storage> {
-        self.storage.lock::<T>().await
+    pub async fn storage<T: Stored + 'static>(&self) -> RwLockReadGuard<'_, T::Storage> {
+        self.storage.read::<T>().await
+    }
+
+    /// Writable reference to the storage of the specified
+    /// type. Getting a writable version of
+    /// [GuildStorage](automate::storage::GuildStorage),
+    /// [ChannelStorage](automate::storage::ChannelStorage) or
+    /// [UserStorage](automate::storage::UserStorage)
+    /// is useless since they are not mutable
+    pub async fn storage_mut<T: Stored + 'static>(&self) -> RwLockWriteGuard<'_, T::Storage> {
+        self.storage.write::<T>().await
     }
 
     /// Creates a link to invite the bot to a discord server
@@ -198,7 +209,7 @@ impl<'a> GatewayAPI<'a> {
     /// Establishes a connection to Discord's
     /// gateway and calls the provided listeners
     /// when receiving an event.
-    pub(crate) async fn connect(mut config: Configuration, url: String) {
+    pub(crate) async fn connect(mut config: Configuration, url: String) -> ! {
         let mut delayer = Delayer::new();
 
         let http = HttpAPI::new(&config.token);

@@ -8,7 +8,6 @@ extern crate automate;
 use automate::{Error, Context, Configuration, Automate};
 use automate::gateway::{MessageReactionAddDispatch, MessageCreateDispatch};
 use automate::http::{CreateMessage, NewInvite};
-use automate::log::LevelFilter;
 
 #[listener]
 async fn say_hello(ctx: &Context, data: &MessageCreateDispatch) -> Result<(), Error> {
