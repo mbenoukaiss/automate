@@ -142,7 +142,7 @@
 //! advanced bot.
 //!
 //! States will not be the same across shards and they will be destroyed and recreated in the case
-//! of a deconnexion that could not resume and results in the creation of a new Discord session.
+//! of a disconnection that could not resume and results in the creation of a new Discord session.
 //!
 //! Stateful listeners work in the exact same way as stateless listeners except they're
 //! declared in an impl block of a struct that derives the [State](automate::events::State) trait.

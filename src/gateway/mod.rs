@@ -86,7 +86,7 @@ impl Delayer {
     }
 
     /// Delays based on the amount of previous failed
-    /// connexion attempts.
+    /// connection attempts.
     async fn delay(&self, session_id: &Option<String>) {
         let delay = match self.attempts {
             0 => 0,
@@ -487,7 +487,7 @@ impl<'a> GatewayAPI<'a> {
             #[cfg(feature = "storage")]
             storage: &self.config.storages,
             http: &self.http,
-            bot: &payload.user
+            bot: &payload.user,
         };
 
         let stateless = self.config.listeners.ready.iter()

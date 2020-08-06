@@ -123,7 +123,7 @@ pub struct GroupChannel {
 pub struct Invite {
     pub code: String,
     pub guild: Option<PartialGuild>,
-    pub channel: Channel,
+    pub channel: InviteChannel,
     pub inviter: Option<User>,
     pub target_user: Option<PartialUser>,
     pub target_user_type: Option<i32>,
@@ -136,6 +136,14 @@ pub struct Invite {
     pub max_age: Option<i32>,
     pub temporary: Option<bool>,
     pub created_at: Option<String>,
+}
+
+#[object(server)]
+pub struct InviteChannel {
+    pub id: Snowflake,
+    pub name: String,
+    #[serde(rename = "type")]
+    pub _type: ChannelType
 }
 
 #[object(server)]

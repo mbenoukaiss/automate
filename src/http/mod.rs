@@ -319,7 +319,11 @@ impl HttpAPI {
     pub async fn user<S: ExtractSnowflake>(&self, user: S) -> Result<User, Error> {}
 
     #[endpoint(post, route = "/users/@me/channels", body = "recipient", status = 200)]
-    pub async fn create_dm(&self, recipient: Recipient) -> Result<DirectChannel, Error> {}
+    pub async fn create_dm<S: ExtractSnowflake>(&self, recipient: S) -> Result<DirectChannel, Error> {
+        let recipient = Recipient {
+            recipient_id: recipient.extract_snowflake()?
+        };
+    }
 
     #[endpoint(put, route = "/channels/{#channel}/recipients/{#user}", body = "recipient", status = 204)]
     pub async fn add_dm_recipient<S: ExtractSnowflake>(&self, channel: S, user: S, recipient: Recipient) -> Result<(), Error> {}
