@@ -55,7 +55,6 @@ impl<'a> Key<'a> {
 /// Bucket data provided by discord
 /// in HTTP endpoint headers.
 /// More information on [Discord's rate-limit documentation](https://discordapp.com/developers/docs/topics/rate-limits).
-#[derive(Debug)] //TODO: remove debug derive
 pub struct Bucket {
     pub id: String,
     pub limit: u16,

@@ -1,7 +1,6 @@
 use crate::{HttpAPI, Snowflake, Configuration, logger, Error};
 use crate::gateway::GatewayAPI;
 use futures::future;
-use tokio::task::JoinHandle;
 use std::time::Duration;
 
 /// Helps setting up a bot with multiple shards.
@@ -20,7 +19,7 @@ pub struct ShardManager {
     total_shards: u32,
     recommended_shards: u32,
     gateway_url: String,
-    managed_shards: Vec<JoinHandle<()>>,
+    managed_shards: Vec<u32>,
 }
 
 impl ShardManager {
@@ -39,26 +38,8 @@ impl ShardManager {
         })
     }
 
-    /// Sets up the given shard
-    pub fn setup(&mut self, shard_id: u32) -> &mut Self {
-        let url = self.gateway_url.clone();
-        let mut config = self.config.clone();
-        config.shard(shard_id, self.total_shards);
-
-        let position = self.managed_shards.len();
-
-        let handle = tokio::spawn(async move {
-            //there must be at least 5 seconds between each identify call
-            //so wait 5.5 seconds to make sure we don't hit rate limit
-            tokio::time::delay_for(Duration::from_millis(position as u64 * 5500)).await;
-
-            logger::setup_for_task(format!("shard-{}", shard_id), async move {
-                GatewayAPI::connect(config, url).await
-            }).await
-        });
-
-        self.managed_shards.push(handle);
-        self
+    pub fn setup(&mut self, shard_id: u32) {
+        self.managed_shards.push(shard_id);
     }
 
     /// Sets up as many shards as Discord recommends.
@@ -80,10 +61,29 @@ impl ShardManager {
             warn!("Discord recommends using {} shards, you should use at least this many shards", self.recommended_shards);
         }
 
-        let mut shards = Vec::new();
-        shards.append(&mut self.managed_shards);
+        let mut handles = Vec::new();
 
-        for result in future::join_all(shards).await {
+        for (position, shard_id) in self.managed_shards.iter().enumerate() {
+            let shard_id = *shard_id;
+
+            let url = self.gateway_url.clone();
+            let mut config = self.config.clone();
+            config.shard(shard_id, self.total_shards);
+
+            let handle = tokio::spawn(async move {
+                //there must be at least 5 seconds between each identify call
+                //so wait 5.5 seconds to make sure we don't hit rate limit
+                tokio::time::delay_for(Duration::from_millis(position as u64 * 5500)).await;
+
+                automate::logger::setup_for_task(format!("shard-{}", shard_id),  async move {
+                    GatewayAPI::connect(config, url).await
+                }).await
+            });
+
+            handles.push(handle);
+        }
+
+        for result in future::join_all(handles).await {
             if let Err(err) = result {
                 error!("Failed to join shard: {}", err);
             }

@@ -464,7 +464,7 @@ pub use errors::Error;
 
 use events::*;
 use gateway::GatewayAPI;
-use tokio::runtime::Runtime;
+use tokio::runtime::Builder;
 use std::env;
 use log::LevelFilter;
 use std::future::Future;
@@ -724,20 +724,25 @@ pub struct Automate;
 impl Automate {
     /// Launches a basic bot with the given configuration
     /// and the amount of shards recommended by Discord.
-    pub fn launch(config: Configuration) -> Result<(), Error> {
+    pub fn launch(config: Configuration) {
         Automate::block_on(async move {
-            ShardManager::with_config(config).await?
+            ShardManager::with_config(config).await
+                .unwrap()
                 .auto_setup()
-                .launch().await;
-
-            Ok(())
+                .launch().await
         })
     }
 
     /// Creates a tokio runtime and runs the
     /// given future inside.
     pub fn block_on<F: Future>(future: F) -> F::Output {
-        Runtime::new().unwrap().block_on(logger::setup_for_task("main", future))
+        let mut runtime = Builder::new()
+            .threaded_scheduler()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        runtime.block_on(future)
     }
 }
 
@@ -1075,6 +1080,6 @@ impl Discord {
     /// Will block forever unless the bot crashes.
     #[deprecated(since = "0.3.1", note = "Please use a `ShardManager` or `Automate::launch` instead")]
     pub fn connect_blocking(self) {
-        Runtime::new().unwrap().block_on(self.connect())
+        tokio::runtime::Runtime::new().unwrap().block_on(self.connect())
     }
 }

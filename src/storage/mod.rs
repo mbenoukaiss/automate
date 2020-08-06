@@ -12,12 +12,10 @@ use std::any::{TypeId, Any};
 use crate::{Identifiable, Snowflake};
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-//TODO: proc macro to auto derive
 pub trait Stored {
     type Storage: Storage;
 }
 
-//TODO: proc macro to auto derive
 pub trait Storage: Send + Sync {}
 
 pub struct StorageContainer {

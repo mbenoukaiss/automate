@@ -64,7 +64,7 @@ async fn tell_reaction(ctx: &Context, reac: &MessageReactionAddDispatch) -> Resu
     Ok(())
 }
 
-fn main() -> Result<(), Error> {
+fn main() {
     let config = Configuration::from_env("DISCORD_API_TOKEN")
         .register(stateless!(say_hello, invite, tell_reaction));
 

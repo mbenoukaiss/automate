@@ -30,7 +30,7 @@ use automate::http::CreateMessage;
 async fn say_hello(ctx: &mut Context, data: &MessageCreateDispatch) -> Result<(), Error> {
     let message = &data.0;
 
-    if message.author.id != ctx.bot().id {
+    if message.author.id != ctx.bot.id {
         let content = Some(format!("Hello {}!", message.author.username));
 
         ctx.create_message(message.channel_id, CreateMessage {
@@ -46,7 +46,7 @@ fn main() {
     let config = Configuration::from_env("DISCORD_API_TOKEN")
         .register(stateless!(say_hello));
 
-    Automate::launch(config);
+    Automate::launch(config)
 }
 ```
 

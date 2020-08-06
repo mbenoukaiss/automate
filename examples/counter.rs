@@ -68,7 +68,7 @@ async fn copy_reaction(ctx: &mut Context, reac: &MessageReactionAddDispatch) -> 
     Ok(())
 }
 
-fn main() -> Result<(), Error> {
+fn main() {
     let config = Configuration::from_env("DISCORD_API_TOKEN")
         .enable_logging()
         .level_for("automate", LevelFilter::Info)

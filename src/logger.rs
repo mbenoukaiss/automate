@@ -7,8 +7,8 @@ tokio::task_local! {
 }
 
 #[inline]
-pub(crate) async fn setup_for_task<S: Into<String>, F: Future>(name: S, future: F) -> F::Output {
-    TASK_NAME.scope(name.into(), future).await
+pub(crate) async fn setup_for_task<F: Future>(name: String, future: F) -> F::Output {
+    TASK_NAME.scope(name, future).await
 }
 
 #[derive(Debug)]
