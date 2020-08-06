@@ -1,5 +1,5 @@
 use std::{fmt, result};
-use chrono::NaiveDateTime;
+use chrono::{NaiveDateTime, Local, DateTime, Utc};
 
 /// Represents an error that occurred while using the library.
 #[derive(Debug)]
@@ -100,10 +100,15 @@ impl fmt::Display for Error {
             Error::Http(s) => write!(f, "{}", s),
             Error::InvalidToken(ctx) => write!(f, "Invalid token `{}`", ctx.token),
             Error::NoPermission(ctx) => write!(f, "Token `{}` does not have the permission to call `{}`", ctx.token, ctx.endpoint),
-            Error::RateLimited(ctx) => if ctx.prevented {
-                write!(f, "Cancelled to avoid reaching rate limit for endpoint `̀{}` wait until {}", ctx.endpoint, ctx.until)
-            } else {
-                write!(f, "Reached rate limit for endpoint `̀{}` until {}", ctx.endpoint, ctx.until)
+            Error::RateLimited(ctx) => {
+                let datetime: DateTime<Utc> = DateTime::from_utc(ctx.until, Utc);
+                let local = datetime.with_timezone(&Local);
+
+                if ctx.prevented {
+                    write!(f, "Cancelled to avoid reaching rate limit for endpoint `̀{}` wait until {}", ctx.endpoint, local)
+                } else {
+                    write!(f, "Reached rate limit for endpoint `̀{}` until {}", ctx.endpoint, local)
+                }
             },
             Error::Json(s) =>  {
                 #[cfg(feature = "backtrace")] write!(f, "{}\n{}", s.message, s.backtrace)?;
