@@ -1,5 +1,5 @@
-# Automate &nbsp; [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/mbenoukaiss/automate/Checks?style=for-the-badge)](https://github.com/mbenoukaiss/automate/actions) [![Crates.io](https://img.shields.io/crates/v/automate?style=for-the-badge)](https://crates.io/crates/automate) [![GitHub issues](https://img.shields.io/badge/docs-latest-blue?style=for-the-badge)](https://docs.rs/automate) [![License](https://img.shields.io/crates/l/automate?style=for-the-badge)](https://github.com/mbenoukaiss/automate/blob/master/LICENSE)
-Automate is a low level and asynchronous rust library for interacting with the Discord API
+# Automate &nbsp; [<img src="https://img.shields.io/github/workflow/status/mbenoukaiss/automate/Checks?style=for-the-badge" alt="GitHub Workflow Status" height="23" />](https://github.com/mbenoukaiss/automate/actions) [<img src="https://img.shields.io/crates/v/automate?style=for-the-badge" alt="Crates.io" height="23" />](https://crates.io/crates/automate) [<img src="https://img.shields.io/discord/609438031039954960?color=%237289DA&label=Discord&style=for-the-badge" alt="Discord" height="23" />](https://discord.gg/invite/PGGYXy2) [<img src="https://img.shields.io/badge/docs-latest-blue?style=for-the-badge" alt="Documentation" height="23" />](https://docs.rs/automate) [<img src="https://img.shields.io/crates/l/automate?style=for-the-badge" alt="License" height="23" />](https://github.com/mbenoukaiss/automate/blob/master/LICENSE)
+Automate is a low level and asynchronous rust library for interacting with the Discord API.
 
 # Getting started
 Automate currently only works with Rust nightly starting from `1.45`. The usually tested version and the one used in CI is
@@ -61,6 +61,8 @@ While mature enough to make text bots, Automate is still missing some important 
 # Contributing
 Any kind of contribution is welcome, from issues to pull requests. For major changes, please open an issue first to discuss what you would like to change.
 Please make sure to update documentation as appropriate.
+
+If you need support, want to report a bug or contribute, you can join the library's discord server using this invite https://discord.gg/invite/PGGYXy2
 
 # License
 Licensed under the [MIT license](LICENSE).
