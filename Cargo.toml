@@ -1,6 +1,6 @@
 [package]
 name = "automate"
-version = "0.3.1"
+version = "0.4.0"
 authors = ["mbenoukaiss <marwane.benou-kaiss@etu.u-bordeaux.fr>"]
 license = "MIT"
 repository = "https://github.com/mbenoukaiss/automate"
