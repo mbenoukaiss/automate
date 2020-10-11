@@ -10,7 +10,7 @@ to learn how to switch to rust nightly.
 In order to use Automate in your project, add the following line to your `Cargo.toml` :
 ```
 [dependencies]
-automate = "0.3.1"
+automate = "0.4.0"
 ```
 
 You can then write the following in your `main.rs`. This simple example will respond Hello <name of the user>! to any

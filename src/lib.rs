@@ -389,9 +389,6 @@ pub use automate_derive::Storage;
 /// to the [Configuration::register](automate::Configuration::register) method.
 pub use automate_derive::stateless;
 
-#[deprecated(since = "0.3.1", note = "Use `automate::stateless!` instead")]
-pub use automate_derive::functions;
-
 /// Parses a list of method listeners in the initialize method
 /// of a state struct.
 ///
@@ -456,14 +453,11 @@ pub use gateway::Context;
 #[doc(inline)]
 pub use gateway::Intent;
 
-#[allow(deprecated)]
-pub use logger::setup_logging;
 pub use sharding::ShardManager;
 pub use snowflake::{Identifiable, Snowflake};
 pub use errors::Error;
 
 use events::*;
-use gateway::GatewayAPI;
 use tokio::runtime::Builder;
 use std::env;
 use log::LevelFilter;
@@ -641,7 +635,7 @@ impl Configuration {
     /// about message creation, update and deletion and when a
     /// user starts typing in a guild channel:
     /// ```
-    /// use automate::{Discord, Configuration, Intent::*};
+    /// use automate::{Configuration, Intent::*};
     ///
     /// Configuration::from_env("DISCORD_API_TOKEN")
     ///         .intents(GuildMessages | GuildMessageTyping);
@@ -651,7 +645,7 @@ impl Configuration {
     /// explicitly cast the intent to u32 like the following example
     /// which only listens to events about guild members:
     /// ```
-    /// use automate::{Discord, Configuration, Intent::*};
+    /// use automate::{Configuration, Intent::*};
     ///
     /// Configuration::from_env("DISCORD_API_TOKEN")
     ///         .intents(GuildMembers as u32);
@@ -746,340 +740,3 @@ impl Automate {
     }
 }
 
-/// The struct used to register listeners, setup
-/// configuration and establish connection with
-/// Discord.
-///
-/// # Example
-/// ```no_run
-/// use automate::Discord;
-///
-/// Discord::new(&std::env::var("DISCORD_API_TOKEN").expect("API token not found"))
-///     .connect_blocking()
-/// ```
-#[deprecated(since = "0.3.1", note = "Please use `Configuration` instead and `Automate::launch` or `ShardManager` instead")]
-pub struct Discord {
-    config: Configuration
-}
-
-#[allow(deprecated)]
-impl Discord {
-    /// Creates an instance of this struct
-    /// with the provided token.
-    /// The token can be generated on
-    /// [Discord's developers portal](https://discordapp.com/developers/applications/)
-    #[deprecated(since = "0.3.1", note = "Please use `Configuration::new` instead")]
-    pub fn new(token: &str) -> Discord {
-        Discord {
-            config: Configuration::new(token)
-        }
-    }
-
-    /// Registers an event listener function with the `̀#[listener]` attribute.
-    #[deprecated(since = "0.3.1", note = "Please use `Configuration::register` instead")]
-    pub fn register(mut self, listeners: Vec<ListenerType>) -> Self {
-        self.config.listeners.register(listeners);
-        self
-    }
-
-    /// [Intents](automate::Intent) are a system to help you
-    /// lower the amount of data you need to process by
-    /// specifying the events Discord should relay to the library.
-    ///
-    /// An [Intents](automate::Intent) concerns one or more
-    /// event. By default, intents are not specified thus the bot
-    /// is subscribed to all events.
-    ///
-    /// When specifying a single [], you must explicitly cast
-    /// the intent to u32. When specifying multiple intents,
-    /// you can aggregate them using the bitwise or operator.
-    ///
-    /// # Example
-    /// The bot in the following example will only receive events
-    /// about message creation, update and deletion and when a
-    /// user starts typing in a guild channel:
-    /// ```
-    /// # let api_token = std::env::var("DISCORD_API_TOKEN").expect("API token not found");
-    /// use automate::{Discord, Intent::*};
-    ///
-    /// Discord::new(&api_token)
-    ///         .set_intents(GuildMessages | GuildMessageTyping)
-    ///         .connect();
-    /// ```
-    ///
-    /// If you want to only listen to one intent type, you must
-    /// explicitly cast the intent to u32 like the following example
-    /// which only listens to events about guild members:
-    /// ```
-    /// # let api_token = std::env::var("DISCORD_API_TOKEN").expect("API token not found");
-    /// use automate::{Discord, Intent::*};
-    ///
-    /// Discord::new(&api_token)
-    ///         .set_intents(GuildMembers as u32)
-    ///         .connect();
-    /// ```
-    #[deprecated(since = "0.3.1", note = "Please use `Configuration::intents` instead")]
-    pub fn set_intents(mut self, intents: u32) -> Self {
-        self.config.intents = Some(intents);
-        self
-    }
-
-    /// Registers an event that listens to [Ready](automate::gateway::ReadyDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_ready(mut self, listener: Ready) -> Self {
-        self.config.listeners.ready.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [ChannelCreate](automate::gateway::ChannelCreateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_channel_create(mut self, listener: ChannelCreate) -> Self {
-        self.config.listeners.channel_create.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [ChannelUpdate](automate::gateway::ChannelUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_channel_update(mut self, listener: ChannelUpdate) -> Self {
-        self.config.listeners.channel_update.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [ChannelDelete](automate::gateway::ChannelDeleteDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_channel_delete(mut self, listener: ChannelDelete) -> Self {
-        self.config.listeners.channel_delete.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [ChannelPinsUpdate](automate::gateway::ChannelPinsUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_channel_pins_update(mut self, listener: ChannelPinsUpdate) -> Self {
-        self.config.listeners.channel_pins_update.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [GuildCreate](automate::gateway::GuildCreateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_guild_create(mut self, listener: GuildCreate) -> Self {
-        self.config.listeners.guild_create.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [GuildUpdate](automate::gateway::GuildUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_guild_update(mut self, listener: GuildUpdate) -> Self {
-        self.config.listeners.guild_update.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [GuildDelete](automate::gateway::GuildDeleteDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_guild_delete(mut self, listener: GuildDelete) -> Self {
-        self.config.listeners.guild_delete.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [GuildBanAdd](automate::gateway::GuildBanAddDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_guild_ban_add(mut self, listener: GuildBanAdd) -> Self {
-        self.config.listeners.guild_ban_add.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [GuildBanRemove](automate::gateway::GuildBanRemoveDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_guild_ban_remove(mut self, listener: GuildBanRemove) -> Self {
-        self.config.listeners.guild_ban_remove.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [GuildEmojisUpdate](automate::gateway::GuildEmojisUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_guild_emojis_update(mut self, listener: GuildEmojisUpdate) -> Self {
-        self.config.listeners.guild_emojis_update.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [GuildIntegrationsUpdate](automate::gateway::GuildIntegrationsUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_guild_integrations_update(mut self, listener: GuildIntegrationsUpdate) -> Self {
-        self.config.listeners.guild_integrations_update.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [GuildMemberAdd](automate::gateway::GuildMemberAddDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_guild_member_add(mut self, listener: GuildMemberAdd) -> Self {
-        self.config.listeners.guild_member_add.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [GuildMemberRemove](automate::gateway::GuildMemberRemoveDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_guild_member_remove(mut self, listener: GuildMemberRemove) -> Self {
-        self.config.listeners.guild_member_remove.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [GuildMemberUpdate](automate::gateway::GuildMemberUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_guild_member_update(mut self, listener: GuildMemberUpdate) -> Self {
-        self.config.listeners.guild_member_update.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [GuildMembersChunk](automate::gateway::GuildMembersChunkDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_guild_members_chunk(mut self, listener: GuildMembersChunk) -> Self {
-        self.config.listeners.guild_members_chunk.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [GuildRoleCreate](automate::gateway::GuildRoleCreateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_guild_role_create(mut self, listener: GuildRoleCreate) -> Self {
-        self.config.listeners.guild_role_create.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [GuildRoleUpdate](automate::gateway::GuildRoleUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_guild_role_update(mut self, listener: GuildRoleUpdate) -> Self {
-        self.config.listeners.guild_role_update.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [GuildRoleDelete](automate::gateway::GuildRoleDeleteDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_guild_role_delete(mut self, listener: GuildRoleDelete) -> Self {
-        self.config.listeners.guild_role_delete.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [InviteCreate](automate::gateway::InviteCreateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_invite_create(mut self, listener: InviteCreate) -> Self {
-        self.config.listeners.invite_create.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [InviteDelete](automate::gateway::InviteDeleteDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_invite_delete(mut self, listener: InviteDelete) -> Self {
-        self.config.listeners.invite_delete.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [MessageCreate](automate::gateway::MessageCreateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_message_create(mut self, listener: MessageCreate) -> Self {
-        self.config.listeners.message_create.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [MessageUpdate](automate::gateway::MessageUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_message_update(mut self, listener: MessageUpdate) -> Self {
-        self.config.listeners.message_update.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [MessageDelete](automate::gateway::MessageDeleteDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_message_delete(mut self, listener: MessageDelete) -> Self {
-        self.config.listeners.message_delete.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [MessageDeleteBulk](automate::gateway::MessageDeleteBulkDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_message_delete_bulk(mut self, listener: MessageDeleteBulk) -> Self {
-        self.config.listeners.message_delete_bulk.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [MessageReactionAdd](automate::gateway::MessageReactionAddDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_reaction_add(mut self, listener: MessageReactionAdd) -> Self {
-        self.config.listeners.reaction_add.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [MessageReactionRemove](automate::gateway::MessageReactionRemoveDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_reaction_remove(mut self, listener: MessageReactionRemove) -> Self {
-        self.config.listeners.reaction_remove.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [MessageReactionRemoveAll](automate::gateway::MessageReactionRemoveAllDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_reaction_remove_all(mut self, listener: MessageReactionRemoveAll) -> Self {
-        self.config.listeners.reaction_remove_all.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [PresenceUpdate](automate::gateway::PresenceUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_presence_update(mut self, listener: PresenceUpdate) -> Self {
-        self.config.listeners.presence_update.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [TypingStart](automate::gateway::TypingStartDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_typing_start(mut self, listener: TypingStart) -> Self {
-        self.config.listeners.typing_start.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [UserUpdate](automate::gateway::UserUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_user_update(mut self, listener: UserUpdate) -> Self {
-        self.config.listeners.user_update.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [VoiceStateUpdate](automate::gateway::VoiceStateUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_voice_state_update(mut self, listener: VoiceStateUpdate) -> Self {
-        self.config.listeners.voice_state_update.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [VoiceServerUpdate](automate::gateway::VoiceServerUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_voice_server_update(mut self, listener: VoiceServerUpdate) -> Self {
-        self.config.listeners.voice_server_update.push(listener);
-        self
-    }
-
-    /// Registers an event that listens to [WebhooksUpdate](automate::gateway::WebhooksUpdateDispatch) events
-    #[deprecated(since = "0.3.0", note = "Please use `Configuration::register` instead")]
-    pub fn on_webhooks_update(mut self, listener: WebhooksUpdate) -> Self {
-        self.config.listeners.webhooks_update.push(listener);
-        self
-    }
-
-    /// Asynchronous function setup the connection
-    /// with Discord.
-    /// Will block forever unless the bot crashes.
-    #[deprecated(since = "0.3.1", note = "Please use a `ShardManager` or `Automate::launch` instead")]
-    pub async fn connect(self) {
-        let http = HttpAPI::new(&self.config.token);
-        let gateway_bot = http.gateway_bot().await.expect("Failed to get gateway information from Discord");
-
-        GatewayAPI::connect(self.config, gateway_bot.url).await
-    }
-
-    /// Non asynchronous equivalent for the connect
-    /// function to setup the connection with discord.
-    /// Creates a tokio runtime.
-    ///
-    /// Will block forever unless the bot crashes.
-    #[deprecated(since = "0.3.1", note = "Please use a `ShardManager` or `Automate::launch` instead")]
-    pub fn connect_blocking(self) {
-        tokio::runtime::Runtime::new().unwrap().block_on(self.connect())
-    }
-}

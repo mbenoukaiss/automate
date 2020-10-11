@@ -63,18 +63,6 @@ impl Log for QuickLogger {
 
 /// Sets up a very basic logger that prints
 /// logs to stdout.
-#[deprecated(since = "0.3.1", note = "Logger is automatically set up, use `Configuration::level_for` and `Configuration::disable_logging` to configure it. Using this function may cause crashes.")]
-pub fn setup_logging() {
-    let logger = QuickLogger {
-        levels: Vec::new()
-    };
-
-    log::set_boxed_logger(Box::new(logger)).unwrap();
-    log::set_max_level(LevelFilter::Info);
-}
-
-/// Sets up a very basic logger that prints
-/// logs to stdout.
 pub fn __internal_setup_logging(levels: Vec<(String, LevelFilter)>) {
     let mut max_level = LevelFilter::Off;
     for (_, level) in &levels {

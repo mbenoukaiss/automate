@@ -1,5 +1,4 @@
 //! Tools to interact with Discord's gateway API
-#![allow(deprecated)]
 
 pub mod models;
 
@@ -335,9 +334,6 @@ impl<'a> GatewayAPI<'a> {
     /// Takes a full payload, deserializes it and sends
     /// it to the right method.
     /// Returns an error when receiving an unknown event.
-    #[allow(clippy::cognitive_complexity)]
-    // Currently disabling cognitive complexity since clippy
-    // expands the macros (bug) before calculating CoC.
     async fn dispatch_event(&mut self, data: &str) -> Result<(), Error> {
         let event_name = json::root_search::<String>("t", data)?;
         trace!("Received gateway event `{}`: {}", event_name, data);

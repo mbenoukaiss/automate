@@ -1,5 +1,4 @@
 #![allow(unused_variables)]
-#![allow(deprecated)]
 //! Defines all the types and macros required to make
 //! and register listeners.
 
@@ -8,16 +7,6 @@ use crate::gateway::*;
 use crate::{Context, Error};
 use std::pin::Pin;
 use std::future::Future;
-
-/// Parses a list of struct listeners before sending them to the
-/// [Configuration::register](automate::Configuration::register) method.
-#[deprecated(since = "0.3.1", note = "Use stateful listeners instead (see the doc)")]
-#[macro_export]
-macro_rules! structs {
-    ($($listener:expr),*) => {
-        vec![$(::automate::events::ListenerType::Impl(Box::new($listener))),*]
-    }
-}
 
 /// Parses a list of state structs before sending them to the
 /// [Configuration::register](automate::Configuration::register) method.

@@ -12,7 +12,7 @@ edition = "2018"
 autoexamples = false
 
 [dependencies]
-automate-derive = { version = "0.3.1", path = "derive" }
+automate-derive = { version = "0.4.0", path = "derive" }
 futures = "0.3"
 async-trait = "0.1"
 tokio = { version = "0.2.10", features = ["sync", "time", "rt-threaded", "rt-util"] }
