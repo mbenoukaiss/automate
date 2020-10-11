@@ -18,6 +18,7 @@ fn generate_request(item: &ItemFn, args: Args, major_parameter: TokenStream2) ->
 
     let method = args.method()?;
     let uri = args.route();
+    let content_type = args.content_type();
     let body = args.body();
     let status = args.status;
 
@@ -25,7 +26,7 @@ fn generate_request(item: &ItemFn, args: Args, major_parameter: TokenStream2) ->
     // empty and method is POST, PUT or PATCH, but discord
     // requires a content-length
     let zero_content_length = match method.to_string().as_str() {
-        "POST" | "PUT" | "PATCH" => Some(quote! {
+        "POST" | "PUT" | "PATCH" if !args.multipart => Some(quote! {
             match ::hyper::body::HttpBody::size_hint(&#body).exact() {
                 Some(0) | None => request = request.header("Content-Length", 0),
                 _ => ()
@@ -78,7 +79,7 @@ fn generate_request(item: &ItemFn, args: Args, major_parameter: TokenStream2) ->
         let mut request = ::hyper::Request::builder()
             .uri(uri.clone())
             .method(::hyper::Method::#method)
-            .header("Content-Type", "application/json")
+            .header("Content-Type", #content_type)
             .header("Authorization", &self.token)
             .header("User-Agent", #USER_AGENT)
             .header("X-RateLimit-Precision", "millisecond");
@@ -143,6 +144,8 @@ struct Args {
     route: String,
     #[darling(default)]
     body: Option<String>,
+    #[darling(default)]
+    multipart: bool,
     status: u16,
     #[darling(default)]
     empty: bool,
@@ -172,7 +175,7 @@ impl Args {
 
         for part in self.route.split(&['{', '}'][..]) {
             if part.starts_with('#') {
-                let part = Ident::new(&part[1..].to_owned(), Span::call_site());
+                let part = Ident::new(part.strip_prefix('#').unwrap(), Span::call_site());
 
                 quote = quote! {
                     #quote
@@ -180,7 +183,7 @@ impl Args {
                     ::std::fmt::Write::write_fmt(&mut route, format_args!("{}", ext)).expect("Failed to write api string");
                 };
             } else if part.starts_with('+') {
-                let part = Ident::new(&part[1..], Span::call_site());
+                let part = Ident::new(part.strip_prefix('+').unwrap(), Span::call_site());
 
                 quote = quote! {
                     #quote
@@ -199,12 +202,23 @@ impl Args {
 
     fn body(&self) -> TokenStream2 {
         match self.body.as_ref() {
+            Some(body) if self.multipart => {
+                let body = Ident::new(body, Span::call_site());
+                quote!(::hyper::Body::from(#body))
+            },
             Some(body) => {
                 let body = Ident::new(body, Span::call_site());
-
                 quote!(::hyper::Body::from(serde_json::to_string(&#body)?))
-            }
+            },
             None => quote!(::hyper::Body::empty()),
+        }
+    }
+
+    fn content_type(&self) -> &'static str {
+        if self.multipart {
+            "multipart/form-data; boundary=--XREJRTlhIaFgKOHZvSG5BOGRqNGxVcWpCWEJhOWQKRllaTG10QWhLNld"
+        } else {
+            "application/json"
         }
     }
 }

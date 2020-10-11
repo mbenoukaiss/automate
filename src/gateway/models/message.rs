@@ -101,7 +101,7 @@ pub struct Attachment {
 pub struct Embed {
     pub title: Option<String>,
     #[serde(rename = "type")]
-    pub _type: Option<String>,
+    pub _type: Option<EmbedType>,
     pub description: Option<String>,
     pub url: Option<String>,
     pub timestamp: Option<String>,
@@ -113,6 +113,16 @@ pub struct Embed {
     pub provider: Option<EmbedProvider>,
     pub author: Option<EmbedAuthor>,
     pub fields: Option<Vec<EmbedField>>,
+}
+
+#[stringify(snake_case)]
+pub enum EmbedType {
+    Rich,
+    Image,
+    Video,
+    Gifv,
+    Article,
+    Link,
 }
 
 #[object(both)]

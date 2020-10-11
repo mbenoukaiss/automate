@@ -9,6 +9,7 @@ categories = ["api-bindings"]
 description = "An asynchronous library to interact with Discord API and make bots"
 readme = "README.md"
 edition = "2018"
+autoexamples = false
 
 [dependencies]
 automate-derive = { version = "0.3.1", path = "derive" }
@@ -50,3 +51,19 @@ strict-deserializer = ["automate-derive/strict-deserializer"]
 #
 # Re-exported to the derive crate.
 trace-endpoints = ["automate-derive/trace-endpoints"]
+
+[[example]]
+name = "basic"
+path = "examples/basic.rs"
+
+[[example]]
+name = "counter"
+path = "examples/counter.rs"
+
+[[example]]
+name = "levels"
+path = "examples/levels.rs"
+
+[[example]]
+name = "sharding"
+path = "examples/sharding.rs"

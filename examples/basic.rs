@@ -7,7 +7,9 @@ extern crate automate;
 
 use automate::{Error, Context, Configuration, Automate};
 use automate::gateway::{MessageReactionAddDispatch, MessageCreateDispatch};
-use automate::http::{CreateMessage, NewInvite};
+use automate::http::{CreateMessage, NewInvite, CreateAttachment};
+use std::fs::File;
+use std::io::Read;
 
 #[listener]
 async fn say_hello(ctx: &Context, data: &MessageCreateDispatch) -> Result<(), Error> {
@@ -18,6 +20,33 @@ async fn say_hello(ctx: &Context, data: &MessageCreateDispatch) -> Result<(), Er
 
         ctx.create_message(message.channel_id, CreateMessage {
             content,
+            ..Default::default()
+        }).await?;
+    }
+
+    Ok(())
+}
+
+#[listener]
+async fn send_rust_logo(ctx: &Context, data: &MessageCreateDispatch) -> Result<(), Error> {
+    let message = &data.0;
+
+    if message.author.id != ctx.bot.id && message.content.to_lowercase().starts_with("!rust") {
+        let content = Some(String::from("Sure, here's the Rust logo!"));
+
+        let mut image = File::open("assets/rust.png").unwrap();
+        let mut image_content = Vec::new();
+        image.read_to_end(&mut image_content)?;
+
+        let rust = CreateAttachment {
+            name: String::from("rust.png"),
+            mime: String::from("image/png"),
+            content: image_content
+        };
+
+        ctx.create_message(message.channel_id, CreateMessage {
+            content,
+            attachment: Some(rust),
             ..Default::default()
         }).await?;
     }
@@ -66,7 +95,7 @@ async fn tell_reaction(ctx: &Context, reac: &MessageReactionAddDispatch) -> Resu
 
 fn main() {
     let config = Configuration::from_env("DISCORD_API_TOKEN")
-        .register(stateless!(say_hello, invite, tell_reaction));
+        .register(stateless!(say_hello, send_rust_logo, invite, tell_reaction));
 
     Automate::launch(config)
 }

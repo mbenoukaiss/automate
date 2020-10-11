@@ -8,7 +8,7 @@
 extern crate automate;
 
 use automate::{Context, Error, Snowflake, Configuration, Automate};
-use automate::gateway::{MessageCreateDispatch, MessageReactionAddDispatch, UpdateStatus, StatusType, ActivityUpdate, ActivityType};
+use automate::gateway::{MessageCreateDispatch, UpdateStatus, StatusType, ActivityUpdate, ActivityType};
 use automate::http::CreateMessage;
 use automate::events::{Initializable, StatefulListener};
 use automate::log::LevelFilter;
@@ -37,11 +37,7 @@ impl MessageCounter {
 
             ctx.create_message(message.channel_id, CreateMessage {
                 content: Some(format!("You posted a total of {} messages!", count)),
-                nonce: None,
-                tts: None,
-                file: None,
-                embed: None,
-                payload_json: None,
+                ..Default::default()
             }).await?;
         }
 
@@ -59,19 +55,10 @@ impl MessageCounter {
     }
 }
 
-#[listener]
-async fn copy_reaction(ctx: &mut Context, reac: &MessageReactionAddDispatch) -> Result<(), Error> {
-    if reac.user_id != ctx.bot.id {
-        ctx.create_reaction(reac.channel_id, reac.message_id, &reac.emoji).await?;
-    }
-
-    Ok(())
-}
-
 fn main() {
     let config = Configuration::from_env("DISCORD_API_TOKEN")
         .enable_logging()
-        .level_for("automate", LevelFilter::Info)
+        .level_for("automate", LevelFilter::Trace)
         .presence(UpdateStatus {
             status: StatusType::Dnd,
             afk: false,
@@ -82,7 +69,6 @@ fn main() {
             }),
             since: None
         })
-        .register(stateless!(copy_reaction))
         .register(stateful!(MessageCounter::default()));
 
     Automate::launch(config)

@@ -62,10 +62,14 @@ impl StorageContainer {
         self.init.push(Box::new(initializer));
     }
 
+    /// Initialize the storage with a default
+    /// empty storage.
     pub fn initialize<T: Stored + 'static>(&mut self) where T::Storage: Default {
         self.storages.insert(TypeId::of::<T>(), Box::new(RwLock::new(T::Storage::default())));
     }
 
+    /// Initialize the storage with the provided
+    /// existing storage instance.
     pub fn existing<T: Stored + 'static>(&mut self, storage: T::Storage) {
         self.storages.insert(TypeId::of::<T>(), Box::new(RwLock::new(storage)));
     }
@@ -92,7 +96,19 @@ impl StorageContainer {
     /// the respective storages.
     #[inline]
     async fn insert_guild(&mut self, guild: &Guild) {
-        self.write::<Guild>().await.insert(Clone::clone(guild));
+        {
+            let mut guilds = self.write::<Guild>().await;
+            let mut new_guild = Clone::clone(guild);
+
+            //channels and members are not sent for guild updates, so transfer them from
+            //the previous guild object
+            if let Some(guild) = guilds.remove(guild.id) {
+                new_guild.members = guild.members;
+                new_guild.channels = guild.channels;
+            }
+
+            guilds.insert(new_guild);
+        }
 
         {
             let mut channels = self.write::<Channel>().await;

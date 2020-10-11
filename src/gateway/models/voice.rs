@@ -23,7 +23,7 @@ pub struct PartialVoiceState {
     #[nullable]
     pub channel_id: Option<Snowflake>,
     pub user_id: Snowflake,
-    pub member: GuildMember,
+    pub member: Option<GuildMember>,
     pub session_id: String,
     pub deaf: bool,
     pub mute: bool,

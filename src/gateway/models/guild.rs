@@ -44,8 +44,10 @@ pub struct Guild {
     pub member_count: Option<i32>,
     pub voice_states: Option<Vec<PartialVoiceState>>,
     #[serde(deserialize_with = "automate::encode::json::as_hashmap")]
+    #[serde(default)]
     pub members: HashMap<Snowflake, GuildMember>,
     #[serde(deserialize_with = "automate::encode::json::as_hashmap")]
+    #[serde(default)]
     pub channels: HashMap<Snowflake, GuildChannel>,
     pub presences: Option<Vec<PartialPresenceUpdate>>,
     #[option_nullable]

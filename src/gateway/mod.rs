@@ -27,8 +27,6 @@ use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
 
 macro_rules! call_dispatcher {
     ($data:ident as $payload:ty => $self:ident.$method:ident) => {{
-        trace!(concat!("Received gateway event `", stringify!($method), "`: {}"), $data);
-
         let payload: $payload = serde_json::from_str(&$data)?;
 
         if let Some(val) = payload.s {
@@ -341,7 +339,10 @@ impl<'a> GatewayAPI<'a> {
     // Currently disabling cognitive complexity since clippy
     // expands the macros (bug) before calculating CoC.
     async fn dispatch_event(&mut self, data: &str) -> Result<(), Error> {
-        match json::root_search::<String>("t", data)?.as_str() {
+        let event_name = json::root_search::<String>("t", data)?;
+        trace!("Received gateway event `{}`: {}", event_name, data);
+
+        match event_name.as_str() {
             ReadyDispatch::EVENT_NAME => call_dispatcher!(data as Payload<ReadyDispatch> => self.on_ready),
             ResumedDispatch::EVENT_NAME => call_dispatcher!(data as Payload<ResumedDispatch> => self.on_resumed),
             ChannelCreateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<ChannelCreateDispatch> => self.on_channel_create),

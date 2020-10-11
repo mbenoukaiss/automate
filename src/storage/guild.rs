@@ -35,7 +35,7 @@ impl GuildStorage {
         self.guilds.insert(guild.id, guild);
     }
 
-    pub(crate) fn remove(&mut self, guild: Snowflake) {
-        self.guilds.remove(&guild);
+    pub(crate) fn remove(&mut self, guild: Snowflake) -> Option<Guild> {
+        self.guilds.remove(&guild)
     }
 }

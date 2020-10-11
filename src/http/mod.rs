@@ -12,6 +12,9 @@ use crate::encode::{ExtractSnowflake, WriteUrl};
 use hyper::Client;
 use hyper::client::HttpConnector;
 use hyper_tls::HttpsConnector;
+use std::io::Write;
+
+const FORMDATA_BOUNDARY: &str = "--XREJRTlhIaFgKOHZvSG5BOGRqNGxVcWpCWEJhOWQKRllaTG10QWhLNld";
 
 /// Struct used to interact with the discord HTTP API.
 #[derive(Clone)]
@@ -73,13 +76,15 @@ impl HttpAPI {
     #[endpoint(post, route = "/guilds/{#guild}/channels", body = "new_channel", status = 200)]
     pub async fn create_channel<S: ExtractSnowflake>(&self, guild: S, new_channel: NewChannel) -> Result<GuildChannel, Error> {}
 
-    //TODO: is it possible to modify DM channels?
     #[endpoint(patch, route = "/channels/{#channel}", body = "modification", status = 200)]
     pub async fn modify_channel<S: ExtractSnowflake>(&self, channel: S, modification: ModifyChannel) -> Result<Channel, Error> {}
 
-    //TODO: Check if there are at least 2 channels
     #[endpoint(patch, route = "/guilds/{#guild}/channels", body = "moves", status = 204, empty)]
-    pub async fn move_channels<S: ExtractSnowflake>(&self, guild: S, moves: Vec<MoveChannel>) -> Result<(), Error> {}
+    pub async fn move_channels<S: ExtractSnowflake>(&self, guild: S, moves: Vec<MoveChannel>) -> Result<(), Error> {
+        if moves.len() < 2 {
+            return Error::http("Expected at least two channels");
+        }
+    }
 
     //TODO: delete channels recursively?
     #[endpoint(delete, route = "/channels/{#channel}", status = 200)]
@@ -202,9 +207,30 @@ impl HttpAPI {
         };
     }
 
-    //TODO: handle sending files
-    #[endpoint(post, route = "/channels/{#channel}/messages", body = "message", status = 200)]
-    pub async fn create_message<S: ExtractSnowflake>(&self, channel: S, message: CreateMessage) -> Result<Message, Error> {}
+    #[endpoint(post, route = "/channels/{#channel}/messages", multipart, body = "data", status = 200)]
+    pub async fn create_message<S: ExtractSnowflake>(&self, channel: S, mut message: CreateMessage) -> Result<Message, Error> {
+        let mut data = Vec::new();
+
+        write!(data, "--{}\r\n", FORMDATA_BOUNDARY)?;
+        write!(data, "Content-Disposition: form-data; name=\"payload_json\"\r\n")?;
+        write!(data, "Content-Type: application/json\r\n")?;
+        write!(data, "\r\n")?;
+        serde_json::to_writer(&mut data, &message)?;
+        write!(data, "\r\n")?;
+
+        if let Some(mut attachment) = message.attachment {
+            write!(data, "--{}\r\n", FORMDATA_BOUNDARY)?;
+            write!(data, "Content-Disposition: form-data; name=\"file\"; filename=\"{}\"\r\n", attachment.name)?;
+            write!(data, "Content-Type: {}\r\n", attachment.mime)?;
+            write!(data, "\r\n")?;
+            data.append(&mut attachment.content);
+            write!(data, "\r\n")?;
+
+            message.attachment = None;
+        }
+
+        write!(data, "--{}--\r\n", FORMDATA_BOUNDARY)?;
+    }
 
     #[endpoint(post, route = "/channels/{#channel}/messages/{#message}", body = "modification", status = 200)]
     pub async fn modify_message<S: ExtractSnowflake>(&self, channel: S, message: S, modification: ModifyMessage) -> Result<Message, Error> {}
@@ -296,9 +322,8 @@ impl HttpAPI {
     #[endpoint(put, route = "/channels/{#channel}/pins/{#message}", status = 204, empty)]
     pub async fn pin_message<S: ExtractSnowflake>(&self, channel: S, message: S) -> Result<(), Error> {}
 
-    //TODO: deletes the message or the pin?
     #[endpoint(delete, route = "/channels/{#channel}/pins/{#message}", status = 204, empty)]
-    pub async fn delete_pinned_message<S: ExtractSnowflake>(&self, channel: S, message: S) -> Result<(), Error> {}
+    pub async fn unpin_message<S: ExtractSnowflake>(&self, channel: S, message: S) -> Result<(), Error> {}
 
     /// Returns the current user.
     #[endpoint(get, route = "/users/@me", status = 200)]
