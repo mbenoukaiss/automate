@@ -267,14 +267,12 @@ impl StorageContainer {
     pub async fn on_guild_member_update(&mut self, event: &GuildMemberUpdateDispatch) {
         let mut guilds = self.write::<Guild>().await;
         if let Some(guild) = guilds.get_mut(event.guild_id) {
-            let member = guild.members
-                .get_mut(&event.user.id)
-                .unwrap();
-
-            member.user = event.user.clone();
-            member.nick = event.nick.clone();
-            member.roles = event.roles.clone();
-            member.premium_since = event.premium_since;
+            if let Some(member) = guild.members.get_mut(&event.user.id) {
+                member.user = event.user.clone();
+                member.nick = event.nick.clone();
+                member.roles = event.roles.clone();
+                member.premium_since = event.premium_since;
+            }
         }
     }
 
@@ -320,15 +318,13 @@ impl StorageContainer {
 
         let mut guilds = self.write::<Guild>().await;
         if let Some(guild) = guilds.get_mut(event.guild_id) {
-            let mut member = guild.members
-                .get_mut(&update.user.id)
-                .unwrap();
+            if let Some(member) = guild.members.get_mut(&update.user.id) {
+                member.roles = update.roles.clone();
+                member.premium_since = update.premium_since;
 
-            member.roles = update.roles.clone();
-            member.premium_since = update.premium_since;
-
-            if let Some(nick) = &update.nick {
-                member.nick = nick.clone();
+                if let Some(nick) = &update.nick {
+                    member.nick = nick.clone();
+                }
             }
         }
     }
@@ -346,8 +342,9 @@ impl StorageContainer {
             let mut guilds = self.write::<Guild>().await;
             for guild in in_guilds {
                 if let Some(guild) = guilds.get_mut(*guild) {
-                    let member = guild.members.get_mut(&user.id).unwrap();
-                    member.user = Clone::clone(&user);
+                    if let Some(member) = guild.members.get_mut(&user.id) {
+                        member.user = Clone::clone(&user);
+                    }
                 }
             }
         }

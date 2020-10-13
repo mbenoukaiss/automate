@@ -498,7 +498,7 @@ pub struct Configuration {
     listeners: ListenerContainer,
     #[cfg(feature = "storage")]
     storages: StorageContainer,
-    intents: Option<u32>,
+    intents: u32,
     member_threshold: Option<u32>,
     presence: Option<UpdateStatus>,
     guild_subscriptions: Option<bool>,
@@ -525,7 +525,7 @@ impl Configuration {
             listeners: ListenerContainer::default(),
             #[cfg(feature = "storage")]
             storages: StorageContainer::for_initialization(),
-            intents: None,
+            intents: Intent::all(),
             member_threshold: None,
             presence: None,
             guild_subscriptions: None,
@@ -651,7 +651,7 @@ impl Configuration {
     ///         .intents(GuildMembers as u32);
     /// ```
     pub fn intents(mut self, intents: u32) -> Self {
-        self.intents = Some(intents);
+        self.intents = intents;
         self
     }
 

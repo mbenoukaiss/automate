@@ -259,7 +259,7 @@ pub struct Identify {
     pub large_threshold: Option<u32>,
     pub presence: Option<UpdateStatus>,
     pub guild_subscriptions: Option<bool>,
-    pub intents: Option<u32>,
+    pub intents: u32,
 }
 
 #[payload(op = 3, client)]
@@ -400,6 +400,17 @@ pub enum Intent {
     DirectMessageTyping = 1 << 14,
 }
 
+impl Intent {
+    /// Return all intents except for the message
+    /// typing related ones. Default used by configuration.
+    pub fn all() -> u32 {
+        Intent::Guilds | Intent::GuildMembers | Intent::GuildBans | Intent::GuildEmojis |
+            Intent::GuildIntegrations | Intent::GuildWebhooks | Intent::GuildInvites |
+            Intent::GuildVoiceStates | Intent::GuildPresences | Intent::GuildMessages |
+            Intent::GuildMessageReactions | Intent::DirectMessages | Intent::DirectMessageReactions
+    }
+}
+
 impl BitOr for Intent {
     type Output = u32;
 
@@ -413,5 +424,13 @@ impl BitOr<u32> for Intent {
 
     fn bitor(self, rhs: u32) -> u32 {
         self as u32 | rhs
+    }
+}
+
+impl BitOr<Intent> for u32 {
+    type Output = u32;
+
+    fn bitor(self, rhs: Intent) -> u32 {
+        self | rhs as u32
     }
 }

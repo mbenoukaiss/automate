@@ -171,7 +171,7 @@ impl Args {
     }
 
     fn route(&self) -> TokenStream2 {
-        let mut quote = quote!(let mut route = String::from("https://discordapp.com/api/v6"););
+        let mut quote = quote!(let mut route = String::from("https://discordapp.com/api/v8"););
 
         for part in self.route.split(&['{', '}'][..]) {
             if part.starts_with('#') {
