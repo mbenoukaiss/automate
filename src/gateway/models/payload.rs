@@ -401,13 +401,27 @@ pub enum Intent {
 }
 
 impl Intent {
-    /// Return all intents except for the message
-    /// typing related ones. Default used by configuration.
+    /// Return all intents including `GuildPresence` and
+    /// `GuildMembers` which both require to be enabled in
+    /// your Discord settings or the bot will fail to
+    /// connect with error "Disallowed intent(s)".
     pub fn all() -> u32 {
         Intent::Guilds | Intent::GuildMembers | Intent::GuildBans | Intent::GuildEmojis |
             Intent::GuildIntegrations | Intent::GuildWebhooks | Intent::GuildInvites |
             Intent::GuildVoiceStates | Intent::GuildPresences | Intent::GuildMessages |
-            Intent::GuildMessageReactions | Intent::DirectMessages | Intent::DirectMessageReactions
+            Intent::GuildMessageReactions | Intent::GuildMessageTyping | Intent::DirectMessages |
+            Intent::DirectMessageReactions | Intent::DirectMessageTyping
+    }
+
+    /// Return all intents except for presence updates, guild
+    /// members and the message typing related ones.
+    ///
+    /// Default used by configuration.
+    pub fn default() -> u32 {
+        Intent::Guilds | Intent::GuildBans | Intent::GuildEmojis | Intent::GuildIntegrations |
+            Intent::GuildWebhooks | Intent::GuildInvites | Intent::GuildVoiceStates |
+            Intent::GuildMessages | Intent::GuildMessageReactions | Intent::DirectMessages |
+            Intent::DirectMessageReactions
     }
 }
 

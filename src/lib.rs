@@ -525,7 +525,7 @@ impl Configuration {
             listeners: ListenerContainer::default(),
             #[cfg(feature = "storage")]
             storages: StorageContainer::for_initialization(),
-            intents: Intent::all(),
+            intents: Intent::default(),
             member_threshold: None,
             presence: None,
             guild_subscriptions: None,
@@ -623,8 +623,10 @@ impl Configuration {
     /// specifying the events Discord should relay to the library.
     ///
     /// An [Intents](automate::Intent) concerns one or more
-    /// event. By default, intents are not specified thus the bot
-    /// is subscribed to all events.
+    /// event. By default, all intents are specified except
+    /// for `GuildPresence` and `GuildMembers` which both
+    /// require to be enabled in your Discord settings or the
+    /// bot will fail to connect with "Disallowed intent(s)".
     ///
     /// When specifying a single [], you must explicitly cast
     /// the intent to u32. When specifying multiple intents,
