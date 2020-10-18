@@ -680,6 +680,7 @@ impl Configuration {
     /// (presence and typing events).
     ///
     /// Defaults to true.
+    #[deprecated(since = "0.4.1", note = "Use gateway intents instead")]
     pub fn guild_subscriptions(mut self, enabled: bool) -> Self {
         self.guild_subscriptions = Some(enabled);
         self

@@ -75,6 +75,8 @@ pub enum MessageType {
     UserPremiumGuildSubscriptionTier2 = 10,
     UserPremiumGuildSubscriptionTier3 = 11,
     ChannelFollowAdd = 12,
+    GuildDiscoveryDisqualified = 14,
+    GuildDiscoveryRequalified = 15,
 }
 
 #[convert(u32)]

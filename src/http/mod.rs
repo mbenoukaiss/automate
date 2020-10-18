@@ -207,6 +207,21 @@ impl HttpAPI {
         };
     }
 
+    /// Post a message to a guild text or DM channel. If operating on
+    /// a guild channel, this endpoint requires the `SEND_MESSAGES`
+    /// permission to be present on the current user. If the tts field
+    /// is set to true, the `SEND_TTS_MESSAGES` permission is required
+    /// for the message to be spoken. See
+    /// [message formatting](https://discord.com/developers/docs/reference#message-formatting)
+    /// for more information on how to properly format messages and
+    /// use mentions.
+    ///
+    /// Discord may strip certain characters from message content,
+    /// like invalid unicode characters or characters which cause
+    /// unexpected message formatting. If you are passing user-generated
+    /// strings into message content, consider sanitizing the data to
+    /// prevent unexpected behavior and utilizing `allowed_mentions`
+    /// to prevent unexpected mentions.
     #[endpoint(post, route = "/channels/{#channel}/messages", multipart, body = "data", status = 200)]
     pub async fn create_message<S: ExtractSnowflake>(&self, channel: S, mut message: CreateMessage) -> Result<Message, Error> {
         let mut data = Vec::new();
