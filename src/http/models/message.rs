@@ -3,6 +3,13 @@ use crate::Snowflake;
 
 /// See [HttpApi::create_message](automate::HttpAPI::create_message)
 /// for documentation.
+///
+/// You may create a message as a reply to another message. To do so,
+/// include a [`message_reference`](#DOCS_RESOURCES_CHANNEL/message-object-message-reference-structure)
+/// with a `message_id`. This requires the `VIEW MESSAGE HISTORY`
+/// permission, and the referenced message must exist and cannot be
+/// a system message. The `channel_id` and `guild_id` in the
+/// `message_reference` are optional, but will be validated if provided.
 #[object(client, default)]
 pub struct CreateMessage {
     pub content: Option<String>,
@@ -11,7 +18,7 @@ pub struct CreateMessage {
     pub embed: Option<Embed>,
     pub allowed_mentions: Option<AllowedMentions>,
     pub message_reference: Option<Snowflake>,
-    pub attachment: Option<CreateAttachment>
+    pub attachment: Option<CreateAttachment>,
 }
 
 #[stringify(snake_case)]
@@ -32,6 +39,9 @@ pub struct AllowedMentions {
     pub roles: Vec<Snowflake>,
     /// An array of users that can be mentioned, maximum 100.
     pub users: Vec<Snowflake>,
+    /// For replies, whether to mention the author of the
+    /// message being replied to (default false)
+    pub replied_user: bool,
 }
 
 #[object(client, default)]

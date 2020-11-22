@@ -160,6 +160,9 @@ pub struct MessageCreateDispatch(pub Message);
 #[payload(op = 0, event = "MESSAGE_UPDATE", server)]
 pub struct MessageUpdateDispatch(pub PartialMessage);
 
+/// Sent when a message is deleted. If this message
+/// is a reply, it is **not** guaranteed to have a
+/// `referenced_message` field.
 #[payload(op = 0, event = "MESSAGE_DELETE", server)]
 pub struct MessageDeleteDispatch {
     pub id: Snowflake,

@@ -29,6 +29,10 @@ pub struct Message {
     pub application: Option<MessageApplication>,
     pub message_reference: Option<MessageReference>,
     pub flags: Option<u32>,
+    /// The message that was replied to. If not present, the backend
+    /// couldn't fetch the message. If null, the message was deleted.
+    #[option_nullable]
+    pub referenced_message: Option<Option<Message>>,
 }
 
 #[object(server)]
@@ -77,6 +81,7 @@ pub enum MessageType {
     ChannelFollowAdd = 12,
     GuildDiscoveryDisqualified = 14,
     GuildDiscoveryRequalified = 15,
+    InlineReply = 19,
 }
 
 #[convert(u32)]
