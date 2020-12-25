@@ -154,8 +154,10 @@ pub enum GuildFeature {
     AnimatedIcon,
     Banner,
     PublicDisabled,
-    WelcomeScreenEnabled,
     Community,
+    WelcomeScreenEnabled,
+    PreviewEnabled,
+    MemberVerificationGateEnabled,
 }
 
 #[convert(u8)]

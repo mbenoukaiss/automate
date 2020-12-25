@@ -33,7 +33,7 @@ pub struct Message {
     /// The message that was replied to. If not present, the backend
     /// couldn't fetch the message. If null, the message was deleted.
     #[option_nullable]
-    pub referenced_message: Option<Option<Message>>,
+    pub referenced_message: Option<Option<Box<Message>>>,
 }
 
 #[object(server)]
