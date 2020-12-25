@@ -29,6 +29,7 @@ pub struct Message {
     pub application: Option<MessageApplication>,
     pub message_reference: Option<MessageReference>,
     pub flags: Option<u32>,
+    pub stickers: Option<Vec<Sticker>>,
     /// The message that was replied to. If not present, the backend
     /// couldn't fetch the message. If null, the message was deleted.
     #[option_nullable]
@@ -221,4 +222,23 @@ pub struct MessageReference {
     pub channel_id: Snowflake,
     #[nullable]
     pub guild_id: Option<Snowflake>,
+}
+
+#[object(both)]
+pub struct Sticker {
+    pub id: Snowflake,
+    pub pack_id: Snowflake,
+    pub name: String,
+    pub description: String,
+    pub tags: Option<String>,
+    pub asset: String,
+    pub preview_asset: Option<String>,
+    pub format_type: StickerFormatType
+}
+
+#[convert(u8)]
+pub enum StickerFormatType {
+    PNG = 1,
+    APNG = 2,
+    LOTTIE = 3
 }
