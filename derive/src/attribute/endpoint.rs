@@ -42,7 +42,7 @@ fn generate_request(item: &ItemFn, args: Args, major_parameter: TokenStream2) ->
             let body = hyper::body::aggregate(response).await?;
 
             let mut body_string = String::new();
-            let mut reader = bytes::buf::ext::BufExt::reader(body);
+            let mut reader = bytes::buf::Buf::reader(body);
             std::io::Read::read_to_string(&mut reader, &mut body_string)?;
 
             log::trace!("Endpoint `{}` responded: {}", stringify!(#fn_name), body_string);
@@ -52,7 +52,7 @@ fn generate_request(item: &ItemFn, args: Args, major_parameter: TokenStream2) ->
     } else {
         quote! {{
             let body = ::hyper::body::aggregate(response).await?;
-            Ok(::serde_json::from_reader(::bytes::buf::ext::BufExt::reader(body))?)
+            Ok(::serde_json::from_reader(::bytes::buf::Buf::reader(body))?)
         }}
     };
 

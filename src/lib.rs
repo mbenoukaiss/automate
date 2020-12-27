@@ -747,12 +747,10 @@ impl Automate {
     /// Creates a tokio runtime and runs the
     /// given future inside.
     pub fn block_on<F: Future>(threading: Threading, future: F) -> F::Output {
-        let mut builder = Builder::new();
-
-        if threading == Threading::Multi {
-            builder.threaded_scheduler();
+        let mut builder = if threading == Threading::Multi {
+            Builder::new_multi_thread()
         } else {
-            builder.basic_scheduler();
+            Builder::new_current_thread()
         };
 
         let mut runtime = builder
