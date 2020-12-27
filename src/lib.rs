@@ -466,6 +466,12 @@ use crate::gateway::UpdateStatus;
 #[cfg(feature = "storage")]
 use crate::storage::StorageContainer;
 
+#[derive(PartialEq, Eq, Copy, Clone)]
+pub enum Threading {
+    Single,
+    Multi,
+}
+
 /// Allows specifying API token, registering
 /// stateful and stateless listeners, stating
 /// the shard id, intents and configuring logger.
@@ -490,6 +496,7 @@ use crate::storage::StorageContainer;
 /// ```
 #[derive(Clone)]
 pub struct Configuration {
+    threading: Threading,
     shard_id: Option<u32>,
     total_shards: Option<u32>,
     token: String,
@@ -502,7 +509,7 @@ pub struct Configuration {
     member_threshold: Option<u32>,
     presence: Option<UpdateStatus>,
     guild_subscriptions: Option<bool>,
-    collector_period: u64
+    collector_period: u64,
 }
 
 impl Configuration {
@@ -517,6 +524,7 @@ impl Configuration {
         default_levels.push((String::from("automate"), LevelFilter::Info));
 
         Configuration {
+            threading: Threading::Multi,
             shard_id: None,
             total_shards: None,
             token: token.into(),
@@ -529,7 +537,7 @@ impl Configuration {
             member_threshold: None,
             presence: None,
             guild_subscriptions: None,
-            collector_period: 3600
+            collector_period: 3600,
         }
     }
 
@@ -544,6 +552,12 @@ impl Configuration {
     /// a level higher or equal to `LevelFiler::Info`
     pub fn from_env<S: Into<String>>(env: S) -> Configuration {
         Configuration::new(env::var(&env.into()).expect("API token not found"))
+    }
+
+    /// Set the tokio scheduler to use
+    pub fn scheduler(&mut self, scheduler: Threading) -> &mut Self {
+        self.threading = scheduler;
+        self
     }
 
     /// Sets the shard id of this configuration and
@@ -722,7 +736,7 @@ impl Automate {
     /// Launches a basic bot with the given configuration
     /// and the amount of shards recommended by Discord.
     pub fn launch(config: Configuration) {
-        Automate::block_on(async move {
+        Automate::block_on(config.threading, async move {
             ShardManager::with_config(config).await
                 .unwrap()
                 .auto_setup()
@@ -732,9 +746,16 @@ impl Automate {
 
     /// Creates a tokio runtime and runs the
     /// given future inside.
-    pub fn block_on<F: Future>(future: F) -> F::Output {
-        let mut runtime = Builder::new()
-            .threaded_scheduler()
+    pub fn block_on<F: Future>(threading: Threading, future: F) -> F::Output {
+        let mut builder = Builder::new();
+
+        if threading == Threading::Multi {
+            builder.threaded_scheduler();
+        } else {
+            builder.basic_scheduler();
+        };
+
+        let mut runtime = builder
             .enable_all()
             .build()
             .unwrap();
