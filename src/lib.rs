@@ -555,7 +555,7 @@ impl Configuration {
     }
 
     /// Set the tokio threading mode to use
-    pub fn threading(&mut self, threading: Threading) -> &mut Self {
+    pub fn threading(mut self, threading: Threading) -> Self {
         self.threading = threading;
         self
     }
@@ -567,7 +567,7 @@ impl Configuration {
     /// or [Automate::launch](automate::Automate::launch) to
     /// launch the bot, you should not use this function
     /// since it is done automatically.
-    pub fn shard(&mut self, shard_id: u32, total_shards: u32) -> &mut Self {
+    pub fn shard(mut self, shard_id: u32, total_shards: u32) -> Self {
         self.shard_id = Some(shard_id);
         self.total_shards = Some(total_shards);
         self

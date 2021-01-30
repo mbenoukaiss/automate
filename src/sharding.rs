@@ -68,7 +68,7 @@ impl ShardManager {
 
             let url = self.gateway_url.clone();
             let mut config = self.config.clone();
-            config.shard(shard_id, self.total_shards);
+            config = config.shard(shard_id, self.total_shards);
 
             let handle = tokio::spawn(async move {
                 //there must be at least 5 seconds between each identify call
