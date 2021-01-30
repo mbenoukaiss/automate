@@ -100,7 +100,7 @@ impl Delayer {
             info!("Attempting to reconnect in {} seconds", delay);
         }
 
-        tokio::time::delay_for(Duration::from_millis(delay * 1000)).await
+        tokio::time::sleep(Duration::from_millis(delay * 1000)).await
     }
 
     /// Call this function when the previous connection
@@ -566,7 +566,7 @@ async fn heartbeat_task(
 ) {
     let rs: Result<(), SendError> = try {
         loop {
-            tokio::time::delay_for(Duration::from_millis(interval)).await;
+            tokio::time::sleep(Duration::from_millis(interval)).await;
 
             //if the channel was closed, it means the shard closed and dropped the receiver
             //therefore this heartbeat task is not needed anymore and a new one will be created
@@ -604,7 +604,7 @@ async fn heartbeat_task(
 
 async fn bucket_collector_task(interval: u64) {
     loop {
-        tokio::time::delay_for(Duration::from_millis(interval * 1000)).await;
+        tokio::time::sleep(Duration::from_millis(interval * 1000)).await;
         http::collect_outdated_buckets().await;
     }
 }

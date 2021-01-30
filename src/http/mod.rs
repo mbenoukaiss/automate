@@ -13,6 +13,7 @@ use hyper::Client;
 use hyper::client::HttpConnector;
 use hyper_tls::HttpsConnector;
 use std::io::Write;
+use native_tls::TlsConnector;
 
 const FORMDATA_BOUNDARY: &str = "--XREJRTlhIaFgKOHZvSG5BOGRqNGxVcWpCWEJhOWQKRllaTG10QWhLNld";
 
@@ -25,7 +26,15 @@ pub struct HttpAPI {
 
 impl HttpAPI {
     pub fn new(token: &str) -> HttpAPI {
-        let https = HttpsConnector::new();
+        let mut http = HttpConnector::new();
+        http.enforce_http(false);
+
+        let ssl = TlsConnector::builder()
+            .request_alpns(&["h2"])
+            .build()
+            .unwrap();
+
+        let https = HttpsConnector::from((http, ssl.into()));
 
         let mut bot_token = String::with_capacity(token.len() + 4);
         bot_token.push_str("Bot ");

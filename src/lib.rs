@@ -753,7 +753,7 @@ impl Automate {
             Builder::new_current_thread()
         };
 
-        let mut runtime = builder
+        let runtime = builder
             .enable_all()
             .build()
             .unwrap();

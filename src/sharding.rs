@@ -73,7 +73,7 @@ impl ShardManager {
             let handle = tokio::spawn(async move {
                 //there must be at least 5 seconds between each identify call
                 //so wait 5.5 seconds to make sure we don't hit rate limit
-                tokio::time::delay_for(Duration::from_millis(position as u64 * 5500)).await;
+                tokio::time::sleep(Duration::from_millis(position as u64 * 5500)).await;
 
                 automate::logger::setup_for_task(format!("shard-{}", shard_id),  async move {
                     GatewayAPI::connect(config, url).await

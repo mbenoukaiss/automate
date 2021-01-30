@@ -15,11 +15,12 @@ autoexamples = false
 automate-derive = { version = "0.4.0", path = "derive" }
 futures = "0.3"
 async-trait = "0.1"
-tokio = { version = "0.3", features = ["sync", "time", "rt", "rt-multi-thread"] }
+tokio = { version = "1.0", features = ["sync", "time", "rt", "rt-multi-thread"] }
 hyper = { version = "0.14", features = ["client", "http2", "tcp"] }
-hyper-tls = "0.4"
+hyper-tls = "0.5"
+native-tls = { version = "0.2", features = ["alpn"] }
 bytes = "1"
-tokio-tungstenite = { version = "0.12", features = ["tls"] }
+tokio-tungstenite = { version = "0.13", features = ["tls"] }
 chrono = { version = "0.4", features = ["serde"]}
 log = { version = "0.4", features = ["std"]}
 percent-encoding = "2.1.0"

@@ -305,7 +305,7 @@ mod channels {
 
 mod deserialize {
     use serde::{Deserialize, Deserializer};
-    use serde::private::de::{ContentDeserializer, TaggedContentVisitor};
+    use serde::__private::de::{ContentDeserializer, TaggedContentVisitor};
     use serde::de::{Visitor, Error, Unexpected};
     use std::fmt::{self, Formatter};
     use super::{Category, TextChannel, VoiceChannel, NewsChannel, StoreChannel, DirectChannel, GroupChannel};
@@ -355,7 +355,7 @@ mod deserialize {
         fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
             let tagged = Deserializer::deserialize_any(
                 deserializer,
-                TaggedContentVisitor::<ChannelTag>::new("type"),
+                TaggedContentVisitor::<ChannelTag>::new("type", "type"),
             )?;
 
             match tagged.tag {
@@ -395,7 +395,7 @@ mod deserialize {
         fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
             let tagged = Deserializer::deserialize_any(
                 deserializer,
-                TaggedContentVisitor::<ChannelTag>::new("type"),
+                TaggedContentVisitor::<ChannelTag>::new("type", "type"),
             )?;
 
             match tagged.tag {
@@ -428,7 +428,7 @@ mod deserialize {
         fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
             let tagged = Deserializer::deserialize_any(
                 deserializer,
-                TaggedContentVisitor::<ChannelTag>::new("type"),
+                TaggedContentVisitor::<ChannelTag>::new("type", "type"),
             )?;
 
             match tagged.tag {
