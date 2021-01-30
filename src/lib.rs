@@ -554,9 +554,9 @@ impl Configuration {
         Configuration::new(env::var(&env.into()).expect("API token not found"))
     }
 
-    /// Set the tokio scheduler to use
-    pub fn scheduler(&mut self, scheduler: Threading) -> &mut Self {
-        self.threading = scheduler;
+    /// Set the tokio threading mode to use
+    pub fn threading(&mut self, threading: Threading) -> &mut Self {
+        self.threading = threading;
         self
     }
 
