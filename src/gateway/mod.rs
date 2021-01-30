@@ -95,9 +95,9 @@ impl Delayer {
         };
 
         if let Some(sid) = session_id.as_ref() {
-            info!("Attempting to resume session {} in {} seconds", sid, delay);
+            trace!("Attempting to resume session {} in {} seconds", sid, delay);
         } else {
-            info!("Attempting to reconnect in {} seconds", delay);
+            trace!("Attempting to reconnect in {} seconds", delay);
         }
 
         tokio::time::sleep(Duration::from_millis(delay * 1000)).await
@@ -210,9 +210,9 @@ pub(crate) struct GatewayAPI<'a> {
     msg_sender: UnboundedSender<Instruction>,
     http: &'a HttpAPI,
     bot: Option<User>,
-
     sequence_number: Arc<Mutex<Option<i32>>>,
     heartbeat_confirmed: Arc<AtomicBool>,
+    initialized: bool,
 }
 
 impl<'a> GatewayAPI<'a> {
@@ -225,6 +225,7 @@ impl<'a> GatewayAPI<'a> {
         let http = HttpAPI::new(&config.token);
         let sequence_number = Arc::new(Mutex::new(None));
         let mut session_id = None;
+        let mut initialized = false;
 
         loop {
             let execution: Result<(), Error> = try {
@@ -241,6 +242,7 @@ impl<'a> GatewayAPI<'a> {
                     bot: None,
                     sequence_number: Arc::clone(&sequence_number),
                     heartbeat_confirmed: Arc::new(AtomicBool::new(true)),
+                    initialized,
                 };
 
                 let mut select = stream::select(
@@ -262,6 +264,7 @@ impl<'a> GatewayAPI<'a> {
                 select.get_mut().1.close();
 
                 session_id = gateway.session_id;
+                initialized = gateway.initialized;
             };
 
             // if there was an error, there's probably a problem with the bot and it should
@@ -369,7 +372,7 @@ impl<'a> GatewayAPI<'a> {
             MessageReactionRemoveDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageReactionRemoveDispatch> => self.on_reaction_remove),
             MessageReactionRemoveAllDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageReactionRemoveAllDispatch> => self.on_reaction_remove_all),
             MessageReactionRemoveEmojiDispatch::EVENT_NAME => call_dispatcher!(data as Payload<MessageReactionRemoveEmojiDispatch> => self.on_reaction_remove_emoji),
-            PresencesReplaceDispatch::EVENT_NAME => info!("Ignoring presence replace event"),
+            PresencesReplaceDispatch::EVENT_NAME => trace!("Ignoring presence replace event"),
             PresenceUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<PresenceUpdateDispatch> => self.on_presence_update),
             TypingStartDispatch::EVENT_NAME => call_dispatcher!(data as Payload<TypingStartDispatch> => self.on_typing_start),
             UserUpdateDispatch::EVENT_NAME => call_dispatcher!(data as Payload<UserUpdateDispatch> => self.on_user_update),
@@ -426,7 +429,7 @@ impl<'a> GatewayAPI<'a> {
             };
 
             self.send_command(resume, true).await?;
-            info!("Requested to resume session");
+            trace!("Requested to resume session");
         } else {
             let identify = Identify {
                 token: self.http.token().clone(),
@@ -465,14 +468,6 @@ impl<'a> GatewayAPI<'a> {
     }
 
     async fn on_ready(&mut self, payload: ReadyDispatch) -> Result<(), Error> {
-        let shard_id = self.config.shard_id.unwrap();
-        if shard_id == 0 && self.bot.is_none() {
-            let i = format!("https://discordapp.com/oauth2/authorize?client_id={}&scope=bot&permissions=8", payload.user.id);
-            info!("You can invite the bot in your guild using this link: {}", i);
-        }
-
-        info!("Established connection for shard {}", shard_id);
-
         self.bot = Some(payload.user.clone());
         self.session_id.replace(payload.session_id.clone());
 
@@ -486,6 +481,14 @@ impl<'a> GatewayAPI<'a> {
             http: &self.http,
             bot: &payload.user,
         };
+
+        let shard_id = self.config.shard_id.unwrap();
+        if shard_id == 0 && !self.initialized {
+            info!("You can invite the bot in your guild using this link: {}", context.invite_bot(8));
+            self.initialized = true;
+        }
+
+        trace!("Established connection for shard {}", shard_id);
 
         let stateless = self.config.listeners.ready.iter()
             .map(|l| (*l)(&context, &payload));
@@ -502,12 +505,12 @@ impl<'a> GatewayAPI<'a> {
     }
 
     async fn on_resumed(&mut self, _payload: ResumedDispatch) -> Result<(), Error> {
-        info!("Successfully resumed session");
+        trace!("Successfully resumed session");
         Ok(())
     }
 
     async fn on_reconnect(&mut self) -> Result<(), Error> {
-        info!("Received reconnect payload, disconnecting");
+        trace!("Received reconnect payload, disconnecting");
         self.disconnect().await?;
 
         Ok(())
