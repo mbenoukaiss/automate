@@ -54,7 +54,7 @@ impl StorageContainer {
         }
     }
 
-    pub fn add_initializer<F: Fn(&mut StorageContainer) + Send + Sync + 'static>(&mut self, initializer: F) {
+    pub(crate) fn add_initializer<F: Fn(&mut StorageContainer) + Send + Sync + 'static>(&mut self, initializer: F) {
         if !self.storages.is_empty() {
             panic!("Adding initializer to an already initialized storage");
         }
