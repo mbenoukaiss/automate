@@ -9,6 +9,7 @@ pub enum Channel {
     Voice(VoiceChannel),
     News(NewsChannel),
     Store(StoreChannel),
+    Stage(StageChannel),
     Direct(DirectChannel),
     Group(GroupChannel),
 }
@@ -20,6 +21,7 @@ pub enum GuildChannel {
     Voice(VoiceChannel),
     News(NewsChannel),
     Store(StoreChannel),
+    Stage(StageChannel),
 }
 
 #[derive(Debug, Clone)]
@@ -66,6 +68,8 @@ pub struct VoiceChannel {
     pub name: String,
     pub bitrate: i32,
     pub user_limit: i32,
+    #[serde(default)]
+    pub video_quality_mode: VideoQualityMode,
 }
 
 #[object(server)]
@@ -93,6 +97,19 @@ pub struct StoreChannel {
     pub position: i32,
     pub permission_overwrites: Vec<Overwrite>,
     pub name: String,
+}
+
+#[object(server)]
+pub struct StageChannel {
+    pub id: Snowflake,
+    pub guild_id: Option<Snowflake>,
+    #[nullable]
+    pub parent_id: Option<Snowflake>,
+    pub position: i32,
+    pub permission_overwrites: Option<Vec<Overwrite>>,
+    pub name: String,
+    pub bitrate: i32,
+    pub user_limit: i32,
 }
 
 #[object(server)]
@@ -174,6 +191,19 @@ pub enum ChannelType {
     GuildCategory = 4,
     GuildNews = 5,
     GuildStore = 6,
+    GuildStageVoice = 13,
+}
+
+#[convert(u8)]
+pub enum VideoQualityMode {
+    Auto = 1,
+    Full = 2
+}
+
+impl Default for VideoQualityMode {
+    fn default() -> Self {
+        VideoQualityMode::Auto
+    }
 }
 
 #[object(both)]
@@ -233,6 +263,7 @@ mod channels {
                 Channel::Voice(c) => c.id,
                 Channel::News(c) => c.id,
                 Channel::Store(c) => c.id,
+                Channel::Stage(c) => c.id,
                 Channel::Direct(c) => c.id,
                 Channel::Group(c) => c.id,
             }
@@ -247,6 +278,7 @@ mod channels {
                 GuildChannel::Voice(c) => c.id,
                 GuildChannel::News(c) => c.id,
                 GuildChannel::Store(c) => c.id,
+                GuildChannel::Stage(c) => c.id,
             }
         }
     }
@@ -268,6 +300,7 @@ mod channels {
                 GuildChannel::Voice(c) => Channel::Voice(Clone::clone(c)),
                 GuildChannel::News(c) => Channel::News(Clone::clone(c)),
                 GuildChannel::Store(c) => Channel::Store(Clone::clone(c)),
+                GuildChannel::Stage(c) => Channel::Stage(Clone::clone(c)),
             }
         }
 
@@ -308,7 +341,7 @@ mod deserialize {
     use serde::__private::de::{ContentDeserializer, TaggedContentVisitor};
     use serde::de::{Visitor, Error, Unexpected};
     use std::fmt::{self, Formatter};
-    use super::{Category, TextChannel, VoiceChannel, NewsChannel, StoreChannel, DirectChannel, GroupChannel};
+    use super::{Category, TextChannel, VoiceChannel, NewsChannel, StoreChannel, StageChannel, DirectChannel, GroupChannel};
     use super::{Channel, GuildChannel, PrivateChannel};
 
     enum ChannelTag {
@@ -317,6 +350,7 @@ mod deserialize {
         Voice,
         News,
         Store,
+        Stage,
         Direct,
         Group,
     }
@@ -339,6 +373,7 @@ mod deserialize {
                 4 => Ok(ChannelTag::Category),
                 5 => Ok(ChannelTag::News),
                 6 => Ok(ChannelTag::Store),
+                13 => Ok(ChannelTag::Stage),
                 _ => Err(Error::invalid_value(Unexpected::Unsigned(value), &"variant index 0 <= i < 7")),
             }
         }
@@ -379,6 +414,10 @@ mod deserialize {
                     StoreChannel::deserialize(ContentDeserializer::<D::Error>::new(tagged.content)),
                     Channel::Store,
                 ),
+                ChannelTag::Stage => Result::map(
+                    StageChannel::deserialize(ContentDeserializer::<D::Error>::new(tagged.content)),
+                    Channel::Stage,
+                ),
                 ChannelTag::Direct => Result::map(
                     DirectChannel::deserialize(ContentDeserializer::<D::Error>::new(tagged.content)),
                     Channel::Direct,
@@ -418,6 +457,10 @@ mod deserialize {
                 ChannelTag::Store => Result::map(
                     StoreChannel::deserialize(ContentDeserializer::<D::Error>::new(tagged.content)),
                     GuildChannel::Store,
+                ),
+                ChannelTag::Stage => Result::map(
+                    StageChannel::deserialize(ContentDeserializer::<D::Error>::new(tagged.content)),
+                    GuildChannel::Stage,
                 ),
                 _ => Err(Error::custom("disallowed type for guild channel"))
             }
